@@ -1,84 +1,64 @@
 <div class="library-settings dashboard-section hidden glass glass--frosted glass-card">
     <div class="narrow-container padding-20">
-        <h3>Library Settings</h3>
-        <p class="text-muted margin-b-20">Configure global defaults for your series.</p>
+        <h3>File Settings</h3>
+        <p class="text-muted margin-b-20">
+            The parent folder your writing is saved into. Each story is a folder inside it,
+            each chapter a folder inside the story, and each page a Markdown file.
+        </p>
 
-        <div id="series-settings-form-container" class="margin-t-20 glass glass--dark glass-card padding-30 border-dim">
-            <div class="form-group margin-b-20">
-                <label>Select Series to Configure</label>
-                <select id="settingsSeriesSelect" class="glass-select">
-                    <option value="">Select a Series</option>
-                </select>
+        <div class="margin-t-20 glass glass--dark glass-card padding-30 border-dim">
+            <div class="form-group">
+                <label for="storyRootPath">Parent folder</label>
+                <div class="flex-row gap-10 align-center">
+                    <!-- Read-only on purpose: the path has to exist and be writable on
+                         the server, so it is chosen through the browser, not typed. -->
+                    <input type="text" id="storyRootPath" class="glass-input flex-1" readonly
+                           placeholder="No folder chosen yet — nothing can be saved until you pick one">
+                    <button type="button" id="browseStoryRootBtn" class="glass glass-btn">Browse…</button>
+                </div>
+                <p id="storyRootStatus" class="font-size-07 text-muted margin-t-5"></p>
             </div>
-
-            <form id="library-settings-form" class="hidden">
-                <input type="hidden" id="settings-series-id">
-
-                <button type="submit" class="glass glass-btn glass-btn--primary width-100 margin-t-20">Save Library
-                    Settings</button>
-            </form>
         </div>
 
         <hr class="margin-y-40 border-dim">
 
         <h3>AI Settings</h3>
-        <p class="text-muted margin-b-20">Configure global Gemini AI integration.</p>
+        <p class="text-muted margin-b-20">
+            Gemini as a cloud critic. The local model is always available and never sends
+            your text anywhere; Gemini is the stronger read, at the cost of sending the
+            passage to Google. You choose per critique, in the editor.
+        </p>
 
         <div id="global-settings-form-container" class="glass glass--dark glass-card">
             <form id="global-settings-form">
                 <div class="form-group">
                     <label class="flex-row align-center gap-10">
-                        <input type="checkbox" id="global-vision-enabled">
-                        <span>Enable Gemini Vision AI</span>
+                        <input type="checkbox" id="global-critic-enabled">
+                        <span>Enable Gemini as a critic</span>
                     </label>
-                    <p class="font-size-07 text-muted margin-t-5">Automatic panel image description via Google Gemini
+                    <p class="font-size-07 text-muted margin-t-5">
+                        Adds “Cloud (Gemini)” to the engine list in the editor.
                     </p>
                 </div>
 
-                <div id="vision-settings-fields" class="margin-t-20 border-dim padding-20 border-radius-8">
+                <div id="critic-settings-fields" class="margin-t-20 border-dim padding-20 border-radius-8">
                     <div class="form-group">
-                        <label>Gemini API Key</label>
+                        <label for="global-api-key">Gemini API Key</label>
                         <div class="flex-row gap-10 align-center">
                             <input type="password" id="global-api-key" class="glass-input flex-1"
                                 placeholder="Paste your API key here">
-                            <a href="https://aistudio.google.com/app/apikey" target="_blank"
-                                class="small btn-browse text-center"
-                                style="text-decoration: none; display: inline-block; padding: 10px;">Get API Key</a>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener"
+                                class="glass glass-btn glass-btn--sm">Get API Key</a>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label>Gemini Model Version</label>
+                        <label for="global-model-name">Gemini Model</label>
                         <select id="global-model-name" class="glass-select width-100">
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast, Stable)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Detailed, Slower)</option>
-                            <option value="gemini-flash-latest">Gemini Flash Latest (2026 Standard)</option>
-                            <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image Preview (Advanced
-                                Vision)</option>
-                            <option value="gemini-3-pro-image-preview">Gemini 3.0 Pro Image Preview</option>
+                            <option value="gemini-flash-latest">Gemini Flash Latest (fast, current)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (slower, more considered)</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (older, stable)</option>
                         </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Vision System Prompt</label>
-                        <textarea id="global-system-prompt" class="glass-input width-100" rows="3"></textarea>
-                    </div>
-                    <div class="flex-row gap-15">
-                        <div class="form-group flex-1">
-                            <label>Max Tokens</label>
-                            <input type="number" id="global-max-tokens" class="glass-input width-100" value="100">
-                        </div>
-                        <div class="form-group flex-1">
-                            <label>Temperature</label>
-                            <input type="number" id="global-temperature" class="glass-input width-100" step="0.1"
-                                value="0.2">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="flex-row align-center gap-10">
-                            <input type="checkbox" id="global-auto-scan" checked>
-                            <span>Auto-Scan on Page Save</span>
-                        </label>
                     </div>
                 </div>
 
@@ -86,7 +66,41 @@
                     <button type="submit" class="glass glass-btn glass-btn--primary flex-2"
                         id="saveGlobalSettingsBtn">Save AI Settings</button>
                 </div>
+                <p id="globalSettingsStatus" class="font-size-07 text-muted margin-t-5"></p>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Folder browser. The one place the app looks outside the story root, because
+     you cannot pick the root by browsing inside it. Admin-only, server-side. -->
+<div id="folderBrowser" class="glass-modal-backdrop folder-browser" hidden>
+    <div class="glass-modal glass folder-browser__dialog" role="dialog" aria-modal="true"
+         aria-labelledby="folderBrowserTitle">
+        <h3 id="folderBrowserTitle" class="glass-card__title">Choose a parent folder</h3>
+
+        <div class="folder-browser__bar">
+            <button type="button" id="folderUpBtn" class="glass glass-btn glass-btn--sm">
+                <ion-icon name="arrow-up-outline"></ion-icon> Up
+            </button>
+            <code id="folderCurrentPath" class="folder-browser__path">This PC</code>
+        </div>
+
+        <ul id="folderList" class="folder-browser__list"></ul>
+
+        <p id="folderBrowserError" class="glass-field-error" hidden></p>
+
+        <div class="folder-browser__new">
+            <input type="text" id="folderNewName" class="glass-input flex-1"
+                   placeholder="New folder name" maxlength="120">
+            <button type="button" id="folderNewBtn" class="glass glass-btn glass-btn--sm">Create</button>
+        </div>
+
+        <div class="folder-browser__actions">
+            <button type="button" id="folderCancelBtn" class="glass glass-btn glass-btn--ghost">Cancel</button>
+            <button type="button" id="folderSelectBtn" class="glass glass-btn glass-btn--primary" disabled>
+                Save this folder
+            </button>
         </div>
     </div>
 </div>

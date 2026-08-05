@@ -1,14 +1,24 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const GlobalSettings = require("../../models/GlobalSettings");
 const { decrypt } = require("../../utils/encryption");
+const { getLens } = require("../critic/CriticLenses");
 
+/**
+ * GeminiCriticService — the cloud critic path.
+ *
+ * NOTE: this sends the manuscript to Google. It is deliberately not the
+ * default; CriticEngine defaults to the local path and this runs only when the
+ * writer explicitly picks "cloud". It buys a stronger model and a context
+ * window that swallows a whole chapter, at the cost of the text leaving the
+ * machine.
+ */
 class GeminiCriticService {
     async getClient() {
         let apiKey = process.env.GEMINI_API_KEY;
         try {
             const settings = await GlobalSettings.findOne({ key: "main" });
-            if (settings && settings.vision && settings.vision.apiKey) {
-                const decrypted = decrypt(settings.vision.apiKey);
+            if (settings && settings.critic && settings.critic.apiKey) {
+                const decrypted = decrypt(settings.critic.apiKey);
                 if (decrypted) apiKey = decrypted;
             }
         } catch (e) {
@@ -19,34 +29,49 @@ class GeminiCriticService {
         return new GoogleGenerativeAI(apiKey);
     }
 
-    async analyzeStory(script) {
+    get engineName() {
+        return 'cloud';
+    }
+
+    availability() {
+        return { ok: true };
+    }
+
+    /**
+     * @param {string} text  The prose to analyse.
+     * @param {object} opts  { lens }
+     * @returns {Promise<string>} Markdown critique.
+     */
+    async analyze(text, opts = {}) {
+        const lens = getLens(opts.lens);
+        const body = (text || '').trim();
+        if (!body) throw new Error('There is no text to critique.');
+
         try {
             const genAI = await this.getClient();
             const settings = await GlobalSettings.findOne({ key: "main" });
-            const targetModel = (settings?.vision?.modelName) || "gemini-flash-latest";
+            const targetModel = (settings?.critic?.modelName) || "gemini-flash-latest";
 
             const model = genAI.getGenerativeModel({ model: targetModel });
 
-            const systemPrompt = `You are the "Sequential Story Critic," a world-class narrative consultant specializing in comics.
-            
-            Your task is to analyze the provided Screenplay Script of a comic volume.
-            Provide a professional, constructive, and slightly "noir-hardened" critique.
-            
-            Focus on:
-            1. Pacing & Flow: Is the transition between pages and chapters effective?
-            2. Character Voice: Are the character voices distinct and consistent?
-            3. Thematic Consistency: Does the dialogue and action align with the stories setting?
-            4. Strengths: What works exceptionally well?
-            5. Blind Spots: Point out logic holes, info-dumps, or weak character motivations.
-            
-            Format your response in Markdown with clear sections. Be direct and avoid fluff.`;
+            const instructions =
+                `You are a working fiction editor reviewing a passage of prose.\n\n` +
+                `${lens.focus}\n\n` +
+                `Rules:\n` +
+                `- Quote the exact text you are commenting on, word for word. Never paraphrase a quote.\n` +
+                `- Be direct and specific. No filler, no encouragement padding.\n` +
+                `- Only report genuine problems. A strong passage legitimately has few.\n` +
+                `- Open with a short "What is working" section, then "Findings".\n` +
+                `- Format the response in Markdown.`;
 
-            const prompt = `${systemPrompt}\n\nHere is the volume script:\n\n${script}`;
+            const prompt = `${instructions}\n\nPASSAGE:\n\n${body}`;
 
-            console.log(`[GeminiCritic] Analyzing volume story with ${targetModel}...`);
+            console.log(`[GeminiCritic] Lens "${lens.id}": analysing with ${targetModel}...`);
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            return response.text();
+            const text = response.text();
+
+            return `# ${lens.label} — cloud (${targetModel})\n\n_${lens.blurb}_\n\n${text}`;
         } catch (err) {
             console.error(`[GeminiCritic] Analysis Error:`, err.message);
             throw err;

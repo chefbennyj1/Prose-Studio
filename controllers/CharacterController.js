@@ -2,9 +2,8 @@ const Character = require('../models/Character');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
-const GeminiVisionService = require('../services/gemini/GeminiVisionService');
 const CharacterService = require('../services/CharacterService');
-const { resolveSeriesPath } = require('../services/MediaService');
+const { resolveSeriesPath } = require('../services/HierarchyLookupService');
 
 async function handleCharacterFileUpload(req, subDir) {
     if (!req.file) return { error: 'No file uploaded', status: 400 };
@@ -30,57 +29,9 @@ async function handleCharacterFileUpload(req, subDir) {
 }
 
 class CharacterController {
-  async analyzeAvatar(req, res) {
-    const { id } = req.params;
-    try {
-        const character = await Character.findById(id);
-        if (!character || !character.image) {
-            return res.status(404).json({ ok: false, message: "Character or avatar not found" });
-        }
-
-        // Handle both old and new paths
-        let avatarPath;
-        if (character.image.startsWith('/api/images/')) {
-            // New path format: /api/images/[seriesId]/characters/[charId]/avatar/[file]
-            const parts = character.image.split('/');
-            const seriesId = parts[3];
-            const charId = parts[5];
-            const fileName = parts[7];
-            const seriesPath = await resolveSeriesPath(seriesId);
-            avatarPath = path.join(seriesPath, 'Characters', charId, 'avatar', fileName);
-        } else {
-            // Old path format: /views/public/images/characters/...
-            avatarPath = path.join(__dirname, '..', character.image);
-        }
-
-        if (!fs.existsSync(avatarPath)) {
-            return res.status(404).json({ ok: false, message: "Avatar file not found on disk" });
-        }
-
-        const prompt = `Provide a detailed physical description of this character for a "Seinen Noir" anime series. 
-        Focus on their facial features, hair, clothing, and any distinct accessories or cybernetics.
-        Return a JSON object with:
-        - description: A concise 2-3 sentence physical profile.
-        - alt: A brief accessibility summary.
-        - hashtags: An array of 3-5 personality/style hashtags.`;
-
-        console.log(`[CharacterLab] AI Analyzing avatar for: ${character.name}`);
-        const visionData = await GeminiVisionService.analyzeImage(avatarPath, prompt);
-
-        // Update the character with the new description
-        character.description = visionData.description || character.description;
-        await character.save();
-        
-        // Sync to FS
-        await CharacterService.syncCharactersToFS(character.series);
-
-        res.json({ ok: true, description: character.description, hashtags: visionData.hashtags });
-    } catch (err) {
-        console.error("[CharacterLab] AI Analysis Error:", err);
-        res.status(500).json({ ok: false, message: err.message });
-    }
-  }
-
+  // analyzeAvatar ran the avatar through Gemini vision to generate a physical
+  // description. That was art-derived character bible data; prose character
+  // sheets are written, not inferred from a picture.
   async getAll(req, res) {
     try {
       const characters = await CharacterService.getAllCharacters(req.query.series);

@@ -1,166 +1,139 @@
-export function init() {
-  console.log('Login page script initialized.');
+// Login page: sign in, or file an account request for an admin to approve.
+//
+// The request form used to carry its own inline <script> inside login.html.
+// It lives here now, so both forms share one modal and one error convention.
 
+export function init() {
+  const loginForm = document.getElementById('loginForm');
+  const requestForm = document.getElementById('requestForm');
+  const heading = document.getElementById('authHeading');
+  const altText = document.querySelector('[data-alt-text]');
   const signUpButton = document.querySelector('.sign--up');
   const signInButton = document.querySelector('.sign--in');
-  const loginFormContainer = document.querySelector('.login-form-container');
-  const registerFormContainer = document.querySelector('.register-form-container');
-  const backButton = document.querySelector('.back-btn'); // Get the back button
 
-  // const video = document.getElementById('bg-video-1');
-  // const fadeDuration = 0.5; // The duration of the fade in seconds
-
-  // video.addEventListener('timeupdate', () => {
-  //   if (video.duration - video.currentTime <= fadeDuration) {
-  //     video.classList.add('fade-out');
-  //     video.classList.remove('fade-in');
-  //   }
-  // });
-
-  // video.addEventListener('seeked', () => {
-  //   if (video.currentTime < fadeDuration) {
-  //     video.classList.remove('fade-out');
-  //     video.classList.add('fade-in');
-  //   }
-  // });
-
-
-  //Background image cross-fade logic
-  // const bgImages = [
-  //     "url('/views/auth/background.png')",
-  //     "url('/views/auth/background_2.png')",
-  //     "url('/views/auth/background_3.png')"
-  // ];
-  // let currentImageIndex = 0;
-  // const bgImg1 = document.getElementById('bg-img-1');
-  // const bgImg2 = document.getElementById('bg-img-2');
-  // let isBg1Active = true;
-
-  // // Initial setup
-  // bgImg1.style.backgroundImage = bgImages[currentImageIndex];
-  // bgImg1.style.opacity = 1;
-  // bgImg2.style.opacity = 0;
-
-  // setInterval(() => {
-  //     currentImageIndex = (currentImageIndex + 1) % bgImages.length;
-
-  //     if (isBg1Active) {
-  //         // Fade out bg1, fade in bg2
-  //         bgImg2.style.backgroundImage = bgImages[currentImageIndex];
-  //         bgImg1.style.opacity = 0;
-  //         bgImg2.style.opacity = 1;
-  //     } else {
-  //         // Fade out bg2, fade in bg1
-  //         bgImg1.style.backgroundImage = bgImages[currentImageIndex];
-  //         bgImg2.style.opacity = 0;
-  //         bgImg1.style.opacity = 1;
-  //     }
-
-  //     isBg1Active = !isBg1Active;
-
-  // }, 8000);
-
-
-  if (signUpButton && loginFormContainer && registerFormContainer) {
-    signUpButton.addEventListener('click', () => {
-      loginFormContainer.classList.remove('active');
-      loginFormContainer.classList.add('hidden');
-      registerFormContainer.classList.remove('hidden');
-      registerFormContainer.classList.add('active');
-
-      setTimeout(() => {
-        const firstRegisterInput = registerFormContainer.querySelector('#username');
-        if (firstRegisterInput) {
-          firstRegisterInput.focus();
-        }
-      }, 0);
-    });
-  }
-
-  if (signInButton && loginFormContainer && registerFormContainer) {
-    signInButton.addEventListener('click', () => {
-      registerFormContainer.classList.remove('active');
-      registerFormContainer.classList.add('hidden');
-      loginFormContainer.classList.remove('hidden');
-      loginFormContainer.classList.add('active');
-
-      setTimeout(() => {
-        const firstLoginInput = loginFormContainer.querySelector('#login__email');
-        if (firstLoginInput) {
-          firstLoginInput.focus();
-        }
-      }, 0);
-    });
-  }
-
-  // Add event listener for the back button
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      window.location.href = '/'; // Navigate to the landing page
-    });
-  }
-
-  // --- Modal Logic ---
+  // --- Error dialog ---
   const errorModal = document.getElementById('errorModal');
   const modalMessage = document.getElementById('modalMessage');
   const closeModalBtn = document.querySelector('.close-modal-btn');
 
   const showErrorModal = (message) => {
-    if (modalMessage) modalMessage.textContent = message;
-    if (errorModal) errorModal.classList.add('active');
+    modalMessage.textContent = message;
+    errorModal.hidden = false;
   };
 
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => {
-      if (errorModal) errorModal.classList.remove('active');
-    });
-  }
+  closeModalBtn.addEventListener('click', () => { errorModal.hidden = true; });
+  errorModal.addEventListener('click', (e) => {
+    if (e.target === errorModal) errorModal.hidden = true;
+  });
 
-  // --- Login Form Fetch handling ---
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const formData = new FormData(loginForm);
-      const data = Object.fromEntries(formData.entries());
+  // --- Form switching ---
+  const showForm = (which) => {
+    const signingIn = which === 'login';
 
-      // Session-expiry redirects arrive as /login?returnTo=<working page>;
-      // send it along so a successful login lands back there
-      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
-      if (returnTo) data.returnTo = returnTo;
+    loginForm.classList.toggle('is-active', signingIn);
+    requestForm.classList.toggle('is-active', !signingIn);
 
-      try {
-        const response = await fetch(loginForm.action, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
+    heading.textContent = signingIn ? 'Welcome back' : 'Request access';
+    altText.textContent = signingIn ? 'New here?' : 'Already have access?';
+    signUpButton.hidden = !signingIn;
+    signInButton.hidden = signingIn;
 
-        const result = await response.json();
+    const firstInput = (signingIn ? loginForm : requestForm).querySelector('input');
+    if (firstInput) firstInput.focus();
+  };
 
-        if (response.ok && result.redirect) {
-          window.location.href = result.redirect;
-        } else if (response.status === 429) {
-          // Rate limit hit!
-          showErrorModal(result.message || "Too many attempts. Locked out.");
-        } else {
-          // Other error (401 invalid creds, etc)
-          showErrorModal(result.message || "Login failed.");
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-        showErrorModal("An unexpected error occurred.");
+  signUpButton.addEventListener('click', () => showForm('request'));
+  signInButton.addEventListener('click', () => showForm('login'));
+
+  // --- Sign in ---
+  const loginSubmit = document.getElementById('loginSubmit');
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = Object.fromEntries(new FormData(loginForm).entries());
+
+    // Session-expiry redirects arrive as /login?returnTo=<working page>;
+    // send it along so a successful login lands back there
+    const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+    if (returnTo) data.returnTo = returnTo;
+
+    loginSubmit.disabled = true;
+
+    try {
+      const response = await fetch(loginForm.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.redirect) {
+        window.location.href = result.redirect;
+        return;
       }
-    });
-  }
 
-  // Initial state: login form visible, register form hidden if it's not already
-  if (!loginFormContainer.classList.contains('active') && !registerFormContainer.classList.contains('active')) {
-    loginFormContainer.classList.add('active');
-    registerFormContainer.classList.add('hidden');
-  }
+      showErrorModal(result.message || 'Login failed.');
+    } catch (err) {
+      console.error('Fetch error:', err);
+      showErrorModal('An unexpected error occurred.');
+    } finally {
+      loginSubmit.disabled = false;
+    }
+  });
+
+  // --- Request access ---
+  const requestSubmit = document.getElementById('requestSubmit');
+  const requestNote = document.getElementById('requestNote');
+  const requestErrorIds = ['req__username__err', 'req__email__err', 'req__password__err', 'req__confirm__err'];
+
+  requestForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    for (const id of requestErrorIds) {
+      const el = document.getElementById(id);
+      el.textContent = '';
+      el.hidden = true;
+    }
+
+    const payload = {
+      username: document.getElementById('req__username').value,
+      email: document.getElementById('req__email').value,
+      password: document.getElementById('req__password').value,
+      confirmPassword: document.getElementById('req__confirm').value
+    };
+
+    if (payload.password !== payload.confirmPassword) {
+      const el = document.getElementById('req__confirm__err');
+      el.textContent = 'Passwords do not match.';
+      el.hidden = false;
+      return;
+    }
+
+    requestSubmit.disabled = true;
+
+    try {
+      const res = await fetch('/accounts/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        requestForm.querySelectorAll('.auth-field, .auth-form__actions, .auth-form__lede')
+          .forEach(node => { node.hidden = true; });
+        requestNote.textContent = data.message;
+        requestNote.hidden = false;
+        return;
+      }
+
+      showErrorModal(data.message);
+    } catch (err) {
+      showErrorModal('Network error. Please try again.');
+    } finally {
+      requestSubmit.disabled = false;
+    }
+  });
 }

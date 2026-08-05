@@ -1,147 +1,108 @@
-<div class="section-container">
-  <div class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></div>
+<div class="scene" aria-hidden="true">
+  <div class="scene__blob scene__blob--1"></div>
+  <div class="scene__blob scene__blob--2"></div>
+  <div class="scene__blob scene__blob--3"></div>
+</div>
 
-  <div class="bg-container">
-      <div class="bg-img" id="bg-img-1"></div>
+<div class="auth-shell">
+  <div class="auth-panel glass glass-card">
+
+    <header class="auth-panel__head">
+      <p class="glass-card__label">Prose Engine</p>
+      <h1 class="glass-card__title" id="authHeading">Welcome back</h1>
+    </header>
+
+    <!-- Sign in -->
+    <form id="loginForm" class="auth-form is-active" action="/authentication/login" method="POST" novalidate>
+      <div class="auth-field">
+        <label class="auth-field__label" for="login__email">Email</label>
+        <div class="glass-input-wrap">
+          <input type="email" id="login__email" name="email" class="glass-input"
+                 autocomplete="username" required>
+        </div>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="login__password">Password</label>
+        <div class="glass-input-wrap">
+          <input type="password" id="login__password" name="password" class="glass-input"
+                 autocomplete="current-password" required>
+        </div>
+      </div>
+
+      <div class="auth-form__actions">
+        <button type="submit" id="loginSubmit" class="glass-btn glass-btn--primary glass-btn--lg">Sign in</button>
+      </div>
+    </form>
+
+    <!-- Request access -->
+    <form id="requestForm" class="auth-form" novalidate>
+      <p class="auth-form__lede">
+        Accounts are approved by an administrator. Send a request and you'll be
+        let in once it's reviewed.
+      </p>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="req__username">Full name</label>
+        <div class="glass-input-wrap">
+          <input type="text" id="req__username" name="username" class="glass-input"
+                 autocomplete="name" required maxlength="50">
+        </div>
+        <p class="glass-field-error" id="req__username__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="req__email">Email</label>
+        <div class="glass-input-wrap">
+          <input type="email" id="req__email" name="email" class="glass-input"
+                 autocomplete="email" required>
+        </div>
+        <p class="glass-field-error" id="req__email__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="req__password">Password</label>
+        <div class="glass-input-wrap">
+          <input type="password" id="req__password" name="password" class="glass-input"
+                 autocomplete="new-password" required minlength="8" maxlength="128">
+        </div>
+        <p class="glass-field-error" id="req__password__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="req__confirm">Confirm password</label>
+        <div class="glass-input-wrap">
+          <input type="password" id="req__confirm" name="confirmPassword" class="glass-input"
+                 autocomplete="new-password" required minlength="8" maxlength="128">
+        </div>
+        <p class="glass-field-error" id="req__confirm__err" hidden></p>
+      </div>
+
+      <div class="auth-form__actions">
+        <button type="submit" id="requestSubmit" class="glass-btn glass-btn--primary glass-btn--lg">
+          Send request
+        </button>
+      </div>
+
+      <p class="auth-form__note" id="requestNote" hidden></p>
+    </form>
+
+    <div class="auth-alt">
+      <p class="auth-alt__text" data-alt-text>New here?</p>
+      <button type="button" class="glass-btn glass-btn--ghost glass-btn--sm sign--up">Request access</button>
+      <button type="button" class="glass-btn glass-btn--ghost glass-btn--sm sign--in" hidden>Back to sign in</button>
+    </div>
+
   </div>
+</div>
 
-    <div class="login-form-container active">
-      <form id="loginForm" action="/authentication/login" method="POST" class="login-form">
-        <h2>Welcome back,</h2>
-        <div class="input-field">
-          <label for="login__email">Email</label>
-          <input type="email" id="login__email" name="email" required>
-        </div>
-
-        <div class="input-field">
-          <label for="login__password">Password</label>
-          <input type="password" id="login__password" name="password" required>
-        </div>
-
-        <div class="row center-align">
-          <button type="submit" class="login__btn">Login</button>
-        </div>
-        <div>
-          <h2>New here?</h2>
-          <p>Request access below.</p>
-          <button type="button" class="comic_btn sign--up">
-            <span>Request Access</span>
-          </button>
-        </div>
-      </form>
+<!-- Error dialog -->
+<div id="errorModal" class="glass-modal-backdrop auth-modal-backdrop" hidden>
+  <div class="glass-modal glass" role="alertdialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle" class="glass-card__title">Access denied</h3>
+    <p id="modalMessage" class="glass-card__body"></p>
+    <div class="auth-form__actions">
+      <button type="button" class="glass-btn glass-btn--ghost close-modal-btn">Understood</button>
     </div>
-
-    <div class="register-form-container">
-      <form id="requestForm" class="register-form" novalidate>
-        <h2>Request Access</h2>
-
-        <div class="input-field">
-          <label for="req__username">Full Name</label>
-          <input type="text" id="req__username" name="username" autocomplete="off" required maxlength="50">
-          <span class="error-message" id="req__username__err"></span>
-        </div>
-
-        <div class="input-field">
-          <label for="req__email">Email</label>
-          <input type="email" id="req__email" name="email" autocomplete="off" required>
-          <span class="error-message" id="req__email__err"></span>
-        </div>
-
-        <div class="input-field">
-          <label for="req__password">Password</label>
-          <input type="password" id="req__password" name="password" required minlength="8" maxlength="128">
-          <span class="error-message" id="req__password__err"></span>
-        </div>
-
-        <div class="input-field">
-          <label for="req__confirm">Confirm Password</label>
-          <input type="password" id="req__confirm" name="confirmPassword" required minlength="8" maxlength="128">
-          <span class="error-message" id="req__confirm__err"></span>
-        </div>
-
-        <div class="row center-align">
-          <button type="submit" id="requestSubmitBtn" class="register__btn">Request Account Verification</button>
-        </div>
-
-        <div id="requestSuccessMsg" style="display:none; text-align:center; padding: 1rem 0;">
-          <p id="requestSuccessText"></p>
-        </div>
-
-        <div class="login-swap">
-          <h2>Already have access?</h2>
-          <button type="button" class="comic_btn sign--in">
-            <span>Sign In</span>
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Error Modal -->
-    <div id="errorModal" class="modal">
-        <div class="modal-content">
-            <h3 id="modalTitle">Access Denied</h3>
-            <p id="modalMessage"></p>
-            <button type="button" class="btn close-modal-btn">Understood</button>
-        </div>
-    </div>
-
-    <script>
-      (function () {
-        const form = document.getElementById('requestForm');
-        if (!form) return;
-
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-
-          const username = document.getElementById('req__username').value;
-          const email    = document.getElementById('req__email').value;
-          const password = document.getElementById('req__password').value;
-          const confirm  = document.getElementById('req__confirm').value;
-
-          // Clear previous errors
-          ['req__username__err', 'req__email__err', 'req__password__err', 'req__confirm__err'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '';
-          });
-
-          const submitBtn = document.getElementById('requestSubmitBtn');
-          submitBtn.disabled = true;
-
-          try {
-            const res = await fetch('/accounts/request', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, email, password, confirmPassword: confirm })
-            });
-
-            const data = await res.json();
-
-            if (data.ok) {
-              form.style.display = 'none';
-              const msg = document.getElementById('requestSuccessMsg');
-              const txt = document.getElementById('requestSuccessText');
-              if (msg && txt) {
-                txt.textContent = data.message;
-                msg.style.display = 'block';
-              }
-            } else {
-              const modal = document.getElementById('errorModal');
-              const modalMsg = document.getElementById('modalMessage');
-              if (modal && modalMsg) {
-                modalMsg.textContent = data.message;
-                modal.style.display = 'flex';
-              }
-              submitBtn.disabled = false;
-            }
-          } catch (err) {
-            const modalMsg = document.getElementById('modalMessage');
-            if (modalMsg) modalMsg.textContent = 'Network error. Please try again.';
-            const modal = document.getElementById('errorModal');
-            if (modal) modal.style.display = 'flex';
-            submitBtn.disabled = false;
-          }
-        });
-      })();
-    </script>
-
+  </div>
 </div>

@@ -1,0 +1,61 @@
+    <div class="editor dashboard-section hidden glass glass--frosted glass-card">
+        <div class="editor__bar">
+            <div class="flex-row-center gap-15">
+                <h3 class="margin-0">Editor</h3>
+                <!-- Not a control. Choosing what to open lives in the studio
+                     rail's Story and Chapter menus; this only says what is
+                     open, which is the one thing removing the pickers would
+                     otherwise have left nowhere to read. -->
+                <span id="editorWhere" class="editor__where">nothing open</span>
+            </div>
+
+            <div class="flex-row-center gap-15">
+                <span id="editorPageCount" class="editor__count" title="Standard manuscript pages, 250 words each">0 pages</span>
+                <span id="editorWordCount" class="editor__count">0 words</span>
+                <span id="editorSaveState" class="editor__state">saved</span>
+                <button id="editorSaveBtn" class="glass glass-btn glass-btn--primary">Save</button>
+            </div>
+        </div>
+
+        <div class="editor__body">
+            <!--
+                CodeMirror is created here by Surface.js, which also owns the
+                line numbers and the attributes that used to sit on the old
+                textarea: spellcheck stays on (the browser's checker is local,
+                instant and free), while autocorrect and autocapitalize stay
+                off because they mangle dialect, deliberate fragments and
+                invented names - all load-bearing in fiction. lang picks the
+                dictionary and is the same attribute `hyphens: auto` needs at
+                export time.
+            -->
+            <div id="editorSurface" class="editor__page"></div>
+
+            <aside id="editorPanel" class="editor__panel">
+                <!-- Reading back is a transport control, not an analysis tool,
+                     so it sits above the critic's row rather than beside it. -->
+                <div class="editor__narrator">
+                    <select id="editorVoiceSelect" class="glass-select" title="Narrator voice">
+                        <option value="af_bella">Bella</option>
+                        <option value="am_michael">Michael</option>
+                    </select>
+                    <button id="editorReadBtn" class="glass glass-btn">Read aloud</button>
+                </div>
+                <div id="narratorStatus" class="narrator__status"></div>
+
+                <div class="editor__panel-head">
+                    <select id="editorLensSelect" class="glass-select" title="What the critic looks for"></select>
+                    <select id="editorEngineSelect" class="glass-select" title="Which model answers"></select>
+                </div>
+                <div class="editor__panel-actions">
+                    <button id="editorSpellBtn" class="glass glass-btn">Spelling</button>
+                    <button id="editorScanBtn" class="glass glass-btn">Scan page</button>
+                    <button id="editorCritiqueBtn" class="glass glass-btn">Critique</button>
+                </div>
+                <div id="editorOutput" class="editor__output">
+                    <p class="text-muted italic">Spelling is instant. A page scan and a critique both run the local model, so give them a minute.</p>
+                </div>
+            </aside>
+        </div>
+
+    </div>
+

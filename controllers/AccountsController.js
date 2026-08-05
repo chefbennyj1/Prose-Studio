@@ -3,26 +3,8 @@ const mongoose = require('mongoose');
 const AccountRequest = require('../models/AccountRequest.js');
 const UserModel = require('../models/User.js');
 
-// --- Validation helpers ---
-
-const USERNAME_RE = /^[a-zA-Z0-9 _-]{3,50}$/;
-const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateRequestBody({ username, email, password, confirmPassword }) {
-    if (!username || !USERNAME_RE.test(username.trim())) {
-        return 'Username must be 3–50 characters (letters, numbers, spaces, hyphens, underscores).';
-    }
-    if (!email || !EMAIL_RE.test(email.trim())) {
-        return 'A valid email address is required.';
-    }
-    if (!password || password.length < 8 || password.length > 128) {
-        return 'Password must be 8–128 characters.';
-    }
-    if (confirmPassword !== undefined && password !== confirmPassword) {
-        return 'Passwords do not match.';
-    }
-    return null;
-}
+// Shared with the first-run wizard, which creates the admin these routes can't.
+const { validateAccountFields: validateRequestBody, normaliseEmail } = require('../utils/accountValidation.js');
 
 // --- POST /accounts/request (public) ---
 exports.requestAccount = async (req, res) => {
@@ -31,7 +13,7 @@ exports.requestAccount = async (req, res) => {
     const error = validateRequestBody({ username, email, password, confirmPassword });
     if (error) return res.status(400).json({ ok: false, message: error });
 
-    const clean = { username: username.trim(), email: email.trim().toLowerCase() };
+    const clean = { username: username.trim(), email: normaliseEmail(email) };
 
     try {
         const existingUser = await UserModel.findOne({ email: clean.email });
@@ -90,7 +72,7 @@ exports.createAccount = async (req, res) => {
 
     const allowedRoles = ['basic', 'moderator', 'admin'];
     const assignedRole = allowedRoles.includes(role) ? role : 'basic';
-    const clean = { username: username.trim(), email: email.trim().toLowerCase() };
+    const clean = { username: username.trim(), email: normaliseEmail(email) };
 
     try {
         const existing = await UserModel.findOne({ email: clean.email });

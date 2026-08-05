@@ -1,12 +1,11 @@
 const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose");
-const { resolveSeriesPath } = require("../services/MediaService");
+const { resolveSeriesPath } = require("../services/HierarchyLookupService");
 const { getSeriesFolderName, findVolumeId } = require('../services/HierarchyLookupService');
 const Volume = require("../models/Volume");
 const Series = require("../models/Series");
 const VolumeService = require("../services/VolumeService");
-const LayoutService = require("../services/LayoutService");
 
 async function savePageDataAndSync(pageData, pageJsonPath, volume, chapter, pageId, seriesFolderName) {
     if (!pageData.header) pageData.header = {};
@@ -30,106 +29,10 @@ async function getPagePaths(series, volume, chapter, pageId) {
     return { seriesFolderName, seriesPath, pageDir, pageJsonPath };
 }
 
-exports.saveMedia = async (req, res) => {
-  const { series, volume, chapter, pageId } = req.params;
-  const { media } = req.body;
-
-  if (!Array.isArray(media)) {
-    return res.status(400).json({ ok: false, message: "Invalid media format" });
-  }
-
-  try {
-    const { seriesFolderName, pageJsonPath } = await getPagePaths(series, volume, chapter, pageId);
-
-    if (!fs.existsSync(pageJsonPath)) {
-      return res.status(404).json({ ok: false, message: "Page not found" });
-    }
-
-    const pageData = JSON.parse(fs.readFileSync(pageJsonPath, "utf8"));
-    const oldMedia = pageData.media || [];
-    
-    // Overwrite media and check for changes
-    pageData.media = media;
-
-    await savePageDataAndSync(pageData, pageJsonPath, volume, chapter, pageId, seriesFolderName);
-
-    // --- AUTO-SCAN DISABLED ---
-    // AI descriptions should only be triggered manually via the 'Analyze' button
-    // to prevent server overload during active editing sessions.
-
-    res.json({ ok: true, message: 'Media saved' });
-    } catch (e) {
-    console.error("saveMedia Error:", e);
-    res.status(500).json({ ok: false, message: e.message });
-    }
-    };
-
-exports.getMedia = async (req, res) => {
-  const { series, volume, chapter, pageId } = req.params;
-  try {
-    const { pageDir, pageJsonPath } = await getPagePaths(series, volume, chapter, pageId);
-
-    if (fs.existsSync(pageJsonPath)) {
-      const pageData = JSON.parse(fs.readFileSync(pageJsonPath, "utf8"));
-      res.json({
-        ok: true,
-        media: pageData.media || [],
-        header: pageData.header || {},
-        isSpread: LayoutService.resolveIsSpread(pageDir, pageId, pageData.header)
-      });
-    } else {
-      res.json({ ok: true, media: [], header: {}, isSpread: false });
-    }
-  } catch (e) {
-    res.status(500).json({ ok: false, message: "Failed to parse page data" });
-  }
-};
-
-exports.getScene = async (req, res) => {
-  const { series, volume, chapter, pageId } = req.params;
-  try {
-    const { pageJsonPath } = await getPagePaths(series, volume, chapter, pageId);
-
-    if (fs.existsSync(pageJsonPath)) {
-      const pageData = JSON.parse(fs.readFileSync(pageJsonPath, "utf8"));
-      res.json({ ok: true, scene: pageData.scene || [] });
-    } else {
-      res.json({ ok: true, scene: [] });
-    }
-  } catch (e) {
-    res.status(500).json({ ok: false, message: "Failed to parse page data" });
-  }
-};
-
-exports.saveScene = async (req, res) => {
-  const { series, volume, chapter, pageId } = req.params;
-  const { v4: uuidv4 } = require("uuid");
-  let sceneData = req.body;
-  if (!Array.isArray(sceneData)) return res.status(400).json({ ok: false, message: "Invalid data format" });
-
-  try {
-    const { seriesFolderName, pageDir, pageJsonPath } = await getPagePaths(series, volume, chapter, pageId);
-
-    if (!fs.existsSync(pageDir)) return res.status(404).json({ ok: false, message: "Page directory not found" });
-
-    const seenIds = new Set();
-    sceneData.forEach((item) => {
-      if (!item.id || seenIds.has(item.id)) item.id = uuidv4();
-      seenIds.add(item.id);
-    });
-    sceneData.forEach((item, index) => item.displayOrder = index);
-    sceneData.sort((a, b) => a.displayOrder - b.displayOrder);
-
-    let pageData = { header: {}, media: [], scene: [] };
-    if (fs.existsSync(pageJsonPath)) pageData = JSON.parse(fs.readFileSync(pageJsonPath, 'utf8'));
-
-    pageData.scene = sceneData;
-    await savePageDataAndSync(pageData, pageJsonPath, volume, chapter, pageId, seriesFolderName);
-    res.json({ ok: true, message: "Scene saved successfully.", scene: pageData.scene });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
+// saveMedia / getMedia / getScene / saveScene lived here to serve the comic
+// editor: panel image mappings and dialogue-balloon cues. Both concepts went
+// with the panel pipeline, and their routes are gone. What survives is page
+// structure sync and the plot board, which are about story, not artwork.
 
 exports.syncPage = async (req, res) => {
   const { series, volumeId, chapter, pageId } = req.params;

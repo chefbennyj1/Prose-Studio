@@ -1,0 +1,117 @@
+<div class="scene" aria-hidden="true">
+  <div class="scene__blob scene__blob--1"></div>
+  <div class="scene__blob scene__blob--2"></div>
+  <div class="scene__blob scene__blob--3"></div>
+</div>
+
+<div class="auth-shell">
+  <div class="auth-panel glass glass-card">
+
+    <header class="auth-panel__head">
+      <p class="glass-card__label">First run</p>
+      <h1 class="glass-card__title">Set up the Prose Engine</h1>
+    </header>
+
+    <nav class="glass-stepper setup-stepper" aria-label="Setup progress">
+      <div class="glass-step is-active" data-step-indicator="database">
+        <span class="glass-step__node">1</span>
+        <span class="glass-step__label">Database</span>
+        <span class="glass-step__connector"></span>
+      </div>
+      <div class="glass-step" data-step-indicator="admin">
+        <span class="glass-step__node">2</span>
+        <span class="glass-step__label">Admin account</span>
+      </div>
+    </nav>
+
+    <!-- Step 1: database -->
+    <form id="databaseForm" class="auth-form setup-step is-active" data-step="database" novalidate>
+      <p class="auth-form__lede">
+        The engine needs its own MongoDB database. Give it a connection string —
+        the database will be created if it doesn't exist yet.
+      </p>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="setup__uri">Connection string</label>
+        <div class="glass-input-wrap">
+          <input type="text" id="setup__uri" name="uri" class="glass-input"
+                 placeholder="mongodb://localhost:27017/ProseEngine"
+                 autocomplete="off" spellcheck="false" required>
+        </div>
+        <p class="glass-field-error setup-error" id="setup__uri__err" hidden></p>
+      </div>
+
+      <div class="auth-form__actions">
+        <button type="submit" id="databaseSubmit" class="glass-btn glass-btn--primary glass-btn--lg">
+          Test &amp; create database
+        </button>
+      </div>
+
+      <p class="auth-form__note setup-note" id="databaseNote" hidden></p>
+    </form>
+
+    <!-- Step 2: first admin -->
+    <form id="adminForm" class="auth-form setup-step" data-step="admin" novalidate>
+      <p class="auth-form__lede">
+        This account is the administrator. Everyone else is created from the
+        dashboard once you're in.
+      </p>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="setup__username">Name</label>
+        <div class="glass-input-wrap">
+          <input type="text" id="setup__username" name="username" class="glass-input"
+                 autocomplete="name" required maxlength="50">
+        </div>
+        <p class="glass-field-error setup-error" id="setup__username__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="setup__email">Email</label>
+        <div class="glass-input-wrap">
+          <input type="email" id="setup__email" name="email" class="glass-input"
+                 autocomplete="username" required>
+        </div>
+        <p class="glass-field-error setup-error" id="setup__email__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="setup__password">Password</label>
+        <div class="glass-input-wrap">
+          <input type="password" id="setup__password" name="password" class="glass-input"
+                 autocomplete="new-password" required minlength="8" maxlength="128">
+        </div>
+        <p class="glass-field-error setup-error" id="setup__password__err" hidden></p>
+      </div>
+
+      <div class="auth-field">
+        <label class="auth-field__label" for="setup__confirm">Confirm password</label>
+        <div class="glass-input-wrap">
+          <input type="password" id="setup__confirm" name="confirmPassword" class="glass-input"
+                 autocomplete="new-password" required minlength="8" maxlength="128">
+        </div>
+        <p class="glass-field-error setup-error" id="setup__confirm__err" hidden></p>
+      </div>
+
+      <div class="auth-form__actions">
+        <button type="submit" id="adminSubmit" class="glass-btn glass-btn--primary glass-btn--lg">
+          Create admin &amp; finish
+        </button>
+      </div>
+
+      <p class="auth-form__note setup-note" id="adminNote" hidden></p>
+    </form>
+
+  </div>
+</div>
+
+<!-- Error dialog -->
+<div id="setupModalBackdrop" class="glass-modal-backdrop setup-modal-backdrop" hidden>
+  <div class="glass-modal glass" role="alertdialog" aria-modal="true" aria-labelledby="setupModalTitle">
+    <h3 id="setupModalTitle" class="glass-card__title">Setup problem</h3>
+    <p id="setupModalMessage" class="glass-card__body"></p>
+    <div class="auth-form__actions">
+      <button type="button" id="setupModalClose" class="glass-btn glass-btn--ghost">Close</button>
+    </div>
+  </div>
+</div>

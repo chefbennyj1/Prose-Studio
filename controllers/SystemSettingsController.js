@@ -11,10 +11,10 @@ exports.getGlobalSettings = async (req, res) => {
 
         // Mask the API key for the response
         const settingsObj = settings.toObject();
-        if (settingsObj.vision && settingsObj.vision.apiKey) {
-            const decrypted = decrypt(settingsObj.vision.apiKey);
+        if (settingsObj.critic && settingsObj.critic.apiKey) {
+            const decrypted = decrypt(settingsObj.critic.apiKey);
             if (decrypted) {
-                settingsObj.vision.apiKey = decrypted.substring(0, 4) + "****" + decrypted.substring(decrypted.length - 4);
+                settingsObj.critic.apiKey = decrypted.substring(0, 4) + "****" + decrypted.substring(decrypted.length - 4);
             }
         }
 
@@ -28,11 +28,11 @@ exports.updateGlobalSettings = async (req, res) => {
     const { settings } = req.body;
     try {
         // If an API key is provided and it's NOT the masked version, encrypt it
-        if (settings.vision && settings.vision.apiKey && !settings.vision.apiKey.includes('****')) {
-            settings.vision.apiKey = encrypt(settings.vision.apiKey);
-        } else if (settings.vision && settings.vision.apiKey && settings.vision.apiKey.includes('****')) {
+        if (settings.critic && settings.critic.apiKey && !settings.critic.apiKey.includes('****')) {
+            settings.critic.apiKey = encrypt(settings.critic.apiKey);
+        } else if (settings.critic && settings.critic.apiKey && settings.critic.apiKey.includes('****')) {
             // It's the masked version, don't update the field
-            delete settings.vision.apiKey;
+            delete settings.critic.apiKey;
         }
 
         const updated = await GlobalSettings.findOneAndUpdate(

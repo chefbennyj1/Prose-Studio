@@ -1,0 +1,134 @@
+/* views/dashboard/components/RailMenu/RailMenu.css */
+
+/*
+   These menus borrow the dropdown's LOOK but not its behaviour, and
+   deliberately do not carry the .glass-dropdown class.
+
+   GlassDropdown.init() binds on DOMContentLoaded, and the rail arrives later
+   than that - dashboard.html is injected by loadSection and glass_component.js
+   is appended dynamically - so the kit would never have bound these anyway.
+   Owning the open state here means it works regardless of load order, and it
+   cannot end up double-bound (two toggles per click cancel each other out).
+*/
+.rail-menu {
+    position: relative;
+}
+
+/*
+   The rail runs down the side, so its menus open sideways rather than below.
+   overflow returns to visible because the base .glass-dropdown-menu hides it,
+   which would clip the flyout at the menu's own edge.
+*/
+.rail-menu > .glass-dropdown-menu {
+    top: 0;
+    left: calc(100% + 8px);
+    overflow: visible;
+    min-width: 180px;
+    /* Stated here rather than inherited from the kit's own closed state: a
+       menu that defaults to visible if one stylesheet fails to load is a
+       menu permanently stuck open over the rail. */
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rail-menu.is-open > .glass-dropdown-menu {
+    opacity: 1;
+    pointer-events: all;
+    transform: none;
+}
+
+.rail-menu__submenu {
+    position: relative;
+}
+
+/*
+   Matches .glass-dropdown-item's shape without carrying its class, because
+   GlassDropdown binds every element with that class to close the menu - which
+   is right for "Create New" and fatal for a submenu parent.
+*/
+.rail-menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-fast);
+}
+
+.rail-menu__item:hover {
+    background: var(--glass-white-md);
+}
+
+.rail-menu__item--parent {
+    justify-content: space-between;
+}
+
+.rail-menu__chevron {
+    opacity: 0.55;
+    font-size: 1.1em;
+    line-height: 1;
+}
+
+.rail-menu__flyout {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    min-width: 240px;
+    /* A long-running series can hold a lot of chapters; the list scrolls
+       rather than running off the bottom of the window. */
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: var(--space-2xs);
+    border-radius: var(--radius-lg);
+    z-index: var(--z-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-6px);
+    transition: opacity var(--dur-fast) var(--ease-smooth),
+        transform var(--dur-fast) var(--ease-liquid);
+}
+
+.rail-menu.is-flyout-open .rail-menu__flyout {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+}
+
+.rail-menu__entry {
+    justify-content: space-between;
+    gap: var(--space-md);
+}
+
+/* The one currently open, so the list says where you are as well as where
+   you could go. */
+.rail-menu__entry.is-active {
+    background: rgba(94, 231, 223, 0.18);
+    color: var(--accent-aqua);
+}
+
+.rail-menu__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rail-menu__count {
+    flex-shrink: 0;
+    font-size: 0.78em;
+    opacity: 0.55;
+}
+
+.rail-menu__note {
+    margin: 0;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #999);
+}

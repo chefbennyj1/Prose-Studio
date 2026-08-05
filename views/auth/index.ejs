@@ -1,5 +1,5 @@
-<%- include('../shared/main', { 
-    title: 'Login', 
+<%- include('../shared/main', {
+    title: 'Login',
     bodyClass: 'login-page-shell',
     body: `
         <main id="main-content">
@@ -9,13 +9,18 @@
     extraScripts: `
         <script type="module">
             import { loadSection } from "/services/public/PageManager.js";
-            import { loadCSS, loadScript } from "/libs/Utility.js";
+            import { loadCSS } from "/libs/Utility.js";
             import { init as initLoginPage } from "/views/auth/login.js";
 
             (async () => {
-                await loadSection('login', '/views/auth/login.html', false);
-                await loadCSS('/views/reader/ui-kit/buttons.css');
-                await loadCSS('/views/auth/login.css');
+                // Same theme the studio opens on, so login and the dashboard
+                // are visibly the same application.
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('glass-theme', 'light');
+
+                await loadCSS('/views/dashboard/ui-kit/glass-system/glass_components.css');
+                await loadCSS('/views/shared/styles/auth-glass.css');
+                await loadSection('login', '/views/auth/login.html');
                 initLoginPage();
             })();
         </script>

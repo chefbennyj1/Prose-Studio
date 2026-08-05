@@ -1,0 +1,28 @@
+<%- include('../shared/main', {
+    title: 'Prose Engine — Setup',
+    bodyClass: 'setup-page-shell',
+    body: `
+        <main id="main-content">
+            <section id="setup" class="active"></section>
+        </main>
+    `,
+    extraScripts: `
+        <script type="module">
+            import { loadSection } from "/services/public/PageManager.js";
+            import { loadCSS } from "/libs/Utility.js";
+            import { init as initSetup } from "/views/setup/setup.js";
+
+            (async () => {
+                // Same theme the studio opens on, so setup and the dashboard
+                // are visibly the same application.
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('glass-theme', 'light');
+
+                await loadCSS('/views/dashboard/ui-kit/glass-system/glass_components.css');
+                await loadCSS('/views/shared/styles/auth-glass.css');
+                await loadSection('setup', '/views/setup/setup.html');
+                initSetup();
+            })();
+        </script>
+    `
+}) %>

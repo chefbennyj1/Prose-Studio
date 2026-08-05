@@ -1,0 +1,85 @@
+/* views/dashboard/components/Narrator/Narrator.css */
+
+.editor__narrator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+}
+
+.editor__narrator .glass-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.editor__narrator .glass-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Reads "Read aloud" at rest and "Stop" while speaking, so the control never
+   claims to do something it is not about to do. */
+.editor__narrator .glass-btn--speaking {
+    background: var(--accent, #00ccff);
+    color: #06121a;
+}
+
+.narrator__status {
+    font-size: 0.8rem;
+    color: var(--text-muted, #777);
+    min-height: 1.2em;
+    line-height: 1.4;
+}
+
+/*
+   Something is happening and it is not stuck. Between pressing Read aloud and
+   the first word there is real work going on - the model waking, then the
+   first chunks synthesising - and a line of static text through all of it
+   reads as a hang.
+*/
+.narrator__dots {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.narrator__dots i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.25;
+    animation: narrator-dot 1.2s ease-in-out infinite;
+}
+
+.narrator__dots i:nth-child(2) { animation-delay: 0.2s; }
+.narrator__dots i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes narrator-dot {
+    0%, 60%, 100% { opacity: 0.25; }
+    30% { opacity: 1; }
+}
+
+/* Respect a system preference for less motion: the text still updates. */
+@media (prefers-reduced-motion: reduce) {
+    .narrator__dots i {
+        animation: none;
+        opacity: 0.5;
+    }
+}
+
+/* The paragraph currently being spoken. Not a highlight on the writing surface
+   itself: moving the caret or the selection while somebody may still be typing
+   would fight the writer for their own cursor. */
+.narrator__now {
+    margin: 6px 0 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent, #00ccff);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-muted, #777);
+    max-height: 4.5em;
+    overflow: hidden;
+}

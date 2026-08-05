@@ -48,7 +48,7 @@ class CharacterService {
 
   async syncCharactersToFS(seriesId) {
     try {
-        const { resolveSeriesPath } = require('./MediaService');
+        const { resolveSeriesPath } = require('./HierarchyLookupService');
         const seriesPath = await resolveSeriesPath(seriesId);
         const characters = await this.getAllCharacters(seriesId);
         

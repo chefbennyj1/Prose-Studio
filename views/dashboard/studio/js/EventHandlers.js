@@ -8,13 +8,7 @@ import {
     showVolumesForSeries,
     showChaptersForVolume
 } from './LibraryManager.js';
-import { setActivePage } from './PageConfigManager.js';
-import { activatePageBuilderPane } from './PageBuilderModes.js';
-import { openVisualEditor } from '../../components/SceneEditor/SceneEditor.js';
-import ArrangeManager from './ArrangeManager.js';
-
-let currentSceneInfo = {};
-let arrangeManager;
+import { setActiveScene } from './SceneSession.js';
 
 /**
  * The active-page breadcrumb doubles as the navigation trigger; the popover
@@ -59,15 +53,12 @@ function loadSelectedPage() {
         seriesFolder
     };
 
-    setActivePage(vol, chap, pageId, seriesId, seriesFolder);
-    updateUrlState({ tab: 'page-builder', vol, chap, page: pageId, series: seriesId, seriesFolder });
+    setActiveScene(vol, chap, pageId, seriesId, seriesFolder);
+    updateUrlState({ tab: 'editor', vol, chap, page: pageId, series: seriesId, seriesFolder });
     toggleNavPopover(false);
 }
 
 export function initEventHandlers(container, allSections) {
-    if (!arrangeManager) arrangeManager = new ArrangeManager();
-
-
     // User Menu Toggle (Topbar)
     const userProfileToggle = document.getElementById('userProfileToggle');
     const userMenu = document.getElementById('userMenu');
@@ -117,8 +108,10 @@ export function initEventHandlers(container, allSections) {
             await switchToSection(page, container);
         }
 
-        // Studio rail
-        const railBtn = target.closest('.studio-rail__btn');
+        // Studio rail. "Create New" inside a rail menu navigates the same way
+        // the old create-story / create-chapter buttons did, so it carries the
+        // same data-target and reuses this path rather than a second one.
+        const railBtn = target.closest('.studio-rail__btn, .rail-menu [data-target]');
         if (railBtn && railBtn.dataset.target) {
             updateUrlState({ tab: railBtn.dataset.target });
             await switchToSection(railBtn.dataset.target, container);
@@ -136,51 +129,6 @@ export function initEventHandlers(container, allSections) {
             toggleNavPopover();
         }
 
-        // --- Deep Link Openers (from Page Builder) ---
-        if (target.id === 'openLayoutEditorBtn') {
-            const { vol, chap, page, series, seriesFolder } = target.dataset;
-            openVisualEditor(vol, chap, page, 'portrait', series, seriesFolder);
-        }
-
-
-        // Page Builder tool rail
-        const pbTool = target.closest('.pb-tool');
-        if (pbTool && pbTool.dataset.pane) {
-            activatePageBuilderPane(pbTool.dataset.pane);
-        }
-
-        // Generate Script Logic
-        if (target.id === 'generateScriptBtn') {
-            const vS = document.getElementById('scriptVolumeSelect');
-            const vol = vS.options[vS.selectedIndex]?.getAttribute('data-folder');
-            const seriesId = vS.options[vS.selectedIndex]?.getAttribute('data-series-id');
-            const statusMsg = document.getElementById('scriptStatus');        
-
-            if (!vol || !seriesId) {
-                alert("Please select a volume.");
-                return;
-            }
-
-            statusMsg.textContent = "Generating script...";
-            statusMsg.style.color = "var(--cyber-primary)";
-
-            fetch('/api/editor/export-script/' + seriesId + '/' + vol, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.ok) {
-                        statusMsg.textContent = data.message;
-                        statusMsg.style.color = "#00ff41";
-                    } else {
-                        statusMsg.textContent = "Error: " + data.message;     
-                        statusMsg.style.color = "#ff4141";
-                    }
-                })
-                .catch(err => {
-                    statusMsg.textContent = "Request failed.";
-                    statusMsg.style.color = "#ff4141";
-                });
-        }
-
         // Library Cards
         if (target.closest('.series-card')) {
             const card = target.closest('.series-card');
@@ -190,11 +138,12 @@ export function initEventHandlers(container, allSections) {
             const card = target.closest('.volume-card');
             showChaptersForVolume(card.id);
         }
-        if (target.closest('.chapter-card')) {
-            const card = target.closest('.chapter-card');
-            const volId = card.dataset.volumeId;
-            const chapNum = card.dataset.chapterNumber;
-            window.location.href = `/viewer?id=${volId}&chapter=${chapNum}`;
+        // A chapter card used to deep-link into the comic viewer. There is no
+        // viewer now; a chapter opens in the editor instead.
+        const chapterCard = target.closest('.chapter-card');
+        if (chapterCard) {
+            updateUrlState({ tab: 'editor', vol: chapterCard.dataset.volumeId, chap: chapterCard.dataset.chapterNumber });
+            await switchToSection('editor', container);
         }
     });
 

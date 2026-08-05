@@ -1,0 +1,34 @@
+<div class="create-story dashboard-section hidden glass glass--frosted glass-card">
+    <div class="narrow-container padding-20">
+        <h3>Create Story</h3>
+        <p class="text-muted margin-b-20">
+            A story is a folder in your library. Chapters go inside it, one Markdown
+            file each. Nothing else is created — no database record, no scaffolding.
+        </p>
+
+        <div class="glass glass--dark glass-card padding-30 border-dim">
+            <form id="create-story-form">
+                <div class="form-group">
+                    <label for="newStoryTitle">Story title</label>
+                    <input type="text" id="newStoryTitle" class="glass-input width-100" maxlength="120"
+                           placeholder="e.g. The Long Cold" autocomplete="off" required>
+                    <p class="font-size-07 text-muted margin-t-5">
+                        This becomes the folder name, so it can use letters, numbers, spaces,
+                        dashes, underscores and dots.
+                    </p>
+                </div>
+
+                <p id="createStoryError" class="glass-field-error" hidden></p>
+
+                <button type="submit" id="createStoryBtn"
+                        class="glass glass-btn glass-btn--primary width-100 margin-t-20">
+                    Create story
+                </button>
+            </form>
+
+            <p id="createStoryStatus" class="font-size-07 text-muted margin-t-10"></p>
+        </div>
+
+        <p id="createStoryRootHint" class="font-size-07 text-muted margin-t-20"></p>
+    </div>
+</div>

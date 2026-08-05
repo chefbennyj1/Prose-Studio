@@ -1,11 +1,32 @@
 const mongoose = require('mongoose');
 const Series = require('../models/Series');
 const Volume = require('../models/Volume');
-const MediaService = require('../services/MediaService');
 const path = require('path');
 const fs = require('fs').promises;
 
+// Fallback series location for a Series with no registered LibraryRoot. The
+// bundled Library/ folder went with the panel layouts, so this path normally
+// does not exist — cover lookups against it simply miss and fall back to the
+// default image, which is the same behaviour as an empty folder.
 const libraryRoot = path.join(__dirname, '..', 'Library');
+
+/**
+ * Cover art lookup. Previously lived in MediaService, which was deleted with
+ * the rest of the panel-image pipeline — this is the only piece that outlived
+ * it, because a book still has a cover even when it has no panels.
+ */
+async function findCoverImage(dirPath, baseName) {
+    for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
+        const fileName = `${baseName}.${ext}`;
+        try {
+            await fs.access(path.join(dirPath, fileName));
+            return fileName;
+        } catch (e) {
+            // Not this extension; try the next.
+        }
+    }
+    return null;
+}
 
 exports.getSeries = async (req, res) => {
     try {
@@ -22,7 +43,7 @@ exports.getSeries = async (req, res) => {
                     seriesDir = path.join(libraryRoot, series.folderName);
                 }
 
-                const coverFile = await MediaService.findCoverImage(seriesDir, 'folder');
+                const coverFile = await findCoverImage(seriesDir, 'folder');
                 
                 if (coverFile) {
                     // Force forward slashes for URLs
@@ -65,48 +86,6 @@ exports.getSeriesDetails = async (req, res) => {
     }
 };
 
-exports.getSeriesVolumes = async (req, res) => {
-    const { seriesId } = req.params;
-    try {
-        const series = await fetchSeriesByIdOrName(seriesId);
-        if (!series) {
-            return res.status(404).send("Series not found");
-        }
-
-        const seriesDir = resolveSeriesDir(series);
-
-        if (series.volumes) {
-            await populateVolumeCovers(series, seriesDir);
-            series.volumes.sort((a, b) => a.index - b.index);
-        }
-
-        res.render("reader/browser/series", { series, config: req.app.get('APP_CONFIG') });
-    } catch (e) {
-        console.error(e);
-        res.status(500).send("Error loading series");
-    }
-};
-
-exports.getVolumeChapters = async (req, res) => {
-    const { seriesId, volumeId } = req.params;
-    try {
-        const volume = await Volume.findById(volumeId).lean();
-        const series = await fetchSeriesByIdOrName(seriesId);
-        if (!volume || !series) {
-            return res.status(404).send("Content not found");
-        }
-
-        if (volume.chapters) {
-            volume.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
-        }
-
-        res.render("reader/browser/volume", { series, volume, config: req.app.get('APP_CONFIG') });
-    } catch (e) {
-        console.error(e);
-        res.status(500).send("Error loading volume");
-    }
-};
-
 async function fetchSeriesByIdOrName(seriesId) {
     if (mongoose.Types.ObjectId.isValid(seriesId)) {
         return await Series.findById(seriesId).populate('volumes').populate('libraryRoot').lean();
@@ -127,7 +106,7 @@ function resolveSeriesDir(series) {
 }
 
 async function resolveCoverImage(dir, folderName, coverName, isVolume = false) {
-    const coverFile = await MediaService.findCoverImage(dir, coverName);
+    const coverFile = await findCoverImage(dir, coverName);
     if (!coverFile) return '/views/public/images/folder.png';
     
     if (isVolume) {
@@ -144,81 +123,10 @@ async function populateVolumeCovers(series, seriesDir) {
         
         volume.coverImage = await resolveCoverImage(volumeDir, series.folderName, volumeDirName, true);
         // Specifically look for volume-{index} file name
-        const specificCover = await MediaService.findCoverImage(volumeDir, coverName);
+        const specificCover = await findCoverImage(volumeDir, coverName);
         if (specificCover) {
             volume.coverImage = `/Library/${series.folderName}/Volumes/${volumeDirName}/${specificCover}`;
         }
-    }
-}
-
-exports.getLandingLibrary = async (req, res) => {
-    try {
-        const seriesList = await Series.find({}).sort({ title: 1 }).populate('libraryRoot').populate('volumes').lean();
-        const libraryData = await Promise.all(seriesList.map(processSeriesForLanding));
-
-        res.json({ ok: true, library: libraryData.filter(Boolean) });
-    } catch (err) {
-        console.error("Error fetching landing library:", err);
-        res.status(500).json({ ok: false, message: "Server error" });
-    }
-};
-
-async function processSeriesForLanding(series) {
-    if (!series.folderName) return null;
-
-    const firstVolumeId = getFirstVolumeId(series);
-    const seriesDir = resolveSeriesDir(series);
-    
-    // 1. Resolve Carousel Images
-    const carouselImages = await resolveCarouselImages(seriesDir, series.folderName);
-    
-    // 2. Resolve Cover Image with smarter fallback
-    let coverImage = await resolveCoverImage(seriesDir, series.folderName, 'folder');
-    
-    // If folder.png is missing (returns the static fallback), check folder1.png
-    if (coverImage === '/views/public/images/folder.png') {
-        const altCover = await resolveCoverImage(seriesDir, series.folderName, 'folder1');
-        if (altCover !== '/views/public/images/folder.png') {
-            coverImage = altCover;
-        } else if (carouselImages.length > 0) {
-            // Use the first image found in the carousel scan as the cover
-            coverImage = carouselImages[0];
-        }
-    }
-
-    return {
-        _id: series._id,
-        title: series.title,
-        folderName: series.folderName,
-        description: series.description,
-        coverImage,
-        images: carouselImages.length > 0 ? carouselImages : [coverImage],
-        firstVolumeId
-    };
-}
-
-function getFirstVolumeId(series) {
-    if (!series.volumes || series.volumes.length === 0) return null;
-    series.volumes.sort((a, b) => a.index - b.index);
-    return series.volumes[0]._id;
-}
-
-async function resolveCarouselImages(seriesDir, folderName) {
-    try {
-        const files = await fs.readdir(seriesDir);
-        const folderImageRegex = /^folder(\d+)\.(png|jpg|jpeg|gif|webp)$/i;
-        
-        const imageFiles = files
-            .filter(file => folderImageRegex.test(file))
-            .sort((a, b) => {
-                const numA = parseInt(a.match(folderImageRegex)[1]);
-                const numB = parseInt(b.match(folderImageRegex)[1]);
-                return numA - numB;
-            });
-        
-        return imageFiles.map(file => `/Library/${folderName}/${file}`);
-    } catch {
-        return [];
     }
 }
 

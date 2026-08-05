@@ -6,25 +6,20 @@ import {
     restoreStateFromUrl
 } from './studio/js/Navigation.js';
 import { populateSeriesSelect } from './studio/js/LibraryManager.js';
-import { setActivePage, restoreLastActivePage } from './studio/js/PageConfigManager.js';
-import {
-    initSceneEditor,
-    openVisualEditor
-} from './components/SceneEditor/SceneEditor.js';
-import { initFileBrowser } from './components/FileBrowser/FileBrowser.js';
+import { setActiveScene, restoreLastScene } from './studio/js/SceneSession.js';
+import { initEditor } from './components/Editor/Editor.js';
 import CharacterEditor from './components/CharacterLab/CharacterLab.js';
 import ScheduledTaskView from './components/ScheduledTasks/ScheduledTasks.js';
 import { initPlotLab } from './components/PlotLab/PlotLab.js';
-import { initStoryCritic } from './components/StoryCritic/StoryCritic.js';
-import { initStyleLab } from './studio/js/StyleLab.js';
 import { initAccounts } from './sections/accounts/accounts.js';
 import { initUserSettings } from './sections/user-settings/user-settings.js';
+import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
 import { initPluginManager } from './sections/plugin-manager/plugin-manager.js';
+import { initRailMenus } from './components/RailMenu/RailMenu.js';
 
 // Imported Refactored Modules
 import { initEventHandlers } from './studio/js/EventHandlers.js';
 import { initFormHandlers } from './studio/js/FormHandlers.js';
-import { initExportManager } from './studio/js/ExportManager.js';
 import { startPresenceHeartbeat } from './studio/js/PluginHooks.js';
 
 export async function init(container) {
@@ -43,8 +38,8 @@ export async function init(container) {
             }
         });
 
-        // Pulse the topbar brain once whenever a vision scan lands
-        window.socket.on('panel_ai_updated', () => {
+        // Pulse the topbar brain once whenever local proofing results land
+        window.socket.on('proofing_suggestions', () => {
             const indicator = document.getElementById('dashboard-ai-indicator');
             if (!indicator) return;
             indicator.classList.remove('ai-pulse');
@@ -68,33 +63,39 @@ export async function init(container) {
         }
     });
 
-    populateSeriesSelect('settingsSeriesSelect');
+    // The settings section no longer has a series dropdown to fill — its
+    // per-series block was replaced by the story-folder picker.
 
     const allSections = container.querySelectorAll('.dashboard-section');
 
     // --- Register Navigation Handlers ---
     registerNavigationHandlers({
-        openVisualEditor,
-        setActivePage
+        setActiveScene
     });
 
     // --- Initialize Base Event Handlers ---
     initEventHandlers(container, allSections);
+
+    // Story and Chapter menus in the rail. Part of the shell, not a lazily
+    // loaded section, so this runs once here rather than on fragmentLoaded.
+    initRailMenus();
 
     // --- Lazy Initialize Sub-Systems when fragments load ---
     container.addEventListener('fragmentLoaded', (e) => {
         const section = e.detail.section;
         console.log(`[Dashboard] Initializing sub-system for: ${section}`);
         
-        if (['create-new-volume', 'create-new-chapter', 'edit-volume', 'library-settings', 'page-builder'].includes(section)) {
+        if (section === 'library-settings') {
             try { initFormHandlers(container); } catch (err) { console.error("FormHandlers init failed", err); }
         }
-        if (section === 'export-tool') {
-            try { initExportManager(container); } catch (err) { console.error("ExportManager init failed", err); }
+        if (section === 'create-story') {
+            try { initCreateStory(); } catch (err) { console.error("Create Story init failed", err); }
         }
-        if (section === 'layout-editor' || section === 'page-builder') {
-             try { initSceneEditor(); } catch (err) { console.error("SceneEditor init failed", err); }
-             try { initFileBrowser(); } catch (err) { console.error("FileBrowser init failed", err); }
+        if (section === 'create-chapter') {
+            try { initCreateChapter(); } catch (err) { console.error("Create Chapter init failed", err); }
+        }
+        if (section === 'editor') {
+             try { initEditor(container); } catch (err) { console.error("Editor init failed", err); }
         }
         if (section === 'characters') {
              try { new CharacterEditor(container); } catch (err) { console.error("CharacterEditor init failed", err); }
@@ -104,12 +105,6 @@ export async function init(container) {
         }
         if (section === 'plot-lab') {
              try { initPlotLab(container); } catch (err) { console.error("PlotLab init failed", err); }
-        }
-        if (section === 'story-critic') {
-             try { initStoryCritic(container); } catch (err) { console.error("StoryCritic init failed", err); }
-        }
-        if (section === 'style-lab') {
-             try { initStyleLab(container); } catch (err) { console.error("StyleLab init failed", err); }
         }
         if (section === 'accounts') {
              try { initAccounts(); } catch (err) { console.error("Accounts init failed", err); }
@@ -130,39 +125,33 @@ export async function init(container) {
         document.head.appendChild(link);
     }
 
-    // Inject StoryCritic CSS
-    if (!document.querySelector(`link[href="/views/dashboard/components/StoryCritic/StoryCritic.css"]`)) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = '/views/dashboard/components/StoryCritic/StoryCritic.css';
-        document.head.appendChild(link);
-    }
-
-    // --- AI Status Indicator Logic ---
+    // --- AI Status Indicator ---
+    // Reports the local engine, not cloud vision: the brain lights when the
+    // Local-Llm-Engine plugin is loaded and able to answer.
     const updateAIIndicator = async () => {
         try {
-            const res = await fetch('/api/settings/global');
+            const res = await fetch('/api/proofing/status');
             if (!res.ok) return;
             const data = await res.json();
-            
-            // Set Global AI Config
-            window.AI_CONFIG = {
-                visionEnabled: !!(data.ok && data.settings?.vision?.enabled)
-            };
+            const localReady = !!(data.ok && data.suggestions?.ok);
+
+            window.AI_CONFIG = { localEngine: localReady };
 
             const indicator = document.getElementById('dashboard-ai-indicator');
             const svg = document.getElementById('dashboard-ai-brain-svg');
-            if (window.AI_CONFIG.visionEnabled) {
+            if (!indicator || !svg) return;
+
+            if (localReady) {
                 svg.style.fill = '#00ccff';
                 svg.style.filter = 'drop-shadow(0 0 5px rgba(0,204,255,0.5))';
-                indicator.title = 'AI Vision: Enabled';
+                indicator.title = 'Local AI: available';
             } else {
                 svg.style.fill = '#555';
                 svg.style.filter = 'none';
-                indicator.title = 'AI Vision: Disabled';
+                indicator.title = data.suggestions?.reason || 'Local AI: unavailable';
             }
         } catch (e) {
-            console.warn("[Dashboard] AI Status indicator check failed (likely permissions).");
+            console.warn("[Dashboard] AI status check failed.");
         }
     };
     updateAIIndicator();
@@ -258,11 +247,11 @@ export async function init(container) {
         });
     }
 
-    // Clicking a linked notification opens that page in the editor
+    // Clicking a linked notification opens that scene in the editor
     document.addEventListener('glass:notification:select', (e) => {
         const link = e.detail.notification?.link;
         if (!link || !link.pageId) return;
-        openVisualEditor(link.volume, link.chapter, link.pageId, 'landscape', link.series || null, link.seriesFolder || null);
+        setActiveScene(link.volume, link.chapter, link.pageId, link.series || null, link.seriesFolder || null);
     });
 
     // Define restrictions
@@ -292,14 +281,6 @@ export async function init(container) {
         });
     }
 
-    if (role === 'moderator' || role === 'basic') {
-        // Specific sub-tool restrictions (e.g. within Page Builder)
-        const adminOnlyBuilderTools = ['modeInsertBtn', 'modeCreateBtn'];
-        adminOnlyBuilderTools.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-    }
 
     // Default view for basic users (who don't have 'studio' active)
     if (role === 'basic') {
@@ -321,5 +302,5 @@ export async function init(container) {
 
     // Restore State
     await restoreStateFromUrl(container);
-    await restoreLastActivePage();
+    restoreLastScene();
 }

@@ -1,15 +1,5 @@
-exports.getLandingPage = (req, res) => {
-  console.log(req.session);
-  console.log(req.session.id);
-  res.render("landing/index", { config: req.app.get('APP_CONFIG') });
-};
-
 exports.getLogin = (req, res) => {
   res.render("auth/index", { config: req.app.get('APP_CONFIG') });
-};
-
-exports.getLibrary = (req, res) => {
-  res.render("reader/browser/index", { config: req.app.get('APP_CONFIG') });
 };
 
 

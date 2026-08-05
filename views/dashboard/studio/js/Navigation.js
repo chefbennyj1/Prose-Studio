@@ -59,10 +59,8 @@ export async function restoreStateFromUrl(container) {
             console.log(`[Navigation] Deep-linking into: ${tab} (${vol}/${chap}/${page})`);
 
             // Dispatch to registered handlers immediately (The UI is now ready)
-            if (tab === 'layout-editor' && _handlers.openVisualEditor) {
-                _handlers.openVisualEditor(vol, chap, page, 'portrait', series, seriesFolder);
-            } else if (tab === 'page-builder' && _handlers.setActivePage) {
-                _handlers.setActivePage(vol, chap, page, series, seriesFolder);
+            if (tab === 'editor' && _handlers.setActiveScene) {
+                _handlers.setActiveScene(vol, chap, page, series, seriesFolder);
             }
         }
     }

@@ -30,47 +30,20 @@ io.on('connection', (socket) => {
   });
 });
 
-const mongoDbURI = 'mongodb://localhost:27017/VeilSite';
+// The connection itself lives in DatabaseService, because the engine now has to
+// boot without one: a fresh install has no database until /setup makes it.
+const Database = require('./services/DatabaseService.js');
 
 const siteRoutes = require("./routes/routes.js");
+const setupRoutes = require("./routes/setup.js");
 const authRoutes = require("./authentication/authentication.js");
 const apiRoutes = require("./api/api.js");
 const accountRoutes = require("./accounts/accounts.js");
-const contentRoutes = require("./routes/content.js");
 
 const User = require("./models/User.js");
 // updateVolumesFromFS is now exported from ./services/VolumeService.js
 const { isAuth } = require('./middleware/auth.js');
-
-
-mongoose.connect(mongoDbURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 10000,
-  heartbeatFrequencyMS: 10000,
-  socketTimeoutMS: 45000,
-}).then(async (res) => {
-  console.log('mongoDb Connected');
-  
-  // Migration: Convert old administrator boolean to new role field
-  try {
-    const User = require('./models/User.js');
-    const result = await User.updateMany(
-      { administrator: { $exists: true } },
-      [
-        { $set: { role: { $cond: { if: { $eq: ["$administrator", true] }, then: "admin", else: "$role" } } } },
-        { $unset: "administrator" }
-      ]
-    );
-    if (result.modifiedCount > 0) {
-      console.log(`[Migration] Processed ${result.modifiedCount} users: migrated 'administrator' to 'role' and removed legacy field.`);
-    }
-  } catch (err) {
-    console.error("[Migration] Error updating roles:", err);
-  }
-}).catch(err => {
-  console.error("MongoDB Connection Error:", err);
-});
+const SetupController = require('./controllers/SetupController.js');
 
 // --- CONNECTION EVENT LISTENERS ---
 mongoose.connection.on('error', err => {
@@ -101,30 +74,70 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-const store = MongoStore.create({
-  mongoUrl: mongoDbURI,
-  collectionName: 'VeilSessions',
-  ttl: 24 * 60 * 60, // 24 hours
-  autoRemove: 'native',
-  crypto: {
-    secret: process.env.SESSION_SECRET
-  }
-});
+// Sessions are stored in Mongo, so the middleware can only be built once there
+// is a Mongo to store them in. It is created on the first request that gets
+// past the setup gate — by which point the connection is known good.
+let sessionMiddleware = null;
+
+function getSessionMiddleware() {
+  if (sessionMiddleware) return sessionMiddleware;
+
+  sessionMiddleware = session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      client: mongoose.connection.getClient(),
+      collectionName: 'ProseSessions',
+      ttl: 24 * 60 * 60, // 24 hours
+      autoRemove: 'native',
+      crypto: {
+        secret: process.env.SESSION_SECRET
+      }
+    }),
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
+  });
+
+  return sessionMiddleware;
+}
 
 // --- MIDDLEWARE ---
+//
+// Order matters more than it used to. Everything above the setup gate has to
+// work with no database at all; everything below it can assume one.
 
-// 1. Session
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: store,
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
-  }
-}))
+// 1. Body Parsing — the wizard posts JSON before a session store can exist
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// 2. Global Locals (Config & User) - MUST BE BEFORE ROUTES
+// 2. View Engine
+app.set("views", path.join(__dirname, "views"));
+app.engine("html", require("ejs").renderFile);
+app.set("view engine", "ejs");
+
+// 3. Static & Content Serving
+app.use('/views', express.static(path.join(__dirname, 'views')));
+app.use('/resources', express.static(path.join(__dirname, 'resources')));
+// kokoro-js ships a self-contained browser bundle. Served straight out of
+// node_modules so the version stays pinned in package.json instead of a 2 MB
+// vendored copy living in git.
+app.use('/libs/kokoro', express.static(path.join(__dirname, 'node_modules/kokoro-js/dist')));
+app.use('/libs', express.static(path.join(__dirname, 'libs')));
+app.use('/services/public', express.static(path.join(__dirname, 'services/public')));
+app.use(express.static(path.join(__dirname, "views/public")));
+
+// 4. First-run wizard — the only routes that work before the database does
+app.use("/setup", setupRoutes);
+
+// 5. Setup gate — no database or no accounts means there is nothing else to serve
+app.use(SetupController.setupGate);
+
+// 6. Session
+app.use((req, res, next) => getSessionMiddleware()(req, res, next));
+
+// 7. Global Locals (Config & User) - MUST BE BEFORE ROUTES
 app.use(async (req, res, next) => {
   res.locals.config = {
     useCloudStorage: process.env.USE_CLOUD_STORAGE === 'true',
@@ -147,25 +160,6 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// 3. Body Parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// 4. View Engine
-app.set("views", path.join(__dirname, "views"));
-app.engine("html", require("ejs").renderFile);
-app.set("view engine", "ejs");
-
-// 5. Static & Content Serving
-app.use('/three', express.static(path.join(__dirname, 'node_modules/three/build')));
-app.use('/three_jsm', express.static(path.join(__dirname, 'node_modules/three/examples/jsm')));
-app.use('/views', express.static(path.join(__dirname, 'views')));
-app.use('/layouts', express.static(path.join(__dirname, 'Library/layouts')));
-app.use('/resources', express.static(path.join(__dirname, 'resources')));
-app.use('/libs', express.static(path.join(__dirname, 'libs')));
-app.use('/services/public', express.static(path.join(__dirname, 'services/public')));
-app.use(express.static(path.join(__dirname, "views/public")));
-
 // --- ROUTES ---
 
 app.get('/test-swarm', (req, res) => {
@@ -176,7 +170,8 @@ app.use("/api", apiRoutes);
 app.use("/authentication", authRoutes);
 app.use("/accounts", accountRoutes);
 
-const PORT = process.env.PORT || 3000;
+// 3000 belongs to the comic server; the two are routinely run side by side.
+const PORT = process.env.PORT || 3100;
 const SYSTEM_SECRET = crypto.randomBytes(32).toString('hex');
 app.locals.systemSecret = SYSTEM_SECRET;
 console.log('[System] Generated runtime API secret for internal plugins.');
@@ -185,19 +180,43 @@ console.log('[System] Generated runtime API secret for internal plugins.');
 const PluginLoader = require('./services/PluginLoader');
 PluginLoader.loadAll(app, { port: PORT, systemSecret: SYSTEM_SECRET });
 
-// Main Site Routes (Must be before content routes to handle /library/series/...)
 app.use("/", siteRoutes);
 
-// IMPORTANT: Dynamic routes for library assets
-app.use('/Library', isAuth, contentRoutes);
-app.use('/Library', isAuth, express.static(path.join(__dirname, 'Library')));
 
+// Connect if we can, then listen either way. A failed connection is not fatal
+// any more — it is the state /setup exists to fix.
+(async () => {
+  const hostname = getLocalIPv4();
+  const uri = Database.configuredUri();
 
+  const result = await Database.connect(uri);
 
-var hostname = getLocalIPv4();
-server.listen(PORT, () => {
-  console.log(`Website running on http://${hostname}:${PORT}`);
-});
+  if (result.ok) {
+    console.log(`mongoDb Connected (${result.database})`);
+    await Database.initialise();
+    await Database.runLegacyRoleMigration();
+    await Database.runLegacyCriticMigration();
+    Database.ensureSecrets();
+
+    // Live updates when a chapter changes on disk. Follows the story root if
+    // it is repointed in Settings.
+    const ManuscriptWatcher = require('./services/manuscript/ManuscriptWatcher.js');
+    const Storage = require('./services/StorageService.js');
+    await ManuscriptWatcher.start(io);
+    Storage.onRootChange(() => ManuscriptWatcher.start(io));
+  } else {
+    console.warn(`[Database] Could not reach ${uri}: ${result.message}`);
+    console.warn(`[Setup] Open http://${hostname}:${PORT}/setup to point the engine at a database.`);
+  }
+
+  server.listen(PORT, () => {
+    console.log(`Website running on http://${hostname}:${PORT}`);
+    if (!result.ok) return;
+    SetupController.isSetupComplete().then(complete => {
+      if (!complete) console.log(`[Setup] No accounts yet — create the first admin at http://${hostname}:${PORT}/setup`);
+    });
+  });
+})();
 
 function getLocalIPv4() {
   const interfaces = os.networkInterfaces();

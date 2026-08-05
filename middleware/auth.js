@@ -1,7 +1,18 @@
 // Middleware to handle authentication checks for web and API routes
 
 // Secret for internal tools (e.g., headless PNG Exporter). Set via INTERNAL_EXPORT_SECRET in .env.
-const INTERNAL_SECRET = process.env.INTERNAL_EXPORT_SECRET;
+//
+// Read per call, not captured at require time: setup generates the secret into
+// process.env on a fresh install, after this module has already loaded.
+//
+// The `!secret` guard is load-bearing. Without it, an install missing the env
+// var compared `undefined === undefined` for a request that sent no header at
+// all, and every protected route in the app opened.
+function isInternalExport(req) {
+  const secret = process.env.INTERNAL_EXPORT_SECRET;
+  if (!secret) return false;
+  return req.headers['x-export-secret'] === secret || req.query.exportSecret === secret;
+}
 
 /**
  * Redirects to /login if the user is not authenticated.
@@ -9,7 +20,7 @@ const INTERNAL_SECRET = process.env.INTERNAL_EXPORT_SECRET;
  */
 exports.isAuth = (req, res, next) => {
   // Bypass for headless exporter
-  if (req.headers['x-export-secret'] === INTERNAL_SECRET || req.query.exportSecret === INTERNAL_SECRET) {
+  if (isInternalExport(req)) {
     return next();
   }
 
@@ -30,7 +41,7 @@ exports.isAuth = (req, res, next) => {
  */
 exports.isAuthApi = (req, res, next) => {
   // Bypass for headless exporter
-  if (req.headers['x-export-secret'] === INTERNAL_SECRET || req.query.exportSecret === INTERNAL_SECRET) {
+  if (isInternalExport(req)) {
     return next();
   }
 
@@ -42,7 +53,7 @@ exports.isAuthApi = (req, res, next) => {
 };
 
 function checkAccess(req, res, next, allowedRoles, fallbackRoute, errorMessage) {
-    if (req.headers['x-export-secret'] === INTERNAL_SECRET || req.query.exportSecret === INTERNAL_SECRET) {
+    if (isInternalExport(req)) {
         return next();
     }
 

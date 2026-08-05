@@ -58,14 +58,68 @@
 <!-- APP BODY: persistent studio tool rail + section mount point -->
 <div class="app-body">
     <nav id="studioRail" class="studio-rail glass glass--frosted" aria-label="Studio tools">
+        <!--
+            Story and Chapter are menus, not destinations, which is why they
+            carry data-menu rather than data-target: nothing here navigates to
+            a section on its own any more. Each opens "Create New" (the old
+            behaviour) or "Open", and Open flies out into the list of what
+            already exists. Story sits at the top because it is the widest
+            thing you can pick - everything below is inside whatever it names.
+
+            "Create New" stays a .glass-dropdown-item so the kit's own handler
+            closes the menu on click. "Open" deliberately is not one: that same
+            handler would close the menu before its flyout could be seen.
+        -->
+        <div class="rail-menu" data-menu="story">
+            <button type="button" id="storyMenuBtn"
+                class="studio-rail__btn rail-menu__trigger"
+                title="Story" aria-label="Story" aria-haspopup="menu">
+                <ion-icon name="book-outline"></ion-icon>
+            </button>
+            <div class="glass-dropdown-menu glass glass--frosted" role="menu">
+                <button type="button" class="glass-dropdown-item" data-action="create"
+                    data-target="create-story" role="menuitem">
+                    Create New
+                </button>
+                <div class="rail-menu__submenu">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        Open
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted" role="menu"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rail-menu" data-menu="chapter">
+            <button type="button" id="chapterMenuBtn"
+                class="studio-rail__btn rail-menu__trigger"
+                title="Chapter" aria-label="Chapter" aria-haspopup="menu">
+                <ion-icon name="bookmarks-outline"></ion-icon>
+            </button>
+            <div class="glass-dropdown-menu glass glass--frosted" role="menu">
+                <button type="button" class="glass-dropdown-item" data-action="create"
+                    data-target="create-chapter" role="menuitem">
+                    Create New
+                </button>
+                <div class="rail-menu__submenu">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        Open
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted" role="menu"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="studio-rail__divider" role="separator"></div>
+
         <!-- Daily workspaces -->
-        <button type="button" class="studio-rail__btn" data-target="layout-editor"
+        <button type="button" class="studio-rail__btn" data-target="editor"
             title="Editor" aria-label="Editor">
-            <ion-icon name="easel-outline"></ion-icon>
-        </button>
-        <button type="button" class="studio-rail__btn" data-target="page-builder"
-            title="Page Builder" aria-label="Page Builder">
-            <ion-icon name="layers-outline"></ion-icon>
+            <ion-icon name="create-outline"></ion-icon>
         </button>
         <button type="button" class="studio-rail__btn" data-target="characters"
             title="Character Lab" aria-label="Character Lab">
@@ -75,40 +129,12 @@
             title="Plot Lab" aria-label="Plot Lab">
             <ion-icon name="bulb-outline"></ion-icon>
         </button>
-        <button type="button" class="studio-rail__btn" data-target="story-critic"
-            title="Story Critic" aria-label="Story Critic">
-            <ion-icon name="analytics-outline"></ion-icon>
-        </button>
-        <button type="button" class="studio-rail__btn" data-target="style-lab"
-            title="Style Lab" aria-label="Style Lab">
-            <ion-icon name="color-palette-outline"></ion-icon>
-        </button>
-        <button type="button" class="studio-rail__btn" data-target="export-tool"
-            title="Print Exporter" aria-label="Print Exporter">
-            <ion-icon name="print-outline"></ion-icon>
-        </button>
-
-        <div class="studio-rail__divider" role="separator"></div>
-
-        <!-- Series structure -->
-        <button type="button" class="studio-rail__btn" data-target="create-new-volume"
-            title="Create Volume" aria-label="Create Volume">
-            <ion-icon name="book-outline"></ion-icon>
-        </button>
-        <button type="button" class="studio-rail__btn" data-target="edit-volume"
-            title="Edit Volume" aria-label="Edit Volume">
-            <ion-icon name="create-outline"></ion-icon>
-        </button>
-        <button type="button" class="studio-rail__btn" data-target="create-new-chapter"
-            title="New Chapter" aria-label="New Chapter">
-            <ion-icon name="bookmarks-outline"></ion-icon>
-        </button>
 
         <div class="studio-rail__divider" role="separator"></div>
 
         <!-- Configuration -->
         <button type="button" class="studio-rail__btn" data-target="library-settings"
-            title="Library Settings" aria-label="Library Settings">
+            title="File &amp; AI Settings" aria-label="File and AI Settings">
             <ion-icon name="settings-outline"></ion-icon>
         </button>
     </nav>

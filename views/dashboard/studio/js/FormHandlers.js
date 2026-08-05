@@ -1,6 +1,6 @@
 // views/dashboard/studio/js/FormHandlers.js
 
-import { setActivePage } from './PageConfigManager.js';
+import { setActiveScene } from './SceneSession.js';
 import { updateUrlState } from './Navigation.js';
 import { fetchChapterRange } from '../api/StudioClient.js';
 
@@ -23,8 +23,8 @@ function getSelectionData(prefix) {
 
 function redirectAfterSuccess(vol, chap, pageId, seriesId) {
     setTimeout(() => {
-        setActivePage(vol, chap, pageId, seriesId);
-        updateUrlState({ tab: 'page-builder', vol, chap, page: pageId, series: seriesId });
+        setActiveScene(vol, chap, pageId, seriesId);
+        updateUrlState({ tab: 'editor', vol, chap, page: pageId, series: seriesId });
     }, 1000);
 }
 
@@ -223,7 +223,7 @@ export function initFormHandlers(container) {
                 fetchCall: () => apiPost('/api/editor/insert-page', { series: seriesId, volume: vol, chapter: chap, insertPoint }),
                 onSuccess: () => {
                     const newPageId = 'page' + insertPoint;
-                    setActivePage(vol, chap, newPageId, seriesId);
+                    setActiveScene(vol, chap, newPageId, seriesId);
                     updateUrlState({ tab: 'page-builder', vol, chap, page: newPageId, series: seriesId });
                 }
             });
@@ -343,8 +343,8 @@ export function initFormHandlers(container) {
         };
     }
 
-    // Library Settings Form Submission
-    initLibrarySettings();
+    // Story Library — where writing is saved on disk
+    initStoryStorage();
 
     // Global Settings Form Submission
     initGlobalSettings();
@@ -354,35 +354,30 @@ async function initGlobalSettings() {
     const form = document.getElementById('global-settings-form');
     if (!form) return;
 
-    const visionEnabled = document.getElementById('global-vision-enabled');
-    const fieldsContainer = document.getElementById('vision-settings-fields');
+    // Gemini is the cloud critic now, not a panel-image describer. The old
+    // vision-only fields (system prompt, max tokens, temperature, auto-scan on
+    // save) went with the comic stack — nothing read them.
+    const criticEnabled = document.getElementById('global-critic-enabled');
+    const fieldsContainer = document.getElementById('critic-settings-fields');
     const apiKeyInput = document.getElementById('global-api-key');
     const modelNameSelect = document.getElementById('global-model-name');
-    const systemPrompt = document.getElementById('global-system-prompt');
-    const maxTokens = document.getElementById('global-max-tokens');
-    const temperature = document.getElementById('global-temperature');
-    const autoScan = document.getElementById('global-auto-scan');
 
     const toggleFields = () => {
-        if (fieldsContainer && visionEnabled) {
-            fieldsContainer.style.display = visionEnabled.checked ? 'block' : 'none';
+        if (fieldsContainer && criticEnabled) {
+            fieldsContainer.hidden = !criticEnabled.checked;
         }
     };
-    if (visionEnabled) visionEnabled.onchange = toggleFields;
+    if (criticEnabled) criticEnabled.onchange = toggleFields;
 
     // Load initial data
     try {
         const res = await fetch('/api/settings/global');
         const data = await res.json();
         if (data.ok && data.settings) {
-            const v = data.settings.vision || {};
-            if (visionEnabled) visionEnabled.checked = v.enabled || false;
-            if (apiKeyInput) apiKeyInput.value = v.apiKey || '';
-            if (modelNameSelect) modelNameSelect.value = v.modelName || 'gemini-1.5-flash';
-            if (systemPrompt) systemPrompt.value = v.systemPrompt || '';
-            if (maxTokens) maxTokens.value = v.maxTokens || 100;
-            if (temperature) temperature.value = v.temperature || 0.2;
-            if (autoScan) autoScan.checked = v.autoScanOnSave !== false;
+            const c = data.settings.critic || {};
+            if (criticEnabled) criticEnabled.checked = c.enabled || false;
+            if (apiKeyInput) apiKeyInput.value = c.apiKey || '';
+            if (modelNameSelect) modelNameSelect.value = c.modelName || 'gemini-flash-latest';
             toggleFields();
         }
     } catch (err) {
@@ -392,58 +387,178 @@ async function initGlobalSettings() {
     form.onsubmit = async (e) => {
         e.preventDefault();
         const settings = {
-            vision: {
-                enabled: visionEnabled ? visionEnabled.checked : false,
+            critic: {
+                enabled: criticEnabled ? criticEnabled.checked : false,
                 apiKey: apiKeyInput ? apiKeyInput.value : '',
-                modelName: modelNameSelect ? modelNameSelect.value : 'gemini-1.5-flash',
-                systemPrompt: systemPrompt ? systemPrompt.value : '',
-                maxTokens: maxTokens ? parseInt(maxTokens.value) : 100,
-                temperature: temperature ? parseFloat(temperature.value) : 0.2,
-                autoScanOnSave: autoScan ? autoScan.checked : true
+                modelName: modelNameSelect ? modelNameSelect.value : 'gemini-flash-latest'
             }
         };
 
         const btn = document.getElementById('saveGlobalSettingsBtn');
         if (!btn) return;
-        await saveSettings('/api/settings/global', settings, btn, 'Global AI configuration updated.');
+        await saveSettings('/api/settings/global', settings, btn, 'Gemini critic settings updated.');
     };
 }
 
-function initLibrarySettings() {
-    const seriesSelect = document.getElementById('settingsSeriesSelect');
-    const formContainer = document.getElementById('series-settings-form-container');
-    const form = document.getElementById('library-settings-form');
-    const seriesIdInput = document.getElementById('settings-series-id');
+/**
+ * Story Library settings: choose the parent folder everything is saved into.
+ *
+ * Replaced the old per-series configuration block, which was a series dropdown
+ * bound to a form with no fields left in it — the styling options it once
+ * carried went with the comic stack.
+ */
+function initStoryStorage() {
+    const pathInput = document.getElementById('storyRootPath');
+    const status    = document.getElementById('storyRootStatus');
+    const browseBtn = document.getElementById('browseStoryRootBtn');
+    if (!pathInput || !browseBtn) return;
 
-    if (seriesSelect) {        
-        seriesSelect.onchange = async () => {
-            const seriesId = seriesSelect.value;
-            if (!seriesId) {   
-                if (form) form.classList.add('hidden');        
-                return;        
-            }
+    const browser    = document.getElementById('folderBrowser');
+    const list       = document.getElementById('folderList');
+    const currentEl  = document.getElementById('folderCurrentPath');
+    const upBtn      = document.getElementById('folderUpBtn');
+    const errorEl    = document.getElementById('folderBrowserError');
+    const newName    = document.getElementById('folderNewName');
+    const newBtn     = document.getElementById('folderNewBtn');
+    const cancelBtn  = document.getElementById('folderCancelBtn');
+    const selectBtn  = document.getElementById('folderSelectBtn');
 
-            try {
-                const res = await fetch(`/api/library/series/${seriesId}`);
-                const data = await res.json();
-                if (data.ok && data.series) {
-                    seriesIdInput.value = data.series._id;    
-                    if (form) form.classList.remove('hidden'); 
-                }
-            } catch (err) {    
-                console.error("Failed to load series settings", err);
-            }
-        };
+    // '' is the drive list, which is a real location in the browser but not a
+    // folder you can save into — hence selectBtn being disabled there.
+    let currentPath = '';
+    let parentPath = null;
+
+    const setStatus = (message, isError) => {
+        status.textContent = message || '';
+        status.classList.toggle('text-error', Boolean(isError));
+    };
+
+    const showError = (message) => {
+        errorEl.textContent = message || '';
+        errorEl.hidden = !message;
+    };
+
+    async function loadRoot() {
+        try {
+            const res = await fetch('/api/storage/root');
+            const data = await res.json();
+            if (!data.ok) return;
+
+            pathInput.value = data.root || '';
+            setStatus(data.configured
+                ? 'Stories are saved here.'
+                : 'Choose a folder before writing — the editor cannot save without one.',
+                !data.configured);
+        } catch (err) {
+            setStatus('Could not read the current setting.', true);
+        }
     }
 
-    if (form) {
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            const seriesId = seriesIdInput.value;
-            const settings = {};
+    async function browseTo(target) {
+        showError('');
+        try {
+            const res = await fetch(`/api/storage/browse?path=${encodeURIComponent(target || '')}`);
+            const data = await res.json();
+            if (!data.ok) {
+                showError(data.message);
+                return;
+            }
 
-            const submitBtn = form.querySelector('button[type="submit"]');
-            await saveSettings(`/api/library/series/${seriesId}/settings`, settings, submitBtn, 'Series configuration updated.');
-        };
+            currentPath = data.path;
+            parentPath = data.parent;
+
+            currentEl.textContent = data.isRoot ? 'This PC' : data.path;
+            upBtn.disabled = data.isRoot;
+            selectBtn.disabled = data.isRoot;
+            newBtn.disabled = data.isRoot;
+
+            list.innerHTML = '';
+            if (!data.entries.length) {
+                const li = document.createElement('li');
+                li.className = 'folder-browser__empty';
+                li.textContent = data.isRoot ? 'No drives found.' : 'No sub-folders here. You can still save this one.';
+                list.appendChild(li);
+                return;
+            }
+
+            for (const entry of data.entries) {
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'folder-browser__item';
+                btn.innerHTML = '<ion-icon name="folder-outline"></ion-icon>';
+                btn.appendChild(document.createTextNode(entry.name));
+                btn.addEventListener('click', () => browseTo(entry.path));
+                li.appendChild(btn);
+                list.appendChild(li);
+            }
+            list.scrollTop = 0;
+        } catch (err) {
+            showError('Could not reach the server.');
+        }
     }
+
+    browseBtn.addEventListener('click', () => {
+        browser.hidden = false;
+        // Reopen where the current root lives, so changing it is a short trip.
+        browseTo(pathInput.value || '');
+    });
+
+    const close = () => { browser.hidden = true; showError(''); newName.value = ''; };
+    cancelBtn.addEventListener('click', close);
+    browser.addEventListener('click', (e) => { if (e.target === browser) close(); });
+
+    upBtn.addEventListener('click', () => browseTo(parentPath || ''));
+
+    newBtn.addEventListener('click', async () => {
+        const name = newName.value.trim();
+        if (!name) return showError('Give the folder a name first.');
+
+        newBtn.disabled = true;
+        try {
+            const res = await fetch('/api/storage/folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ parent: currentPath, name })
+            });
+            const data = await res.json();
+            if (!data.ok) return showError(data.message);
+
+            newName.value = '';
+            await browseTo(data.path); // step into what was just made
+        } catch (err) {
+            showError('Could not create the folder.');
+        } finally {
+            newBtn.disabled = false;
+        }
+    });
+
+    selectBtn.addEventListener('click', async () => {
+        selectBtn.disabled = true;
+        try {
+            const res = await fetch('/api/storage/root', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: currentPath })
+            });
+            const data = await res.json();
+            if (!data.ok) {
+                showError(data.message);
+                return;
+            }
+
+            pathInput.value = data.root;
+            setStatus(data.message);
+            close();
+
+            // The editor caches its story list; tell it the ground moved.
+            document.dispatchEvent(new CustomEvent('storyRootChanged', { detail: { root: data.root } }));
+        } catch (err) {
+            showError('Could not save that folder.');
+        } finally {
+            selectBtn.disabled = false;
+        }
+    });
+
+    loadRoot();
 }

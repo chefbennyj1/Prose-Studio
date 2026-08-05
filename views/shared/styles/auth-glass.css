@@ -1,0 +1,217 @@
+/* ==========================================================================
+   AUTH & SETUP — shared layout for the two pages you see before the dashboard
+   ==========================================================================
+   Both the login page and the first-run wizard are a single glass panel
+   centred over the animated scene, so the first thing you see is already the
+   studio's material. Components come from the glass kit
+   (views/dashboard/ui-kit/glass-system/glass_components.css); this file only
+   places them.
+   ========================================================================== */
+
+body.login-page-shell,
+body.setup-page-shell {
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   Shell — centres the panel and lets it scroll on short viewports
+   -------------------------------------------------------------------------- */
+.auth-shell {
+  position: relative;
+  z-index: var(--z-raised);
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.auth-panel {
+  width: 100%;
+  max-width: 460px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* The kit's card lifts and brightens on hover — right for a grid of cards,
+   wrong for the only thing on the page. */
+.auth-panel:hover {
+  background: var(--glass-white);
+  box-shadow: var(--shadow-glass);
+}
+
+.auth-panel:hover::after {
+  opacity: 0;
+}
+
+.auth-panel__head {
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+.auth-panel__head .glass-card__title {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Forms
+   -------------------------------------------------------------------------- */
+.auth-form {
+  position: relative;
+  z-index: var(--z-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.auth-form__lede {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.auth-field__label {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auth-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-2xs);
+}
+
+.auth-form__actions .glass-btn {
+  position: relative;
+}
+
+/* Status line under a form: outcome of the last submit, not a field error. */
+.auth-form__note {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  margin: 0;
+  color: var(--accent-aqua);
+}
+
+.auth-form__note--error {
+  color: #dc2626;
+}
+
+/* --------------------------------------------------------------------------
+   Secondary action — "request access" on login, sits below a divider
+   -------------------------------------------------------------------------- */
+.auth-alt {
+  position: relative;
+  z-index: var(--z-raised);
+  border-top: 1px solid var(--glass-border-subtle);
+  padding-top: var(--space-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.auth-alt__text {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Panel switching — login/request, and the wizard's two steps
+   -------------------------------------------------------------------------- */
+.auth-form,
+.setup-step {
+  display: none;
+}
+
+.auth-form.is-active,
+.setup-step.is-active {
+  display: flex;
+}
+
+.setup-stepper {
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+/* The kit gives buttons, field errors and notes a display value, and a class
+   selector beats the browser's [hidden] rule — so hiding one from JS did
+   nothing. Two classes' worth of specificity puts [hidden] back in charge. */
+.auth-shell [hidden] {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Modal — the kit's backdrop is display:flex when shown; [hidden] must win
+   -------------------------------------------------------------------------- */
+.setup-modal-backdrop[hidden],
+.auth-modal-backdrop[hidden] {
+  display: none;
+}
+
+/* The kit reveals a dialog with .is-open on the backdrop; until it is there the
+   backdrop is opacity:0 AND pointer-events:none, and .glass-modal is opacity:0
+   too. These modals toggle [hidden] instead, so derive the open state from it —
+   otherwise the dialog opens invisibly and clicks fall through to the page. */
+.setup-modal-backdrop:not([hidden]),
+.auth-modal-backdrop:not([hidden]) {
+  opacity: 1;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-modal-backdrop:not([hidden]) .glass-modal,
+.auth-modal-backdrop:not([hidden]) .glass-modal {
+  opacity: 1;
+  transform: none;
+}
+
+.setup-modal-backdrop .glass-modal,
+.auth-modal-backdrop .glass-modal {
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 520px) {
+  .auth-panel {
+    padding: var(--space-lg);
+  }
+
+  .glass-step__label {
+    display: none;
+  }
+
+  .auth-form__actions {
+    justify-content: stretch;
+  }
+
+  .auth-form__actions .glass-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

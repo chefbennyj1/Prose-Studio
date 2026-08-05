@@ -25,18 +25,12 @@
                 // Studio specific styles
                 await loadCSS('/views/dashboard/studio/studio-common.css');
                 
-                // Load Component CSS for Style Lab & Editor
-                await loadCSS('/libs/SpeechBubble/SpeechBubble.css');
-                await loadCSS('/libs/TextBlock/TextBlock.css');
-                await loadCSS('/libs/ActionText/ActionText.css');
-                
                 await loadCSS('/views/dashboard/components/CardBuilder/CardBuilder.css');
-                await loadCSS('/views/dashboard/components/SceneEditor/SceneEditor.css');
+                await loadCSS('/views/dashboard/components/Editor/Editor.css');
+                await loadCSS('/views/dashboard/components/Narrator/Narrator.css');
+                await loadCSS('/views/dashboard/components/RailMenu/RailMenu.css');
                 await loadCSS('/views/dashboard/components/CharacterLab/CharacterLab.css');
                 await loadCSS('/views/dashboard/components/ScheduledTasks/ScheduledTasks.css');
-                await loadCSS('/views/dashboard/components/FileBrowser/FileBrowser.css');
-                await loadCSS('/views/dashboard/components/LayoutBrowser/LayoutBrowser.css');
-                await loadCSS('/views/dashboard/ui-kit/StyleLab.css');
                 
                 // 3. Load Glass System Script
                 const glassScript = document.createElement('script');

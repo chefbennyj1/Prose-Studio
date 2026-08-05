@@ -3,7 +3,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const VolumeModel = require('../models/Volume');
 const Series = require('../models/Series');
-const { resolveSeriesPath } = require('./MediaService');
+const { resolveSeriesPath } = require('./HierarchyLookupService');
 const { getSeriesFolderName } = require('./HierarchyLookupService');
 
 async function syncVolumeToDB(seriesFolderName, volumeFolderName) {

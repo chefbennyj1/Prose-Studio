@@ -1,0 +1,33 @@
+<div class="create-chapter dashboard-section hidden glass glass--frosted glass-card">
+    <div class="narrow-container padding-20">
+        <h3>Create Chapter</h3>
+        <p class="text-muted margin-b-20">
+            A chapter is a single Markdown file inside a story. Pages are worked out
+            from the word count as you write — you never make those yourself.
+        </p>
+
+        <div class="glass glass--dark glass-card padding-30 border-dim">
+            <form id="create-chapter-form">
+                <div class="form-group">
+                    <label for="newChapterStory">Story</label>
+                    <select id="newChapterStory" class="glass-select width-100"></select>
+                </div>
+
+                <div class="form-group">
+                    <label for="newChapterTitle">Chapter title</label>
+                    <input type="text" id="newChapterTitle" class="glass-input width-100" maxlength="120"
+                           placeholder="e.g. Chapter One" autocomplete="off" required>
+                </div>
+
+                <p id="createChapterError" class="glass-field-error" hidden></p>
+
+                <button type="submit" id="createChapterBtn"
+                        class="glass glass-btn glass-btn--primary width-100 margin-t-20">
+                    Create chapter
+                </button>
+            </form>
+
+            <p id="createChapterStatus" class="font-size-07 text-muted margin-t-10"></p>
+        </div>
+    </div>
+</div>

@@ -3,7 +3,7 @@ const VolumeModel = require('../models/Volume.js');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
-const { resolveSeriesPath } = require('../services/MediaService');
+const { resolveSeriesPath } = require('../services/HierarchyLookupService');
 
 exports.createVolume = async (req, res) => {
   const { index, title, seriesId, pages, firstChapterTitle } = req.body;

@@ -115,10 +115,8 @@ class ScheduledTaskController {
             const io = req.app.locals.io;
             const results = await scanLibrary(io);
 
-            // Automatically perform a Quick Vision Scan (Hashing only, no AI)
-            // This ensures hashes are updated without slamming the AI API
-            const VisionController = require('./VisionController');
-            await VisionController.runVisionScan(io, true); // true = quick mode (hash only)
+            // The follow-up vision scan went with the panel-image pipeline;
+            // there are no images left to hash.
 
             const integrity = await reportBrokenVolumes(req, io);
 

@@ -1,7 +1,9 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle
+**CLAUDE:** Narrator (Kokoro live read-back), CodeMirror writing surface, and
+Story/Chapter rail menus - all in the tree, uncommitted. Chapter render to file
+not started.
 
 > **Read `WORKING_PRACTICES.md` before starting work.** It covers how to work
 > here — house rules, verification discipline, and this environment's traps.
@@ -19,13 +21,28 @@ A Node.js/Express platform for creating, reading, and publishing digital comics.
 
 ```bash
 npm run dev          # nodemon server.js — auto-reloads on *.js/ejs/css changes
-# MongoDB must be running on localhost:27017 (database: VeilSite)
-# Server listens on port 3000; Socket.io shares the same HTTP server
+# MongoDB on localhost:27017, database ProseEngine (NOT VeilSite — that's the comic server)
+# Server listens on port 3100; Socket.io shares the same HTTP server
 ```
 
-**Required env vars** (`.env`):
+### First run
+
+The engine boots with or without a database. Until it has both a database and
+one account, every route redirects to **`/setup`** and `/api/*` returns 503 —
+there is no self-registration to fall back on, because `/accounts/request` only
+files a request and every approval route sits behind `isAdmin`.
+
+The wizard is two steps: give it a MongoDB connection string (it tests the
+connection, creates the database and collections, and writes `MONGODB_URI` plus
+any missing secrets to `.env`), then create the admin. Both steps refuse once
+setup is complete, so the door closes behind you.
+
+Locked out later — last admin's role clobbered, say? `node scripts/promote-admin.js <email>`.
+
+**Env vars** (`.env`). Missing secrets are generated on first boot or by the wizard:
 | Variable | Purpose |
 |---|---|
+| `MONGODB_URI` | Database connection. Absent ⇒ `mongodb://localhost:27017/ProseEngine` |
 | `SESSION_SECRET` | Express session encryption |
 | `INTERNAL_EXPORT_SECRET` | Puppeteer headless auth bypass |
 | `GEMINI_API_KEY` | Google AI vision scanning |

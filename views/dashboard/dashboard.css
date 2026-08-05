@@ -9,8 +9,7 @@
 @import url('./ui-kit/loader.css');
 
 /* 2. Core Feature Components */
-@import url('./components/SceneEditor/SceneEditor.css');
-@import url('./components/FileBrowser/FileBrowser.css');
+@import url('./components/Editor/Editor.css');
 
 /* 3. Dashboard-Specific Polish */
 
@@ -78,4 +77,106 @@ input[type="range"] {
 
 [data-theme="light"] .dashboard-section select:not(.glass-select) {
     background-image: none;
+}
+
+/* --------------------------------------------------------------------------
+   FOLDER BROWSER — picks the story root in Settings
+   -------------------------------------------------------------------------- */
+/* The kit reveals a dialog with .is-open on the backdrop, and until it is
+   there the backdrop is opacity:0 AND pointer-events:none — so a modal toggled
+   by [hidden] alone opens invisibly and every click falls straight through it
+   to the page underneath. The button that opened it looks unwired. Derive the
+   open state from [hidden], which is the toggle these modals actually use. */
+.folder-browser[hidden] {
+    display: none;
+}
+
+.folder-browser:not([hidden]) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.folder-browser__dialog {
+    width: min(560px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.folder-browser__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+}
+
+/* The path is the one thing here that must never wrap into the folder list. */
+.folder-browser__path {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: var(--text-xs);
+    opacity: 0.7;
+}
+
+.folder-browser__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--glass-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--glass-dark);
+}
+
+.folder-browser__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    width: 100%;
+    padding: var(--space-xs) var(--space-sm);
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.folder-browser__item:hover {
+    background: var(--glass-white);
+}
+
+.folder-browser__empty {
+    padding: var(--space-md);
+    font-size: var(--text-sm);
+    opacity: 0.6;
+}
+
+.folder-browser__new,
+.folder-browser__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.folder-browser__actions {
+    justify-content: flex-end;
+}
+
+/* Settings status line that has turned into a warning. */
+.text-error {
+    color: #dc2626;
+}
+
+.folder-browser:not([hidden]) .glass-modal {
+    opacity: 1;
+    transform: none;
+}
+
+.folder-browser .glass-modal {
+    padding: var(--space-xl);
 }

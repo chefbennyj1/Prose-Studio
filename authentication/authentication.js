@@ -6,6 +6,7 @@ const router = express.Router();
 
 //USER SCHEMA
 const UserModel = require('../models/User.js');
+const { normaliseEmail } = require('../utils/accountValidation.js');
 
 // Create a limiter for the login route
 const loginLimiter = rateLimit({
@@ -28,10 +29,14 @@ router.post('/login', loginLimiter, async (req, res) => {
   // Only ever return to an internal path ('//' would be protocol-relative)
   const isInternalPath = typeof returnTo === 'string' &&
     returnTo.startsWith('/') && !returnTo.startsWith('//');
-  const destination = isInternalPath ? returnTo : '/library';
+  // Default landing is the dashboard: the reader-facing /library went with the
+  // comic browser, and logging in used to drop the writer on a 404.
+  const destination = isInternalPath ? returnTo : '/dashboard';
 
   try {
-    const user = await UserModel.findOne({ email });
+    // Accounts are stored with a lowercased email; look up the same way, or a
+    // capital letter in the address reads as "invalid email or password".
+    const user = await UserModel.findOne({ email: normaliseEmail(email) });
 
     if (!user) {
       if (req.headers.accept && req.headers.accept.includes('application/json')) {

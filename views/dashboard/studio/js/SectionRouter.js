@@ -6,23 +6,23 @@
  * Navigation, and SceneEditor in the dependency graph so all three can route
  * without importing each other.
  */
-import { populateSeriesSelect, populateLayoutSelect } from './LibraryManager.js';
-import { activatePageBuilderPane, visiblePageBuilderPane } from './PageBuilderModes.js';
+import { populateSeriesSelect } from './LibraryManager.js';
 
 // Fragment load cache — prevents duplicate fetches
 const _loadedSections = new Set();
 
 // Sections reachable from the persistent studio rail; the "studio" tab and
-// fresh entries resolve to the last one the writer used.
+// fresh entries resolve to the last one the writer used. The panel-art tools
+// (layout editor, page builder, style lab, export) went with the comic stack;
+// the editor takes their place as the landing section.
 export const STUDIO_SECTIONS = [
-    'layout-editor', 'page-builder', 'characters', 'plot-lab', 'story-critic',
-    'style-lab', 'export-tool', 'create-new-volume', 'edit-volume',
-    'create-new-chapter', 'library-settings'
+    'editor', 'characters', 'plot-lab', 'create-story', 'create-chapter',
+    'library-settings'
 ];
 
 export function lastStudioSection() {
     const saved = localStorage.getItem('sequential_last_studio_section');
-    return STUDIO_SECTIONS.includes(saved) ? saved : 'layout-editor';
+    return STUDIO_SECTIONS.includes(saved) ? saved : 'editor';
 }
 
 /**
@@ -108,21 +108,8 @@ export async function switchToSection(targetPage, container) {
     if (targetPage === 'create-new-volume') popTasks.push(populateSeriesSelect('createVolumeSeriesSelect'));
     if (targetPage === 'edit-volume') popTasks.push(populateSeriesSelect('volumeSeriesSelect'));
     if (targetPage === 'create-new-chapter') popTasks.push(populateSeriesSelect('chapterSeriesSelect'));
-    if (targetPage === 'export-tool') popTasks.push(populateSeriesSelect('exportSeriesSelect'));
     if (targetPage === 'characters') popTasks.push(populateSeriesSelect('char-series-select'));
-    if (targetPage === 'page-builder') {
-        popTasks.push(populateSeriesSelect([
-            'builderSeriesSelect',
-            'insertSeriesSelect',
-            'scriptSeriesSelect',
-            'editSeriesSelect'
-        ]));
-        popTasks.push(populateLayoutSelect());
-
-        // Persistent tool rail: keep whichever pane was open highlighted,
-        // or land on Page Layout when entering fresh
-        activatePageBuilderPane(visiblePageBuilderPane() || 'layoutPageContainer');
-    }
+    if (targetPage === 'editor') popTasks.push(populateSeriesSelect('editorSeriesSelect'));
 
     await Promise.all(popTasks);
 

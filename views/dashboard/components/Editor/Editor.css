@@ -1,0 +1,316 @@
+/* views/dashboard/components/Editor/Editor.css */
+
+.editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.editor__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    /* Three pickers plus a button will not fit a narrow window on one line;
+       wrapping beats the button collapsing onto two lines over its own text. */
+    flex-wrap: wrap;
+}
+
+/* The pickers share what is left; each stays readable but none hogs the bar. */
+.editor__bar .glass-select {
+    flex: 1 1 12ch;
+    min-width: 10ch;
+    max-width: 26ch;
+}
+
+.editor__bar .glass-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.editor__count,
+.editor__state {
+    white-space: nowrap;
+}
+
+/* Where you are, not a way to change it. */
+.editor__where {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40ch;
+    font-size: 0.9rem;
+    color: var(--text-muted, #777);
+}
+
+.editor__where strong {
+    color: var(--color-text, inherit);
+    font-weight: 600;
+}
+
+.editor__count,
+.editor__state {
+    font-size: 0.85rem;
+    color: var(--text-muted, #777);
+}
+
+.editor__state {
+    min-width: 8ch;
+    text-align: right;
+}
+
+.editor__body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+}
+
+/*
+   The page: the 6.5in text block plus the margin its line numbers sit in.
+   6.5in is the text block of a US Letter page with one-inch margins — the
+   width the words will actually occupy in print.
+
+   CodeMirror builds its own DOM inside this element, so everything below
+   styles .cm-* rather than a textarea. The gutter and the content are
+   siblings inside .cm-scroller, which is why the width here has to allow for
+   both: centring only the text would leave the numbers off in the margin.
+*/
+.editor__page {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    max-height: 65vh;
+    max-width: calc(6.5in + var(--gutter-width, 46px));
+    margin: 0 auto;
+    overflow-x: auto;
+}
+
+/*
+   The editor must be capped to the page, or .cm-scroller has nothing to
+   scroll inside of and the chapter simply runs off the bottom - #main-content
+   is overflow:hidden, so there is no scrollbar anywhere to rescue it. The old
+   textarea never showed this because form controls have an intrinsic height.
+
+   It has to be done with height. CodeMirror's base theme sets
+   `position: relative !important` on this element to protect its own
+   measurement, so absolute positioning is silently ignored: measured at
+   5795px tall inside a 487px box before this was caught.
+*/
+.editor__page .cm-editor {
+    height: 100%;
+    max-height: 100%;
+    background: transparent;
+    color: inherit;
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+/* Focus must not turn the page back into a form field. */
+.editor__page .cm-editor.cm-focused {
+    outline: none;
+}
+
+.editor__page .cm-scroller {
+    font-family: inherit;
+    line-height: inherit;
+    /* The scroll container for the manuscript. CodeMirror's own base theme
+       leaves this hidden when the editor has no height. */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.editor__page .cm-content {
+    padding: 40px 32px 60px;
+    caret-color: currentColor;
+}
+
+.editor__page .cm-line {
+    padding: 0;
+}
+
+/*
+   Numbers. Quiet enough to ignore while writing, and only drawn on lines that
+   have words on them — Surface.js returns an empty label for blank lines, so
+   the sequence runs 1, 3, 5 rather than putting a number beside every empty
+   row between paragraphs.
+
+   No top padding here, deliberately. CodeMirror already offsets the gutter to
+   match .cm-content's padding; adding it again pushed every number exactly
+   40px below its line. Measured, not guessed — see the standalone check.
+*/
+.editor__page .cm-gutters {
+    --gutter-width: 46px;
+    min-width: var(--gutter-width);
+    background: transparent;
+    border-right: 0;
+    color: var(--text-muted, #999);
+}
+
+.editor__page .cm-lineNumbers .cm-gutterElement {
+    padding: 0 12px 0 8px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.5;
+}
+
+/*
+   Page rules. A hairline every --page-height, set by the editor from the
+   250-word standard and the surface's own line-height. A repeating gradient
+   rather than measured elements: the background belongs to .cm-content, which
+   is as tall as the document, so it scrolls with the text for free.
+
+   --page-top offsets the first rule past the top padding, so rule 1 falls at
+   the end of page 1 rather than partway down it.
+*/
+.editor__page .cm-content {
+    --page-height: 0px;
+    --page-top: 40px;
+    background-image: repeating-linear-gradient(to bottom,
+            transparent 0,
+            transparent calc(var(--page-height) - 1px),
+            var(--glass-border, rgba(15, 23, 42, 0.14)) calc(var(--page-height) - 1px),
+            var(--glass-border, rgba(15, 23, 42, 0.14)) var(--page-height));
+    background-position: 0 var(--page-top);
+    background-repeat: repeat-y;
+}
+
+/* Until the editor has measured, --page-height is 0 and the gradient would be
+   a solid block. Nothing to draw yet, so draw nothing. */
+.editor__page .cm-content:not([style*="--page-height"]),
+.editor__page .cm-content[style*="--page-height: 0px"] {
+    background-image: none;
+}
+
+.editor__page .cm-placeholder {
+    color: var(--text-muted, #999);
+    opacity: 0.6;
+}
+
+/*
+   Markdown, styled where it stands. The markers stay visible — this is still
+   the source text, not a preview — but a heading looks like a heading while
+   you type it. Surface.js maps syntax tags to these class names.
+*/
+.editor__page .md-h1 { font-size: 1.5em; font-weight: 700; }
+.editor__page .md-h2 { font-size: 1.3em; font-weight: 700; }
+.editor__page .md-h3 { font-size: 1.15em; font-weight: 700; }
+.editor__page .md-h4,
+.editor__page .md-h5,
+.editor__page .md-h6 { font-weight: 700; }
+.editor__page .md-strong { font-weight: 700; }
+.editor__page .md-em { font-style: italic; }
+.editor__page .md-strike { text-decoration: line-through; }
+.editor__page .md-link,
+.editor__page .md-url { color: var(--accent, #0088aa); }
+.editor__page .md-quote { color: var(--text-muted, #777); font-style: italic; }
+.editor__page .md-code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.9em; }
+.editor__page .md-rule { color: var(--text-muted, #999); letter-spacing: 0.3em; }
+
+/*
+   The syntax characters themselves: present, but out of the way.
+
+   No font-weight here. CodeMirror puts both classes on the same span when a
+   marker sits inside a styled run, so `font-weight: 400` on this rule beat
+   .md-strong's 700 on equal specificity by being further down the file — and
+   bold text stopped being bold. Dimming is enough to push the markers back.
+*/
+.editor__page .md-mark {
+    color: var(--text-muted, #999);
+    opacity: 0.45;
+}
+
+.editor__panel {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    border-left: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    overflow-y: auto;
+}
+
+.editor__panel-head,
+.editor__panel-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.editor__panel-head .glass-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.editor__output {
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.editor__output h4 {
+    margin: 18px 0 6px;
+}
+
+.editor__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.editor__list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+}
+
+.editor__output blockquote {
+    margin: 0 0 6px;
+    padding-left: 10px;
+    border-left: 3px solid var(--glass-border, rgba(0, 0, 0, 0.2));
+    color: var(--text-muted, #777);
+    font-style: italic;
+}
+
+.editor__replacement {
+    padding-left: 10px;
+    border-left: 3px solid var(--accent, #00ccff);
+}
+
+.editor__sugg {
+    color: var(--accent, #0088aa);
+}
+
+.editor__add,
+.editor__apply {
+    margin-top: 6px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.2));
+    border-radius: 4px;
+    color: inherit;
+}
+
+.editor__add:disabled,
+.editor__apply:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.editor__conflict {
+    padding: 10px;
+    border-radius: 6px;
+    background: rgba(255, 65, 65, 0.12);
+}
+
+@media (max-width: 900px) {
+    .editor__body { flex-direction: column; }
+    .editor__panel { width: auto; border-left: 0; border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12)); }
+}
+
