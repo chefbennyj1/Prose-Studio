@@ -1,5 +1,6 @@
 const SpellService = require('../services/proofing/SpellService');
 const SuggestionService = require('../services/proofing/SuggestionService');
+const PronunciationService = require('../services/proofing/PronunciationService');
 
 /**
  * ProofingController
@@ -110,6 +111,30 @@ exports.addDictionaryWord = (req, res) => {
     try {
         const words = SpellService.addCustomWord(seriesFolder, word);
         res.json({ ok: true, words });
+    } catch (err) {
+        res.status(400).json({ ok: false, message: err.message });
+    }
+};
+
+/* ---------- pronunciation ---------- */
+
+/**
+ * How words should be SAID. Separate from the spelling dictionary because the
+ * question is different: that one answers "is this a word", this one answers
+ * "the narrator is getting this wrong, say it like this instead".
+ */
+exports.getPronunciation = async (req, res) => {
+    try {
+        res.json({ ok: true, lexicon: await PronunciationService.get(req.params.seriesFolder) });
+    } catch (err) {
+        res.status(500).json({ ok: false, message: err.message });
+    }
+};
+
+exports.setPronunciation = async (req, res) => {
+    const { seriesFolder, word, spoken } = req.body || {};
+    try {
+        res.json({ ok: true, lexicon: await PronunciationService.set(seriesFolder, word, spoken) });
     } catch (err) {
         res.status(400).json({ ok: false, message: err.message });
     }

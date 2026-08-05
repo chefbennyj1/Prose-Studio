@@ -1,9 +1,93 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** Narrator (Kokoro live read-back), CodeMirror writing surface, and
-Story/Chapter rail menus - all in the tree, uncommitted. Chapter render to file
-not started.
+**CLAUDE:** idle — see handoff below.
+
+---
+
+## Handoff — 2026-08-05
+
+Everything below is committed and pushed to `github.com/chefbennyj1/Prose-Studio`
+(private). Working tree clean.
+
+### THE DOCS BELOW THIS SECTION ARE STALE
+
+Most of this file still describes the comic server. It lists controllers that
+no longer exist (`ExportController`, `PageLayoutController`, `VisionController`,
+`MediaController`, `StyleLabController`, `ViewerController`), omits the ones
+that do (`ManuscriptController`, `ProofingController`, `SetupController`,
+`StorageController`, `AccountsController`), documents a deleted
+`Library/layouts/` tree, and claims `Character` has a `voiceId` — there is no
+`voice` field anywhere in `models/`. **Verify against code before trusting any
+of it.** Rewriting this file is the cheapest outstanding job.
+
+### Environment traps that cost real time today
+
+- **nodemon does NOT restart on `server.js` changes.** It ran ~11 hours with
+  stale code. Two separate bugs were chased that were only "the server never
+  reloaded". Restart manually and confirm the change is live before debugging.
+- The dashboard shell (`dashboard.html`) is injected by `loadSection` and
+  `glass_component.js` is appended dynamically — **both after
+  `DOMContentLoaded`**. Anything in the kit that binds on that event
+  (`GlassDropdown.init()`) never sees the rail. This is why the Story/Chapter
+  menus own their own open state.
+- Verify UI standalone with Puppeteer against the **real ancestor chain**
+  (`.dashboard > .app-body > #main-content > .editor.dashboard-section`) and
+  **with the section starting `.hidden`**. A harness that renders it visible
+  passes while the app fails — CodeMirror measures zero inside `display: none`.
+
+### Narrator (Kokoro 82M, browser-side)
+
+Runs in a Web Worker, WebGPU/fp32 when available, else WASM/q8. Force one with
+`localStorage.setItem('narrator_device', 'wasm')` — **this A/B has never been
+run and is the top open question.**
+
+Unsolved: the voice fades/degrades at the end of each utterance. Confirmed on
+the raw model output via a separate playback path, so it is not the Web Audio
+code. Mitigations in place, none confirmed effective: one sentence per
+`generate()` (`SENTENCES_PER_CHUNK`), terminal punctuation forced on every
+chunk (`terminate()`), tail trim in the worker. **If WASM is clean, it was GPU
+kernel precision all along and the text-side fixes can be relaxed.**
+
+Do not switch to Bark: autoregressive, ~13s hard limit per generation, and
+drifts between chunks. Wrong shape for consistent long-form narration.
+
+### Immediate next task (agreed, not started)
+
+A **Narrator rail menu**, same pattern as Story/Chapter in `dashboard.html`:
+- **Voice** — Bella (`af_bella`) / Michael (`am_michael`) as a flyout
+- **Pronunciation** — the lexicon editor, with list and delete
+
+Move both out of the editor: the voice `<select>` in `editor.html` and the
+cramped `<details class="narrator__lexicon">` in the panel. They are settings,
+not writing controls. The pronunciation feature itself works today — backend,
+substitution and Test button are all done and verified.
+
+### Other open threads
+
+- **Chapter render to file** — the original plan: pipelined render to MP3 in a
+  hidden `.audio/` per story, staleness via the `modified` mtime
+  `ManuscriptService` already tracks, driven from Scheduled Tasks. Note that
+  tab renames to "Scheduled Tasks" (`dashboard.html` still says "Scanner"
+  while `data-page` already says `scheduled-tasks`), and that panel is still
+  full of comic-era Vision AI controls.
+- **Markdown preview** — Ben called it "a plus". `renderMarkdown` in
+  `EditorRender.js` already exists; needs `*italic*` and `***` as a scene break.
+
+### Decisions made, with reasons (do not silently reverse)
+
+- **Line numbers count logical (`\n`) lines, not wrapped rows.** They match
+  what `SpellService` reports, survive resizing, and Ben values them for
+  judging how far to scroll. Visual rows would be finer-grained but do not
+  exist in the file, so they cannot be quoted between Ben and an agent.
+- The editor's measure is **67 characters** — measured, near the classical
+  ideal of 66. Do not "fix" the 6.5in width.
+- `.editor__page { max-height: 65vh }` is **Ben's** choice and it works. It was
+  the definite height CodeMirror needed. Leave it.
+- Pronunciation entries are **respellings** (`SY-liss`), not IPA — typable by
+  ear, and engine-agnostic if the voice is ever swapped.
+
+---
 
 > **Read `WORKING_PRACTICES.md` before starting work.** It covers how to work
 > here — house rules, verification discipline, and this environment's traps.

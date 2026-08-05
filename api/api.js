@@ -226,6 +226,8 @@ router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
 router.get('/proofing/dictionary/:seriesFolder', isAuth, ProofingController.getDictionary);
 router.post('/proofing/dictionary', isAuth, ProofingController.addDictionaryWord);
+router.get('/proofing/pronunciation/:seriesFolder', isAuth, ProofingController.getPronunciation);
+router.post('/proofing/pronunciation', isAuth, ProofingController.setPronunciation);
 
 // --- STORY CRITIC ---
 // Passage-based only. The old volume-wide route fed the critic a comic

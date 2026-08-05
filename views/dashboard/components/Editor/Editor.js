@@ -27,7 +27,9 @@ import {
     setVoice,
     start as startReading,
     stop as stopReading,
-    isActive as isReading
+    isActive as isReading,
+    setLexicon,
+    speakWord
 } from '../Narrator/Narrator.js';
 import { readFrom } from '../Narrator/prepare.js';
 import { createSurface } from './Surface.js';
@@ -574,6 +576,69 @@ function setUpNarrator() {
             return;
         }
         readAloud();
+    });
+
+    setUpPronunciation();
+}
+
+/* ---------- pronunciation ---------- */
+
+/**
+ * The narrator guesses how to say a word from its spelling, and fiction is
+ * full of the words that defeats. An entry here changes what is SPOKEN only -
+ * the manuscript still says Silas.
+ */
+async function setUpPronunciation() {
+    const word = document.getElementById('narratorWord');
+    const spoken = document.getElementById('narratorSpoken');
+    const testBtn = document.getElementById('narratorTestBtn');
+    const saveBtn = document.getElementById('narratorSaveWordBtn');
+    const list = document.getElementById('narratorLexList');
+    if (!word || !spoken || !testBtn || !saveBtn || !list) return;
+
+    const draw = (lexicon) => {
+        setLexicon(lexicon);
+        const entries = Object.entries(lexicon);
+        list.innerHTML = entries.length
+            ? entries.map(([from, to]) =>
+                `<div class="narrator__lex-item"><span>${escapeHtml(from)}</span>
+                 <span class="text-muted">${escapeHtml(to)}</span></div>`).join('')
+            : '<p class="text-muted italic">Nothing yet.</p>';
+    };
+
+    try {
+        const res = await fetch(`/api/proofing/pronunciation/${encodeURIComponent(currentSeriesFolder())}`);
+        const data = await res.json();
+        if (data.ok) draw(data.lexicon);
+    } catch { /* the narrator still reads, just less accurately */ }
+
+    // Speaks the respelling alone, so it can be judged without waiting for a
+    // paragraph to reach the word.
+    testBtn.addEventListener('click', () => {
+        const say = spoken.value.trim() || word.value.trim();
+        if (say) speakWord(say);
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        if (!word.value.trim()) return;
+        try {
+            const res = await fetch('/api/proofing/pronunciation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    seriesFolder: currentSeriesFolder(),
+                    word: word.value.trim(),
+                    spoken: spoken.value.trim()
+                })
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.message);
+            draw(data.lexicon);
+            word.value = '';
+            spoken.value = '';
+        } catch (err) {
+            setNarratorStatus(`Could not save: ${err.message}`);
+        }
     });
 }
 

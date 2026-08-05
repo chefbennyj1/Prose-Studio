@@ -57,6 +57,7 @@ let state = 'idle';
 let started = false;
 
 let voice = 'af_bella';
+let lexicon = null;
 let modelState = 'cold';
 let handlers = {};
 
@@ -269,6 +270,34 @@ export function setVoice(next) {
     voice = next;
 }
 
+/** Word -> respelling, applied on the way to the voice. See applyLexicon. */
+export function setLexicon(next) {
+    lexicon = next && typeof next === 'object' ? next : null;
+}
+
+/**
+ * Speaks one word on its own, for tuning a respelling by ear. Deliberately
+ * bypasses the lexicon: you are auditioning the replacement itself, so
+ * substituting it again would test the wrong string.
+ */
+export function speakWord(text) {
+    stop();
+    plan = [{ kind: 'text', text: String(text || '').trim(), endsParagraph: true }];
+    if (!plan[0].text) return false;
+
+    if (!context) context = new (window.AudioContext || window.webkitAudioContext)();
+    if (context.state === 'suspended') context.resume();
+
+    buffers = new Map();
+    nextRequest = 0;
+    nextPlay = 0;
+    started = false;
+
+    setState('buffering');
+    pump();
+    return true;
+}
+
 export function getVoice() {
     return voice;
 }
@@ -305,7 +334,7 @@ export function warmUp() {
 export function start(markdown) {
     stop();
 
-    plan = planLive(markdown).filter(block => block.kind !== 'text' || block.text.trim());
+    plan = planLive(markdown, lexicon).filter(block => block.kind !== 'text' || block.text.trim());
     if (!plan.length) return false;
 
     // Created on the click that starts playback: browsers refuse to run an

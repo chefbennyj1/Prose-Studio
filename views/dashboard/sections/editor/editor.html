@@ -42,6 +42,22 @@
                 </div>
                 <div id="narratorStatus" class="narrator__status"></div>
 
+                <!-- Folded away by default: needed once per name, not per
+                     session. Test speaks the respelling on its own, so it can
+                     be tuned by ear instead of guessed at. -->
+                <details class="narrator__lexicon">
+                    <summary>Pronunciation</summary>
+                    <div class="narrator__lex-fields">
+                        <input id="narratorWord" class="glass-input" placeholder="Silas" aria-label="Word as written">
+                        <input id="narratorSpoken" class="glass-input" placeholder="SY-liss" aria-label="How to say it">
+                    </div>
+                    <div class="narrator__lex-actions">
+                        <button type="button" id="narratorTestBtn" class="glass glass-btn glass-btn--sm">Test</button>
+                        <button type="button" id="narratorSaveWordBtn" class="glass glass-btn glass-btn--sm glass-btn--primary">Save</button>
+                    </div>
+                    <div id="narratorLexList" class="narrator__lex-list"></div>
+                </details>
+
                 <div class="editor__panel-head">
                     <select id="editorLensSelect" class="glass-select" title="What the critic looks for"></select>
                     <select id="editorEngineSelect" class="glass-select" title="Which model answers"></select>
