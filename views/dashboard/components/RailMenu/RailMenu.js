@@ -1,19 +1,27 @@
 // views/dashboard/components/RailMenu/RailMenu.js
 
 /**
- * The Story and Chapter menus in the studio rail.
+ * The menus in the studio rail: Story, Chapter, Narrator.
  *
- * These replaced the two dropdowns that used to sit in the editor's bar. The
- * bar is for writing in; choosing what to write in belongs with the rest of
- * the navigation.
+ * These replaced the dropdowns that used to sit in the editor's bar. The bar
+ * is for writing in; choosing what to write in - and how it should sound -
+ * belongs with the rest of the navigation.
  *
- * Each menu offers "Create New" and "Open". Create New is a plain
- * .glass-dropdown-item carrying a data-target, so the rail's existing
- * navigation handles it and the kit's own dropdown closes the menu on click.
- * Open is deliberately NOT one: GlassDropdown binds every .glass-dropdown-item
- * to close(), which would shut the menu before its flyout could be seen.
+ * Story and Chapter put their list straight in the menu: one click on the rail
+ * button shows "Create New" and everything you could open. They used to hide
+ * the list behind an "Open" row that flew out sideways, and that was broken in
+ * a way that made the menus look dead - the row revealed the flyout on
+ * mouseenter, and the click that followed found it already open and closed it
+ * again. Hovering worked; clicking never did. Removing the middle step removed
+ * the conflict along with a level of navigation nobody asked for.
  *
- * Lists are fetched when the flyout opens, never cached. A story or chapter
+ * The Narrator menu still uses submenus, because its rows are a voice list and
+ * a pronunciation form rather than one list of destinations. Those carry no
+ * data-list: their contents belong to NarratorMenu.js, they open on CLICK, and
+ * they stay open until the menu is dismissed, because you cannot type into a
+ * flyout that closes when the pointer wanders off the row that opened it.
+ *
+ * Lists are fetched when the menu opens, never cached. A story or chapter
  * created in another section is therefore always there the next time you look,
  * with no invalidation to get wrong.
  *
@@ -48,18 +56,56 @@ export function initRailMenus() {
 }
 
 function closeMenu(root) {
-    root.classList.remove('is-open', 'is-flyout-open');
-    const parent = root.querySelector('[data-action="open"]');
-    if (parent) parent.setAttribute('aria-expanded', 'false');
+    root.classList.remove('rail-menu--open');
+    root.querySelectorAll('.rail-menu__submenu').forEach(hideFlyout);
+}
+
+function hideFlyout(submenu) {
+    submenu.classList.remove('is-flyout-open');
+    submenu.querySelector('[data-action="open"]')?.setAttribute('aria-expanded', 'false');
+
+    // Cleared so the next open measures fresh: the list may be a different
+    // height, and the rail may have moved.
+    const flyout = submenu.querySelector('.rail-menu__flyout');
+    if (flyout) { flyout.style.top = ''; flyout.style.bottom = ''; }
+}
+
+/** Breathing room between a flyout and the edge of the window. */
+const EDGE = 8;
+
+/**
+ * Keeps a flyout on screen.
+ *
+ * CSS alone cannot do this. The Narrator menu sits at the bottom of the rail
+ * so its flyouts are anchored upward, but the voice list is as tall as the
+ * number of installed voices - with the full catalogue it measured 600px and
+ * started 265px above the top of the window, which is simply gone. Anchoring
+ * downward instead would put the same problem at the bottom for a menu near
+ * the foot of the rail.
+ *
+ * So the flyout is aligned with its row and then pushed back inside the
+ * viewport if it does not fit. Written as an offset from the submenu because
+ * that is what the flyout is positioned against.
+ */
+function place(submenu, flyout) {
+    const anchor = submenu.getBoundingClientRect();
+    const height = flyout.offsetHeight;
+    if (!height) return;
+
+    let top = anchor.top;
+    if (top + height > window.innerHeight - EDGE) top = window.innerHeight - EDGE - height;
+    if (top < EDGE) top = EDGE;
+
+    flyout.style.bottom = 'auto';
+    flyout.style.top = `${Math.round(top - anchor.top)}px`;
 }
 
 function wire(root) {
-    const kind = root.dataset.menu;
     const trigger = root.querySelector('.rail-menu__trigger');
-    const parent = root.querySelector('[data-action="open"]');
-    const flyout = root.querySelector('.rail-menu__flyout');
     const menu = root.querySelector('.glass-dropdown-menu');
-    if (!kind || !trigger || !parent || !flyout || !menu) return;
+    if (!trigger || !menu) return;
+
+    const list = menu.querySelector('.rail-menu__list[data-list]');
 
     trigger.addEventListener('click', (event) => {
         // Not the document handler's business, and the rail's own navigation
@@ -67,9 +113,13 @@ function wire(root) {
         event.stopPropagation();
         event.preventDefault();
 
-        const opening = !root.classList.contains('is-open');
+        const opening = !root.classList.contains('rail-menu--open');
         document.querySelectorAll('.rail-menu').forEach(closeMenu);
-        if (opening) root.classList.add('is-open');
+        if (!opening) return;
+
+        root.classList.add('rail-menu--open');
+        // Fetched on every open, so a story created elsewhere is always here.
+        if (list) populate(list.dataset.list, list);
     });
 
     // Create New navigates by data-target through the rail handler; all this
@@ -78,43 +128,56 @@ function wire(root) {
         item.addEventListener('click', () => closeMenu(root));
     });
 
-    const reveal = async () => {
-        if (root.classList.contains('is-flyout-open')) return;
-        root.classList.add('is-flyout-open');
-        parent.setAttribute('aria-expanded', 'true');
-        await populate(kind, flyout);
-    };
+    if (list) {
+        list.addEventListener('click', (event) => {
+            const entry = event.target.closest('.rail-menu__entry');
+            if (!entry) return;
 
-    const hide = () => {
-        root.classList.remove('is-flyout-open');
-        parent.setAttribute('aria-expanded', 'false');
-    };
+            event.stopPropagation();
+            choose(list.dataset.list, entry.dataset.name);
+            closeMenu(root);
+        });
+    }
+
+    root.querySelectorAll('.rail-menu__submenu').forEach(submenu => wireSubmenu(root, menu, submenu));
+}
+
+/**
+ * The Narrator menu's rows. Click to open, click again to close, and no
+ * mouseenter: a hover-reveal plus a click-toggle is what made the old Story
+ * menu impossible to open with the mouse.
+ */
+function wireSubmenu(root, menu, submenu) {
+    const parent = submenu.querySelector('[data-action="open"]');
+    const flyout = submenu.querySelector('.rail-menu__flyout');
+    if (!parent || !flyout) return;
 
     parent.addEventListener('click', (event) => {
         // Without this the kit's outside-click handler closes the whole menu.
         event.stopPropagation();
-        if (root.classList.contains('is-flyout-open')) {
-            hide();
+
+        if (submenu.classList.contains('is-flyout-open')) {
+            hideFlyout(submenu);
             return;
         }
-        reveal();
+
+        // Only one flyout at a time, or two would overlap in the same place.
+        root.querySelectorAll('.rail-menu__submenu').forEach(hideFlyout);
+        submenu.classList.add('is-flyout-open');
+        parent.setAttribute('aria-expanded', 'true');
+        submenu.dispatchEvent(new CustomEvent('flyoutOpened', { bubbles: true }));
+
+        // Placed after the event, so a flyout that fills itself on open is
+        // measured at the height it actually ends up. Again on the next frame
+        // for the ones that fetch.
+        place(submenu, flyout);
+        requestAnimationFrame(() => place(submenu, flyout));
     });
 
-    parent.addEventListener('mouseenter', reveal);
-    menu.addEventListener('mouseleave', hide);
-
-    flyout.addEventListener('click', (event) => {
-        const entry = event.target.closest('.rail-menu__entry');
-        if (!entry) return;
-
-        event.stopPropagation();
-        choose(kind, entry.dataset.name);
-
-        hide();
-        // These entries did not exist when GlassDropdown bound its items, so
-        // closing the parent menu is this component's job.
-        root.classList.remove('is-open');
-    });
+    // These flyouts hold inputs and buttons. Clicks inside must not reach the
+    // document handler, which would close the menu out from under whatever was
+    // just pressed.
+    flyout.addEventListener('click', event => event.stopPropagation());
 }
 
 async function populate(kind, flyout) {

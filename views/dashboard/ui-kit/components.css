@@ -77,6 +77,19 @@
     border-radius: 0;
     border-right: 1px solid var(--glass-border);
     z-index: 20;
+
+    /*
+       The rail's menus open sideways, out past its own edge, and .glass sets
+       overflow: hidden so its ::before highlight stays inside a rounded card.
+       Inherited here that clipped every rail menu away completely - the box
+       was laid out at the right size and simply never painted, which reads as
+       a dead button rather than a styling fault. No z-index will fix it; a
+       clipped child is gone whatever it is stacked above.
+
+       Safe to turn off here because this card is square (border-radius: 0),
+       so the highlight has no corner to escape from.
+    */
+    overflow: visible;
 }
 
 .studio-rail__btn {

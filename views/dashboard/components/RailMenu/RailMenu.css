@@ -15,6 +15,26 @@
 }
 
 /*
+   Opaque, unlike the rest of the kit.
+
+   These menus open over the writing surface, and a translucent panel with a
+   manuscript showing through it is genuinely hard to read - the text behind
+   competes with the list in front at the same contrast. The glass look is kept
+   as a tint laid over a solid colour rather than as real transparency: same
+   surface, nothing legible behind it.
+
+   backdrop-filter goes with it. It has nothing left to blur once the
+   background is opaque, and it is the expensive part.
+*/
+.rail-menu > .glass-dropdown-menu,
+.rail-menu__flyout {
+    background-color: var(--color-bg);
+    background-image: linear-gradient(var(--glass-white), var(--glass-white));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/*
    The rail runs down the side, so its menus open sideways rather than below.
    overflow returns to visible because the base .glass-dropdown-menu hides it,
    which would clip the flyout at the menu's own edge.
@@ -31,10 +51,44 @@
     pointer-events: none;
 }
 
-.rail-menu.is-open > .glass-dropdown-menu {
-    opacity: 1;
-    pointer-events: all;
-    transform: none;
+.rail-menu.rail-menu--open > .glass-dropdown-menu {
+    opacity: 1 !important;
+    pointer-events: all !important;
+    transform: none !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+/*
+   Menus low in the rail grow upwards from their button instead of downwards
+   off the bottom of the window. The Narrator menu is both the lowest and the
+   tallest - its pronunciation flyout is a form with a scrolling list under it.
+*/
+.rail-menu--up > .glass-dropdown-menu {
+    top: auto;
+    bottom: 0;
+}
+
+/* Flyout placement is JS, not CSS - see place() in RailMenu.js. A voice list
+   is as tall as the number of voices installed, so neither anchoring it up nor
+   down is right on its own; it has to be measured and clamped. */
+
+/*
+   Story and Chapter list inline, inside the menu itself. A long-running book
+   holds a lot of chapters, so the list scrolls rather than growing the menu
+   off the screen - and the menu is wider than the bare dropdown because a
+   story name plus its chapter count needs the room.
+*/
+.rail-menu__list {
+    max-height: 50vh;
+    overflow-y: auto;
+    min-width: 240px;
+}
+
+.rail-menu__divider {
+    height: 1px;
+    margin: var(--space-2xs) 0;
+    background: var(--glass-border, rgba(255, 255, 255, 0.12));
 }
 
 .rail-menu__submenu {
@@ -71,10 +125,69 @@
     justify-content: space-between;
 }
 
+/* Pushes the value and the chevron to the right on a three-part row
+   (label / current value / chevron), which space-between alone would spread
+   evenly across the width instead. */
+.rail-menu__label {
+    margin-right: auto;
+}
+
+/*
+   What the setting is currently on, read without opening the flyout. Muted
+   and truncated: it is an answer to "what is this set to", not a second label
+   competing with the first.
+*/
+.rail-menu__value {
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82em;
+    opacity: 0.6;
+}
+
 .rail-menu__chevron {
     opacity: 0.55;
     font-size: 1.1em;
     line-height: 1;
+}
+
+/* A setting with two nudges rather than a slider: the useful range is narrow
+   and a writer wants "a bit slower", not a pixel-accurate scrub. */
+.rail-menu__stepper {
+    justify-content: space-between;
+    cursor: default;
+}
+
+.rail-menu__step {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 0.9em;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rail-menu__step:hover:not(:disabled) {
+    border-color: var(--accent-aqua);
+    color: var(--accent-aqua);
+}
+
+.rail-menu__step:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* The stepper's readout is the number being changed, so it earns full
+   opacity where a passive current-value caption does not. */
+.rail-menu__stepper .rail-menu__value {
+    min-width: 4.5em;
+    text-align: center;
+    opacity: 0.9;
 }
 
 .rail-menu__flyout {
@@ -96,10 +209,19 @@
         transform var(--dur-fast) var(--ease-liquid);
 }
 
-.rail-menu.is-flyout-open .rail-menu__flyout {
+/* Scoped to the submenu, not the menu: the Narrator menu holds three of these
+   and only the one that was opened may show. */
+.rail-menu__submenu.is-flyout-open > .rail-menu__flyout {
     opacity: 1;
     pointer-events: all;
     transform: translateX(0);
+}
+
+/* Wide enough for two fields side by side and a list of respellings under
+   them. The voice lists keep the standard width. */
+.rail-menu__flyout--wide {
+    min-width: 320px;
+    padding: var(--space-sm);
 }
 
 .rail-menu__entry {

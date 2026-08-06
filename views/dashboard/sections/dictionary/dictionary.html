@@ -1,0 +1,61 @@
+<div class="dictionary dashboard-section hidden glass glass--frosted glass-card">
+    <div class="dictionary__bar">
+        <div class="flex-row-center gap-15">
+            <h3 class="margin-0">Dictionary</h3>
+            <!--
+                Says what the list is FOR, because the merge is not obvious
+                from a table of words: one entry answers both "is this a word"
+                and "how is it said".
+            -->
+            <span class="dictionary__hint">Words the checker should accept, and how the narrator should say them.</span>
+        </div>
+        <div class="flex-row-center gap-15">
+            <span id="dictionaryCount" class="editor__count">0 words</span>
+        </div>
+    </div>
+
+    <!--
+        Adding is a row of its own at the top rather than a modal. This page is
+        for going through a list of invented names in one sitting, and a dialog
+        per word would be four extra clicks each.
+
+        The phoneme line under it is the thing respellings never had: espeak
+        reads "SY-liss" as the letters S and Y, and you could only ever find
+        that out by listening and wondering. Now it is on screen before saving.
+    -->
+    <div class="dictionary__add">
+        <input id="dictWord" class="glass-input" placeholder="Silas" aria-label="Word as written">
+        <input id="dictSpoken" class="glass-input" placeholder="SY-liss (optional)" aria-label="How to say it">
+        <select id="dictScope" class="glass-select" aria-label="Which list">
+            <option value="story">This story</option>
+            <option value="global">Every story</option>
+        </select>
+        <button type="button" id="dictTestBtn" class="glass glass-btn glass-btn--sm">
+            <ion-icon name="volume-medium"></ion-icon>
+        </button>
+        <button type="button" id="dictAddBtn" class="glass glass-btn glass-btn--primary glass-btn--sm">Add</button>
+    </div>
+    <p id="dictPhonemes" class="narrator__phonemes"></p>
+    <p id="dictNote" class="dictionary__note hidden"></p>
+
+    <div class="dictionary__filters">
+        <input id="dictSearch" class="glass-input" type="search" placeholder="Find a word"
+            aria-label="Search the dictionary">
+        <div class="dictionary__tabs" role="tablist">
+            <button type="button" class="dictionary__tab is-active" data-filter="all" role="tab">All</button>
+            <button type="button" class="dictionary__tab" data-filter="story" role="tab">This story</button>
+            <button type="button" class="dictionary__tab" data-filter="global" role="tab">Every story</button>
+            <button type="button" class="dictionary__tab" data-filter="spoken" role="tab">Has pronunciation</button>
+        </div>
+    </div>
+
+    <div class="dictionary__table" role="table" aria-label="Dictionary">
+        <div class="dictionary__head" role="row">
+            <span role="columnheader">Word</span>
+            <span role="columnheader">Said as</span>
+            <span role="columnheader">List</span>
+            <span role="columnheader"><span class="visually-hidden">Actions</span></span>
+        </div>
+        <div id="dictRows" class="dictionary__rows"></div>
+    </div>
+</div>

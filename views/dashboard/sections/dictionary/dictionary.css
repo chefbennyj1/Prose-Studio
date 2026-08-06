@@ -1,0 +1,227 @@
+/* views/dashboard/sections/dictionary/dictionary.css */
+
+.dictionary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    min-height: 0;
+}
+
+.dictionary__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+}
+
+.dictionary__hint {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #999);
+}
+
+/*
+   Adding is a row, not a dialog. This page gets worked through a list at a
+   time, and a modal per word would be four extra clicks each.
+*/
+.dictionary__add {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto auto;
+    gap: var(--space-2xs);
+    align-items: center;
+}
+
+.dictionary__add .glass-input,
+.dictionary__add .glass-select {
+    min-width: 0;
+}
+
+.dictionary__note {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--accent-rose);
+}
+
+.dictionary__filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.dictionary__filters .glass-input {
+    max-width: 240px;
+}
+
+.dictionary__tabs {
+    display: flex;
+    gap: var(--space-2xs);
+}
+
+.dictionary__tab {
+    padding: 4px var(--space-sm);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted, #999);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.dictionary__tab:hover {
+    background: var(--glass-white-md);
+}
+
+.dictionary__tab.is-active {
+    background: rgba(94, 231, 223, 0.18);
+    color: var(--accent-aqua);
+}
+
+/* One grid shared by the header and every row, so the columns line up without
+   a table element and its layout rules. */
+.dictionary__table {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.dictionary__head,
+.dictionary__row {
+    display: grid;
+    grid-template-columns: 1.2fr 1.4fr auto auto;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-sm);
+}
+
+.dictionary__head {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.45;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+
+/* A long book collects a lot of invented names; the list scrolls rather than
+   pushing the add row off the top of the page. */
+.dictionary__rows {
+    overflow-y: auto;
+    max-height: 55vh;
+}
+
+.dictionary__row {
+    border-radius: var(--radius-sm);
+}
+
+.dictionary__row:hover {
+    background: var(--glass-white-md);
+}
+
+.dictionary__word {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Looks like text until pointed at, because it is text most of the time and a
+   field only when you mean to change it. */
+.dictionary__spoken {
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    text-align: left;
+    padding: 3px 6px;
+    cursor: text;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dictionary__spoken:hover {
+    border-color: var(--glass-border, rgba(255, 255, 255, 0.18));
+}
+
+.dictionary__unset {
+    opacity: 0.35;
+    font-style: italic;
+}
+
+.dictionary__edit {
+    width: 100%;
+    padding: 2px 6px;
+}
+
+/* The list a word is in, and the control that moves it. Stated as words rather
+   than an icon because "this story" and "every story" is the whole
+   distinction and an icon would need explaining. */
+.dictionary__scope {
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-muted, #999);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    padding: 2px 10px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.dictionary__scope:hover {
+    color: var(--accent-aqua);
+    border-color: var(--accent-aqua);
+}
+
+.dictionary__actions {
+    display: flex;
+    gap: 2px;
+}
+
+/* Out of the way until the row is pointed at: a column of delete buttons
+   invites the accident it exists to allow. */
+.dictionary__icon {
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+}
+
+.dictionary__row:hover .dictionary__icon,
+.dictionary__icon:focus-visible {
+    opacity: 0.7;
+}
+
+.dictionary__icon:hover {
+    opacity: 1;
+    color: var(--accent-aqua);
+}
+
+.dictionary__icon--danger:hover {
+    color: var(--accent-rose);
+}
+
+.dictionary__empty {
+    padding: var(--space-lg) var(--space-sm);
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted, #999);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}

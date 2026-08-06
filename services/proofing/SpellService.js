@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const nspell = require('nspell');
 const Character = require('../../models/Character');
+const DictionaryService = require('./DictionaryService');
 
 /**
  * SpellService
@@ -44,7 +45,6 @@ function resolveDictDir() {
     }
 }
 
-const CUSTOM_DIR = path.join(__dirname, '..', '..', 'dictionaries');
 
 // Straight/curly apostrophes and hyphens may sit inside a word; anything else
 // ends it. \p{L} keeps accented names (Zoë, Renée) in one piece.
@@ -70,40 +70,19 @@ class SpellService {
         return this.base;
     }
 
-    customPath(seriesFolder) {
-        return path.join(CUSTOM_DIR, `${seriesFolder}.json`);
-    }
-
     /**
-     * Words the writer has explicitly accepted for this series. Kept as a
-     * plain JSON array on disk so it is diffable and travels with the repo,
-     * rather than hiding in Mongo where it cannot be reviewed.
+     * The accepted words now come from DictionaryService, which holds the
+     * global layer and the story layer together with their pronunciations.
+     * This service owns "is it a word"; it no longer owns the list.
      */
-    readCustomWords(seriesFolder) {
-        if (!seriesFolder) return [];
-        try {
-            const raw = fs.readFileSync(this.customPath(seriesFolder), 'utf8');
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed.filter(w => typeof w === 'string') : [];
-        } catch (err) {
-            return []; // No list yet is the normal case, not an error.
-        }
+    async readCustomWords(story) {
+        return DictionaryService.words(story);
     }
 
-    addCustomWord(seriesFolder, word) {
-        if (!seriesFolder) throw new Error('A series is required to save a word.');
-        const clean = String(word || '').trim();
-        if (!clean) throw new Error('No word given.');
-
-        const words = this.readCustomWords(seriesFolder);
-        if (!words.includes(clean)) {
-            words.push(clean);
-            words.sort((a, b) => a.localeCompare(b));
-            fs.mkdirSync(CUSTOM_DIR, { recursive: true });
-            fs.writeFileSync(this.customPath(seriesFolder), JSON.stringify(words, null, 2), 'utf8');
-        }
-        this.seriesCache.delete(seriesFolder);
-        return words;
+    async addCustomWord(story, word) {
+        const layers = await DictionaryService.set('story', story, word);
+        this.seriesCache.delete(story);
+        return Object.keys({ ...layers.global, ...layers.story });
     }
 
     /**
@@ -134,7 +113,7 @@ class SpellService {
         const { aff, dic } = this.loadBase();
         const checker = nspell(aff, dic);
 
-        const extra = [...(await this.characterWords()), ...this.readCustomWords(seriesFolder)];
+        const extra = [...(await this.characterWords()), ...(await this.readCustomWords(seriesFolder))];
         for (const word of extra) checker.add(word);
 
         console.log(`[SpellService] Checker ready for "${seriesFolder || 'default'}" (+${extra.length} project words).`);

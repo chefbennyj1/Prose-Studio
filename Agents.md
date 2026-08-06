@@ -1,7 +1,196 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — see handoff below.
+**CLAUDE:** idle — narrator rebuilt on Piper, uncommitted. See below.
+
+> **ELEVENLABS AND KOKORO ARE BOTH GONE (Ben, 2026-08-06).** ElevenLabs was
+> cancelled on cost ("it would just cost too much for the writing process")
+> before any synthesis was written. Kokoro was replaced by Piper on quality and
+> speed. Do not reintroduce either. There is no cloud TTS in the Prose Engine
+> and no API key to configure.
+
+---
+
+## Narrator — rebuilt on Piper, 2026-08-06
+
+**Uncommitted.** Verified against the running app: 17/19 Puppeteer checks, the
+two failures being harness bugs (a regex that lost its `\d` through shell
+quoting, and a favicon 404 counted as a console error). The only failing
+request anywhere in the flow is `/favicon.ico`, which predates this work.
+
+### Why Piper, with numbers
+
+Measured on Ben's machine, same paragraph, `scratchpad/bench.js`:
+
+| Engine | Speed | Tail vs body peak |
+|---|---|---|
+| Piper `lessac-medium` | 10.1x realtime | 0.434 |
+| Piper `ryan-high` | 2.2x | 0.786 |
+| Kokoro `af_bella` (CPU) | 0.9x | 0.237 |
+
+"Tail vs body peak" is the end-of-sentence fade as a number — peak of the last
+500ms against the rest. Kokoro's 0.237 is the "narrator is dying" complaint.
+
+Bark was considered and rejected on evidence, not taste: its ~13s ceiling makes
+"a paragraph at a time" impossible (a normal paragraph is 25-50s of speech), and
+it has no phoneme control at all, which would have made invented names worse.
+
+### It runs pure Node — no Python, no GPL binary
+
+Piper ships as a Python package wrapping a GPL-3.0 binary. Neither is used. A
+Piper voice is a VITS ONNX model driven by espeak phoneme ids, and both halves
+were already present as kokoro-js transitive deps. They are now declared
+directly in `package.json` (`onnxruntime-node`, `phonemizer`) rather than
+relied on by accident. Only the voice files are downloaded. Voice licences vary
+per voice on Hugging Face — check before shipping one.
+
+### The two traps this cost time on
+
+- **Some voices silently truncate.** `en_US-ryan-high` returns 0.61 of a
+  four-sentence paragraph — it drops ~40% of the prose and reports no error.
+  `lessac-medium` returns 0.97. `PiperService` calibrates each voice on a short
+  sentence at load, then checks every synthesis against that pace and re-renders
+  sentence-by-sentence when one comes back short. **Do not remove that check**,
+  and do not assume a voice is safe because one paragraph worked.
+- **Respellings can make pronunciation worse.** `SY-liss` phonemizes to
+  `ˌɛswˈaɪlˈɪs` — "ess-why-liss", because espeak reads `SY` as the letter S.
+  The lexicon still holds respellings, but the pronunciation flyout now shows
+  the real phonemes as you type, so the trap is visible instead of mysterious.
+
+### Layout
+
+```
+services/narrator/
+  TextPlan.js            markdown -> paragraphs + scene breaks (was views/.../prepare.js)
+  PiperVoices.js         catalogue from HF, install/remove, ai_models/piper/
+  PiperService.js        phonemize -> ids -> onnx, session cache, truncation guard
+  ChapterAudioService.js paragraph render, content-hash cache, manifest, sweep
+controllers/NarratorController.js
+views/dashboard/components/Narrator/
+  NarratorMenu.js  voice + pronunciation, in the rail
+  Player.js        playlist playback of rendered segments
+  voices.js        voice + speed preference
+```
+
+`TextPlan.js` moved out of `views/` because nothing in the browser imports it
+any more — the server does all the text planning now. That also removed a
+`{"type":"module"}` marker that had been needed to make Node parse it.
+
+### Storage and staleness
+
+`<storyRoot>/<Story>/.audio/<Chapter>/` holds one WAV per paragraph, named
+after a sha1 of **voice + length scale + exact text**, plus `manifest.json`.
+So editing one paragraph re-renders one paragraph, reordering renders nothing,
+and switching voice re-renders everything. Files the manifest no longer
+references are swept, so the folder cannot grow without bound. Verified: one
+edited paragraph gave `1 rendered, 3 reused, 1 swept` with the folder size
+unchanged.
+
+WAV, not MP3, deliberately: an encoder would be a new dependency and a chapter
+is ~50MB. If that becomes a problem, that is the one decision to revisit.
+
+### Reading pace — the one to know
+
+Piper's trained pace reads a novel at **~222 wpm**. Audiobook narration is
+150-160; past ~190 it is heard as rushed, and it was, instantly. The default
+`length_scale` is now **1.45** (~153 wpm), with a stepper and a preview button
+in the Narrator menu. The scale is part of every segment hash, so changing it
+re-renders by itself — no version bump needed.
+
+### Music bed
+
+Layered at PLAYBACK, never mixed into the rendered files. Mixing would put the
+track inside the content hash: changing it would re-render the book, and
+re-rendering one paragraph would drop the bed back at a different point in the
+loop. Tracks live in `<storyRoot>/.music/` — hidden, shared across stories.
+The writer drops files in and reopens the menu.
+
+### Rail menus: three bugs worth remembering
+
+- **`.glass` sets `overflow: hidden`**, and `#studioRail` inherited it, so every
+  rail menu was laid out correctly and never painted. No z-index fixes a
+  clipped child. Overridden on the rail, which is square and needs no clip.
+- **A hover-reveal plus a click-toggle cancel out.** The old "Open" row revealed
+  its flyout on mouseenter and the click that followed closed it, so Story and
+  Chapter could not be opened by clicking at all. The row is gone; the list is
+  inline in the menu.
+- **Flyout placement is JS, not CSS** (`place()` in RailMenu.js). A voice list is
+  as tall as the number of installed voices, so anchoring up or down is wrong on
+  its own — the full catalogue started 265px above the top of the window.
+
+**Verify PAINT, not layout.** `getBoundingClientRect().height > 0` passed the
+whole time the menus were invisible. `scratchpad/paint.js` hit-tests three
+corners with `elementFromPoint`; that is the assertion that catches this class
+of bug.
+
+### Menus re-read their folder on open
+
+Music and voice lists refetch every time the menu opens, because both are
+directory listings and files get added while the app is running. Story and
+Chapter always did. Redraws after picking pass `false` — nothing on disk
+changed, and a round trip would only make the tick lag.
+
+### Dictionary — spelling and pronunciation merged
+
+`DictionaryService` replaced the spelling word list and `PronunciationService`.
+Two layers: **global** (the writer's habits — realise, grey) and **story** (this
+book's invented names), story winning on conflict. An entry is `{ spoken }` with
+spoken optional, so "this is a word" and "say it like this" are separate facts
+on one row. `SpellService` and `ChapterAudioService` both read it.
+
+**The bug this killed:** "add to dictionary" wrote under `currentSeriesFolder()`
+— a comic-era key — while `runSpelling` sent **no key at all**, so
+`readCustomWords('')` hit an early `return []`. The write went to a file the
+read never opened, and a word added was reported unknown for ever. Mina and
+Saito were sitting in `dictionaries/default.json` doing nothing. Migration folds
+the old files in and renames the originals `.migrated`.
+
+### Two data-integrity fixes
+
+- **`selectStory` assigned `doc.story` before loading anything** and returned
+  early when the buffer was dirty, leaving `doc` naming a chapter of the NEW
+  story while the surface held the OLD one. The four-second autosave then POSTed
+  one story's text into another story's chapter. Only the staleness check
+  stopped it. `doc` is now touched only after a successful read.
+- **`SAFE_SEGMENT` was an allowlist** that rejected
+  `Chapter 1 (original pre-refactor)` — a real file, legal on every filesystem —
+  while `listChapters` still offered it, which made NO OVERFLOW impossible to
+  open. It is now stated as what is forbidden: Windows-illegal characters,
+  control characters, leading dot, trailing dot or space, `..`, device names.
+  Apostrophes and commas in chapter titles work now too.
+
+### espeak spells out vowel-less clusters
+
+`Hmph!` phonemizes to `ˌeɪtʃˌɛmpˌiːˈeɪtʃ` — "aitch-em-pee-aitch". Any letter
+cluster with no vowel (hmph, pfft, shh, brr, tsk) is read as its letters,
+because espeak has no rule that makes it a word. The fix is always a dictionary
+entry pointing at a real spelling that has a vowel: `Hmph -> humph` (hˈʌmf), or
+`harrumph` for the theatrical version. The manuscript keeps its own spelling.
+
+The reverse trap is just as common: `ma'am` is ALREADY correct at `mˈæm`, and
+every respelling reached for by instinct — maam, marm, mahm — gives `mˈɑːm`.
+**Check the phoneme line before saving an entry.** A wrong respelling is worse
+than none.
+
+### Left undone
+
+- **`Bench Story`** and **`Second Story`** in the story root are test fixtures.
+  Safe to delete.
+- **Multi-speaker voices are stuck on speaker 0.** `en_GB-vctk-medium` — the one
+  Ben settled on — carries **109 speakers** (p239, p236, p264, …) and
+  `PiperService` passes `sid: opts.speaker ?? 0`, so every render has been p239,
+  chosen by accident. `speaker_id_map` in the voice config has all the names.
+  A speaker picker is 108 more voices already on disk; it is the largest
+  remaining win and it is nearly free.
+- **The dictionary substitutes plain TEXT before phonemization**, so a word can
+  only be respelled by letter and espeak has to agree. Piper is phoneme-driven,
+  so an entry could instead carry IPA (`/mˈæm/`) spliced straight into the
+  stream — the permanent answer to "I cannot find the phoneme".
+- **Music volume is fixed at 0.12** with no control; `Player.setMusic` takes one.
+- **The bed loops with `<audio loop>`**, which is not gapless in every browser.
+  Web Audio would be, at the cost of real complexity.
+
+---
 
 ---
 

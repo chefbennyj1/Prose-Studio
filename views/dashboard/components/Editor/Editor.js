@@ -23,15 +23,15 @@
 
 import { escapeHtml, renderMarkdown } from './EditorRender.js';
 import {
-    initNarrator,
-    setVoice,
-    start as startReading,
-    stop as stopReading,
-    isActive as isReading,
-    setLexicon,
-    speakWord
-} from '../Narrator/Narrator.js';
-import { readFrom } from '../Narrator/prepare.js';
+    init as initPlayer,
+    load as playerLoad,
+    toggle as playerToggle,
+    stop as stopPlayer,
+    skip as playerSkip,
+    summary as playerSummary,
+    isLoaded as playerLoaded,
+    isPlaying
+} from '../Narrator/Player.js';
 import { createSurface } from './Surface.js';
 
 const AUTOSAVE_MS = 4000;
@@ -80,8 +80,15 @@ export async function initEditor(container) {
         scanBtn: document.getElementById('editorScanBtn'),
         critiqueBtn: document.getElementById('editorCritiqueBtn'),
         output: document.getElementById('editorOutput'),
-        readBtn: document.getElementById('editorReadBtn'),
-        voice: document.getElementById('editorVoiceSelect'),
+        playBtn: document.getElementById('narratorPlayBtn'),
+        playIcon: document.getElementById('narratorPlayIcon'),
+        playLabel: document.getElementById('narratorPlayLabel'),
+        prevBtn: document.getElementById('narratorPrevBtn'),
+        nextBtn: document.getElementById('narratorNextBtn'),
+        renderBtn: document.getElementById('narratorRenderBtn'),
+        rerenderBtn: document.getElementById('narratorRerenderBtn'),
+        progress: document.getElementById('narratorProgress'),
+        progressBar: document.getElementById('narratorProgressBar'),
         narratorStatus: document.getElementById('narratorStatus')
     };
     if (!els.host) return;
@@ -286,9 +293,19 @@ async function openLastPlace(want) {
     await selectStory(story, target);
 }
 
+/**
+ * Opens a story at its first chapter, or at `want.chapter` if that one exists.
+ *
+ * `doc` is NOT touched until something has actually been loaded, and that is
+ * load-bearing rather than tidiness. This used to assign doc.story on its first
+ * line and then return early when the buffer was dirty, which left doc naming
+ * a chapter of the NEW story while the surface still held the OLD story's
+ * text. The four-second autosave would then fire and POST one story's words
+ * into another story's chapter. It was only ever caught by the staleness check
+ * rejecting the mismatched mtime — with the right timing it would have
+ * overwritten a chapter of a different book.
+ */
 async function selectStory(story, want = {}) {
-    doc.story = story;
-
     let chapters;
     try {
         chapters = (await apiGet(`/api/manuscript/chapters?story=${encodeURIComponent(story)}`)).chapters;
@@ -298,41 +315,50 @@ async function selectStory(story, want = {}) {
     }
 
     if (!chapters.length) {
-        doc.chapter = null;
-        // Only blank the surface if there is nothing unsaved on it.
-        if (!dirty) {
-            surface.setValue('');
-            updateCounts();
-        }
-        setState(dirty ? 'unsaved — create a chapter to save it' : 'create a chapter from the rail to begin');
+        if (dirty && !confirm('You have unsaved changes. Discard them and open another story?')) return;
+
+        clearTimeout(autosaveTimer);
+        stopPlayer();
+        doc = { story, chapter: null, modified: 0 };
+        dirty = false;
+        surface.setValue('');
+        updateCounts();
+        setState('create a chapter from the rail to begin');
         showWhere();
+        rememberPlace();
         return;
     }
 
     const chapter = chapters.some(c => c.name === want.chapter) ? want.chapter : chapters[0].name;
-
-    // Unsaved text outranks auto-navigation: never load a file over the top of
-    // something the writer has not saved yet.
-    if (dirty) {
-        doc.chapter = chapter;
-        showWhere();
-        return;
-    }
-    await openChapter(chapter);
+    await openChapter(chapter, story);
 }
 
-async function openChapter(chapter) {
+/**
+ * @param {string} [fromStory]  open a chapter of a DIFFERENT story; defaults
+ *                              to the one already open.
+ *
+ * doc is only reassigned once the read has succeeded, so a failed open leaves
+ * the editor describing the file it still actually holds.
+ */
+async function openChapter(chapter, fromStory) {
     if (!chapter) return;
+    const story = fromStory || doc.story;
+    if (!story) return;
+
     // Nothing to put back on refusal now that the picker is gone: the menu
     // closed itself and doc still names the chapter that is actually open.
     if (dirty && !confirm('You have unsaved changes. Discard them and open another chapter?')) return;
 
-    // The narrator is reading text that is about to leave the screen.
-    stopReading();
+    // A queued autosave belongs to the document being left, and it must not
+    // land after doc has moved on.
+    clearTimeout(autosaveTimer);
+
+    // The narrator is speaking text that is about to leave the screen.
+    stopPlayer();
 
     try {
         const data = await apiGet(
-            `/api/manuscript/read?story=${encodeURIComponent(doc.story)}&chapter=${encodeURIComponent(chapter)}`
+            `/api/manuscript/read?story=${encodeURIComponent(story)}&chapter=${encodeURIComponent(chapter)}`
         );
 
         doc = { story: data.story, chapter: data.name, modified: data.modified };
@@ -347,6 +373,9 @@ async function openChapter(chapter) {
 
         // A chapter is open, so any "nowhere to save this" notice is now a lie.
         if (els.output.querySelector('.editor__conflict')) resetOutputHint();
+
+        // Whatever audio exists for the chapter just opened.
+        refreshAudio();
     } catch (err) {
         setState('error: ' + err.message);
     }
@@ -464,6 +493,10 @@ async function save(isAuto = false) {
         setState('saved');
         updateCounts();
         rememberPlace();
+
+        // The words on disk changed, so the audio for some paragraph is now
+        // out of date. Brings it back in line if the writer asked for that.
+        scheduleRenderAfterSave();
     } catch (err) {
         setState('error: ' + err.message);
     }
@@ -530,128 +563,261 @@ function drawPageRules() {
 /* ---------- narrator ---------- */
 
 /**
- * Reading back is a revision tool, so it starts where the writer is: the
- * selection if there is one, otherwise the paragraph under the caret.
+ * Listening back to a chapter that has been rendered to audio.
  *
- * It deliberately does NOT stop when the writer keeps typing. The voice is
- * reading a snapshot taken when they pressed play, and cutting it off at every
- * keystroke would break the one thing this is for — hearing the line you just
- * wrote while you fix the one before it. Changing chapter does stop it, because
- * then the words being spoken are no longer on screen.
+ * This used to synthesise during playback, in a Web Worker, racing the ear.
+ * Piper renders faster than it plays and the result is kept, so playback is
+ * now just a playlist and all of that machinery is gone — see Player.js.
+ *
+ * Render is a button and not a side effect of typing. Synthesis is cheap but
+ * it is not free, and a writer mid-sentence does not want their machine
+ * narrating the paragraph they are still changing. Pressing it re-renders only
+ * the paragraphs whose text has actually changed.
  */
 function setUpNarrator() {
-    if (!els.readBtn) return;
+    if (!els.playBtn) return;
 
-    initNarrator({
+    initPlayer({
         onState: (state) => {
-            const speaking = state === 'playing' || state === 'buffering';
-            els.readBtn.textContent = speaking ? 'Stop' : 'Read aloud';
-            els.readBtn.classList.toggle('glass-btn--speaking', speaking);
-            if (state === 'idle') setNarratorStatus('');
+            const speaking = state === 'playing';
+            // Icon and label are separate elements; setting textContent on the
+            // button would delete the <ion-icon> with it.
+            if (els.playLabel) els.playLabel.textContent = speaking ? 'Pause' : 'Listen';
+            els.playIcon?.setAttribute('name', speaking ? 'pause' : 'play');
+            els.playBtn.classList.toggle('glass-btn--speaking', speaking);
+            if (state === 'idle') showAudioState();
         },
-        onModel: (info) => {
-            if (info.state === 'loading') return setNarratorStatus('Waking the voice', null, true);
-            if (info.state === 'downloading') return setNarratorStatus(`Downloading the voice, ${info.percent}%. This happens once.`, null, true);
-            if (info.state === 'failed') return setNarratorStatus(`Voice unavailable: ${info.message}`);
-
-            // "Ready" lands while the first chunks are still synthesising, and
-            // announcing it there would replace the only progress the listener
-            // has with a line that looks finished but makes no sound.
-            if (info.state === 'ready' && !isReading()) setNarratorStatus(`Voice ready (${info.device}).`);
-        },
-        onBuffering: ({ ready, needed }) => setNarratorStatus(`Buffering ${ready} of ${needed}`, null, true),
-        onBlock: ({ index, total, text }) => setNarratorStatus(`Reading ${index + 1} of ${total}`, text),
-        onError: (message) => setNarratorStatus(`Narrator stopped: ${message}`),
-        onFinished: () => setNarratorStatus('Finished reading.')
+        onSegment: ({ position, total, text }) =>
+            setNarratorStatus(`Paragraph ${position} of ${total}`, text),
+        onError: (message) => setNarratorStatus(`Playback stopped: ${message}`),
+        onFinished: () => setNarratorStatus('Finished.')
     });
 
-    els.voice.addEventListener('change', () => {
-        setVoice(els.voice.value);
-        if (isReading()) readAloud();       // switch voice without losing the place
+    els.playBtn.addEventListener('click', () => {
+        if (!playerLoaded()) return;
+        playerToggle();
     });
 
-    els.readBtn.addEventListener('click', () => {
-        if (isReading()) {
-            stopReading();
-            return;
-        }
-        readAloud();
-    });
+    els.prevBtn.addEventListener('click', () => playerSkip(-1));
+    els.nextBtn.addEventListener('click', () => playerSkip(1));
+    els.renderBtn.addEventListener('click', () => renderChapter());
+    els.rerenderBtn.addEventListener('click', () => renderChapter({ force: true }));
 
-    setUpPronunciation();
+    // Choosing a different voice invalidates every rendered paragraph, and
+    // saving a pronunciation invalidates the ones containing that word. Both
+    // are handled the same way: say so, and let the writer decide when to
+    // spend the time.
+    document.addEventListener('narratorVoiceChanged', () => refreshAudio());
+    document.addEventListener('narratorLexiconChanged', () => refreshAudio());
+    document.addEventListener('narratorPaceChanged', () => refreshAudio());
+
+    if (window.socket) {
+        window.socket.on('narrator:render-progress', ({ story, chapter, done, total }) => {
+            if (story !== doc.story || chapter !== doc.chapter) return;
+            setNarratorStatus(`Rendering ${done} of ${total}`, null, true);
+            setProgress(done / total);
+        });
+    }
 }
-
-/* ---------- pronunciation ---------- */
 
 /**
- * The narrator guesses how to say a word from its spelling, and fiction is
- * full of the words that defeats. An entry here changes what is SPOKEN only -
- * the manuscript still says Silas.
+ * What is on disk for the chapter now open, and therefore which buttons mean
+ * anything. Called on every chapter change and after anything that could have
+ * invalidated a render.
  */
-async function setUpPronunciation() {
-    const word = document.getElementById('narratorWord');
-    const spoken = document.getElementById('narratorSpoken');
-    const testBtn = document.getElementById('narratorTestBtn');
-    const saveBtn = document.getElementById('narratorSaveWordBtn');
-    const list = document.getElementById('narratorLexList');
-    if (!word || !spoken || !testBtn || !saveBtn || !list) return;
+async function refreshAudio() {
+    stopPlayer();
+    setProgress(null);
 
-    const draw = (lexicon) => {
-        setLexicon(lexicon);
-        const entries = Object.entries(lexicon);
-        list.innerHTML = entries.length
-            ? entries.map(([from, to]) =>
-                `<div class="narrator__lex-item"><span>${escapeHtml(from)}</span>
-                 <span class="text-muted">${escapeHtml(to)}</span></div>`).join('')
-            : '<p class="text-muted italic">Nothing yet.</p>';
-    };
-
-    try {
-        const res = await fetch(`/api/proofing/pronunciation/${encodeURIComponent(currentSeriesFolder())}`);
-        const data = await res.json();
-        if (data.ok) draw(data.lexicon);
-    } catch { /* the narrator still reads, just less accurately */ }
-
-    // Speaks the respelling alone, so it can be judged without waiting for a
-    // paragraph to reach the word.
-    testBtn.addEventListener('click', () => {
-        const say = spoken.value.trim() || word.value.trim();
-        if (say) speakWord(say);
-    });
-
-    saveBtn.addEventListener('click', async () => {
-        if (!word.value.trim()) return;
-        try {
-            const res = await fetch('/api/proofing/pronunciation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    seriesFolder: currentSeriesFolder(),
-                    word: word.value.trim(),
-                    spoken: spoken.value.trim()
-                })
-            });
-            const data = await res.json();
-            if (!data.ok) throw new Error(data.message);
-            draw(data.lexicon);
-            word.value = '';
-            spoken.value = '';
-        } catch (err) {
-            setNarratorStatus(`Could not save: ${err.message}`);
-        }
-    });
-}
-
-function readAloud() {
-    const range = surface.getSelection();
-    const { text } = readFrom(surface.getValue(), range.from, range.to);
-    if (!text.trim()) {
-        setNarratorStatus('Nothing to read from here.');
+    if (!doc.story || !doc.chapter) {
+        setNarratorStatus('');
+        setTransport(false);
         return;
     }
 
-    setVoice(els.voice.value);
-    if (!startReading(text)) setNarratorStatus('Nothing to read from here.');
+    await playerLoad(doc.story, doc.chapter);
+    showAudioState();
+}
+
+async function showAudioState() {
+    const info = playerSummary();
+    setTransport(!!info);
+
+    if (!info) {
+        setNarratorStatus('Not rendered yet.');
+        return;
+    }
+
+    // How much of what is on disk still matches the text on screen. A chapter
+    // rendered and then edited is the normal case, not an error, so it reports
+    // the gap rather than refusing to play the part that is still good.
+    const plan = await audioPlan();
+    const stale = plan ? plan.pending : 0;
+
+    setNarratorStatus(stale
+        ? `${minutes(info.seconds)}, ${stale} paragraph${stale === 1 ? '' : 's'} changed since. Render to update.`
+        : `${minutes(info.seconds)} in ${info.paragraphs} paragraphs.`);
+}
+
+async function audioPlan() {
+    const voice = currentVoice();
+    if (!voice || !doc.story || !doc.chapter) return null;
+
+    try {
+        const res = await fetch('/api/narrator/audio/plan' +
+            `?story=${encodeURIComponent(doc.story)}&chapter=${encodeURIComponent(doc.chapter)}` +
+            `&voice=${encodeURIComponent(voice)}&lengthScale=${currentScale()}`);
+        const data = await res.json();
+        return data.ok ? data : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * @param {object}  options
+ * @param {boolean} options.force  rebuild every paragraph, not just changed ones
+ * @param {boolean} options.quiet  a background pass after a save: no stopping
+ *                                 playback, no taking over the status line
+ *
+ * Pressing Render with nothing changed used to run a full pass that rebuilt
+ * nothing while showing a progress bar - all the appearance of work and none
+ * of it. It now says so and stops.
+ */
+async function renderChapter({ force = false, quiet = false } = {}) {
+    const voice = currentVoice();
+    if (!voice) {
+        if (!quiet) setNarratorStatus('Choose a voice in the Narrator menu first.');
+        return;
+    }
+    if (!doc.story || !doc.chapter) {
+        if (!quiet) setNarratorStatus('Open a chapter first.');
+        return;
+    }
+
+    // Unsaved text would be rendered from the copy on disk, which is not the
+    // one on screen. Saving first is what the writer meant. (A quiet pass is
+    // already the consequence of a save, so there is nothing to flush.)
+    if (dirty && !quiet) await save();
+
+    if (!force) {
+        const plan = await audioPlan();
+        if (plan && plan.pending === 0) {
+            if (!quiet) setNarratorStatus(`Already up to date. ${minutes(playerSummary()?.seconds)}.`);
+            return;
+        }
+    }
+
+    if (!quiet) stopPlayer();
+    els.renderBtn.disabled = true;
+    els.rerenderBtn.disabled = true;
+    if (!quiet) {
+        setNarratorStatus(force
+            ? 'Rebuilding complete chapter narration'
+            : 'Rendering changed paragraphs', null, true);
+        setProgress(0);
+    }
+
+    try {
+        const res = await fetch('/api/narrator/audio/render', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story: doc.story, chapter: doc.chapter, voice, force, lengthScale: currentScale() })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+
+        await playerLoad(doc.story, doc.chapter);
+        setProgress(null);
+        const { rendered, reused } = data.manifest;
+        setNarratorStatus(`Rendered ${rendered}, reused ${reused}. ${minutes(data.manifest.seconds)}.`);
+        setTransport(true);
+    } catch (err) {
+        setProgress(null);
+        setNarratorStatus(`Render failed: ${err.message}`);
+    } finally {
+        els.renderBtn.disabled = false;
+        els.rerenderBtn.disabled = false;
+    }
+}
+
+/**
+ * Bring the audio up to date a little after a save, when the writer has asked
+ * for that.
+ *
+ * Debounced because saving is not a rare event - there is an autosave every
+ * four seconds and Ctrl+S on top of it - and each pass costs a plan and a
+ * couple of fetches even when there is nothing to do. The wait is long enough
+ * that a working writer never triggers it mid-sentence, and short enough that
+ * stepping away for a moment leaves the audio current.
+ */
+const RENDER_AFTER_SAVE_MS = 8000;
+let saveRenderTimer = null;
+
+function scheduleRenderAfterSave() {
+    if (!renderOnSaveEnabled()) return;
+
+    clearTimeout(saveRenderTimer);
+    saveRenderTimer = setTimeout(() => {
+        saveRenderTimer = null;
+        // Not while the writer is listening: a render mid-playback would pull
+        // files out from under the player as it sweeps.
+        if (isPlaying()) return;
+        renderChapter({ quiet: true });
+    }, RENDER_AFTER_SAVE_MS);
+}
+
+function renderOnSaveEnabled() {
+    try {
+        return localStorage.getItem('narrator_render_on_save') === 'true';
+    } catch {
+        return false;
+    }
+}
+
+function currentVoice() {
+    try {
+        return localStorage.getItem('narrator_voice');
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Reading pace, as Piper's length_scale.
+ *
+ * Read here rather than imported so the plan and the render cannot end up
+ * using different values - the scale is part of every segment hash, and a plan
+ * computed at one pace would report every paragraph as pending against a
+ * render done at another.
+ */
+function currentScale() {
+    try {
+        const raw = Number(localStorage.getItem('narrator_length_scale'));
+        return Number.isFinite(raw) && raw >= 1 && raw <= 2 ? raw : 1.45;
+    } catch {
+        return 1.45;
+    }
+}
+
+function setTransport(enabled) {
+    [els.playBtn, els.prevBtn, els.nextBtn].forEach(b => { if (b) b.disabled = !enabled; });
+}
+
+/** @param {number|null} fraction  null hides the bar entirely. */
+function setProgress(fraction) {
+    if (!els.progress) return;
+    els.progress.classList.toggle('hidden', fraction === null);
+    if (fraction !== null && els.progressBar) {
+        els.progressBar.style.width = `${Math.round(fraction * 100)}%`;
+    }
+}
+
+function minutes(seconds) {
+    const total = Math.round(seconds || 0);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m ? `${m}m ${s}s` : `${s}s`;
 }
 
 function setNarratorStatus(line, paragraph, working = false) {
@@ -710,10 +876,13 @@ function busy(button, on, label) {
 async function runSpelling() {
     busy(els.spellBtn, true, '...');
     try {
+        // The story is what keys the dictionary. Sending no key was the whole
+        // bug: the checker loaded an empty custom word list, so a word added
+        // from this panel went on being reported as unknown for ever.
         const res = await fetch('/api/proofing/spell', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: surface.getValue() })
+            body: JSON.stringify({ text: surface.getValue(), seriesFolder: doc.story })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
@@ -809,17 +978,33 @@ function renderSpelling(spelling) {
     });
 }
 
+/**
+ * Adds a word to this story's dictionary, and means it.
+ *
+ * The old version wrote under a leftover comic-era series id while the spell
+ * check read a different key entirely, so the word reappeared as unknown every
+ * single time. Both sides now use the open story.
+ */
 async function addToDictionary(word, btn) {
+    if (!doc.story) {
+        btn.textContent = 'open a story first';
+        return;
+    }
+
     try {
-        const res = await fetch('/api/proofing/dictionary', {
+        const res = await fetch('/api/dictionary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ seriesFolder: currentSeriesFolder(), word })
+            body: JSON.stringify({ scope: 'story', story: doc.story, word })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
+
         btn.textContent = 'added';
         btn.disabled = true;
+
+        // So the Dictionary page shows it without a reload.
+        document.dispatchEvent(new CustomEvent('dictionaryChanged', { detail: { story: doc.story } }));
     } catch (err) {
         btn.textContent = 'failed: ' + err.message;
     }

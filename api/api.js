@@ -224,10 +224,35 @@ const ProofingController = require('../controllers/ProofingController.js');
 router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
-router.get('/proofing/dictionary/:seriesFolder', isAuth, ProofingController.getDictionary);
-router.post('/proofing/dictionary', isAuth, ProofingController.addDictionaryWord);
-router.get('/proofing/pronunciation/:seriesFolder', isAuth, ProofingController.getPronunciation);
-router.post('/proofing/pronunciation', isAuth, ProofingController.setPronunciation);
+
+// --- DICTIONARY (spelling + pronunciation, one list) ---
+// These replaced /proofing/dictionary and /proofing/pronunciation, which were
+// two stores keyed differently: a word added to one was never seen by the
+// other, so "add to dictionary" never stopped a word being reported unknown.
+const DictionaryController = require('../controllers/DictionaryController.js');
+router.get('/dictionary', isAuth, DictionaryController.get);
+router.post('/dictionary', isAuth, DictionaryController.set);
+router.post('/dictionary/remove', isAuth, DictionaryController.remove);
+router.post('/dictionary/move', isAuth, DictionaryController.move);
+router.get('/dictionary/phonemes', isAuth, DictionaryController.phonemes);
+
+// --- NARRATOR (Piper, local) ---
+// Rendering a chapter is the only long call here; it reports over Socket.io
+// as it goes. Nothing in this section reaches the network except the voice
+// catalogue and the one-time download of a voice.
+const NarratorController = require('../controllers/NarratorController.js');
+router.get('/narrator/voices', isAuth, NarratorController.getVoices);
+router.post('/narrator/voices/install', isAuth, NarratorController.installVoice);
+router.delete('/narrator/voices/:id', isAuth, NarratorController.removeVoice);
+router.get('/narrator/phonemes', isAuth, NarratorController.getPhonemes);
+router.get('/narrator/say', isAuth, NarratorController.say);
+router.get('/narrator/audio/plan', isAuth, NarratorController.getPlan);
+router.post('/narrator/audio/render', isAuth, NarratorController.render);
+router.get('/narrator/audio/manifest', isAuth, NarratorController.getManifest);
+router.get('/narrator/audio/segment/:file', isAuth, NarratorController.getSegment);
+router.post('/narrator/audio/clear', isAuth, NarratorController.clear);
+router.get('/narrator/music', isAuth, NarratorController.getMusic);
+router.get('/narrator/music/:file', isAuth, NarratorController.playMusic);
 
 // --- STORY CRITIC ---
 // Passage-based only. The old volume-wide route fed the critic a comic

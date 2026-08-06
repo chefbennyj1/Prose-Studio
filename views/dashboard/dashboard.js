@@ -16,6 +16,8 @@ import { initUserSettings } from './sections/user-settings/user-settings.js';
 import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
 import { initPluginManager } from './sections/plugin-manager/plugin-manager.js';
 import { initRailMenus } from './components/RailMenu/RailMenu.js';
+import { initNarratorMenu } from './components/Narrator/NarratorMenu.js';
+import { initDictionary } from './sections/dictionary/dictionary.js';
 
 // Imported Refactored Modules
 import { initEventHandlers } from './studio/js/EventHandlers.js';
@@ -76,9 +78,14 @@ export async function init(container) {
     // --- Initialize Base Event Handlers ---
     initEventHandlers(container, allSections);
 
-    // Story and Chapter menus in the rail. Part of the shell, not a lazily
-    // loaded section, so this runs once here rather than on fragmentLoaded.
+    // Story, Chapter and Narrator menus in the rail. Part of the shell, not a
+    // lazily loaded section, so this runs once here rather than on
+    // fragmentLoaded.
+    //
+    // Order matters: initRailMenus wires the open/close mechanics that
+    // NarratorMenu's flyoutOpened listeners depend on.
     initRailMenus();
+    try { initNarratorMenu(); } catch (err) { console.error('[Dashboard] Narrator menu init failed', err); }
 
     // --- Lazy Initialize Sub-Systems when fragments load ---
     container.addEventListener('fragmentLoaded', (e) => {
@@ -103,6 +110,9 @@ export async function init(container) {
         if (section === 'scheduled-tasks') {
              try { new ScheduledTaskView(); } catch (err) { console.error("ScheduledTaskView init failed", err); }
         }
+        if (section === 'dictionary') {
+             try { initDictionary(); } catch (err) { console.error('Dictionary init failed', err); }
+        }
         if (section === 'plot-lab') {
              try { initPlotLab(container); } catch (err) { console.error("PlotLab init failed", err); }
         }
@@ -116,6 +126,14 @@ export async function init(container) {
              try { initPluginManager(); } catch (err) { console.error("PluginManager init failed", err); }
         }
     });
+
+    // Inject Dictionary CSS
+    if (!document.querySelector('link[href="/views/dashboard/sections/dictionary/dictionary.css"]')) {
+        const dictCss = document.createElement('link');
+        dictCss.rel = 'stylesheet';
+        dictCss.href = '/views/dashboard/sections/dictionary/dictionary.css';
+        document.head.appendChild(dictCss);
+    }
 
     // Inject PlotLab CSS
     if (!document.querySelector(`link[href="/views/dashboard/components/PlotLab/PlotLab.css"]`)) {

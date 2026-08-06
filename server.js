@@ -120,10 +120,6 @@ app.set("view engine", "ejs");
 // 3. Static & Content Serving
 app.use('/views', express.static(path.join(__dirname, 'views')));
 app.use('/resources', express.static(path.join(__dirname, 'resources')));
-// kokoro-js ships a self-contained browser bundle. Served straight out of
-// node_modules so the version stays pinned in package.json instead of a 2 MB
-// vendored copy living in git.
-app.use('/libs/kokoro', express.static(path.join(__dirname, 'node_modules/kokoro-js/dist')));
 app.use('/libs', express.static(path.join(__dirname, 'libs')));
 app.use('/services/public', express.static(path.join(__dirname, 'services/public')));
 app.use(express.static(path.join(__dirname, "views/public")));

@@ -16,7 +16,7 @@ const _loadedSections = new Set();
 // (layout editor, page builder, style lab, export) went with the comic stack;
 // the editor takes their place as the landing section.
 export const STUDIO_SECTIONS = [
-    'editor', 'characters', 'plot-lab', 'create-story', 'create-chapter',
+    'editor', 'characters', 'plot-lab', 'dictionary', 'create-story', 'create-chapter',
     'library-settings'
 ];
 

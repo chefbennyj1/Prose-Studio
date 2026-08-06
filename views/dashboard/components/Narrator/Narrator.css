@@ -1,28 +1,92 @@
 /* views/dashboard/components/Narrator/Narrator.css */
 
-.editor__narrator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/*
+   Transport controls only. Choosing the voice moved to the Narrator menu in
+   the studio rail, and pronunciations to the Dictionary page - both are
+   settings, and they were taking panel room from the critic's output.
+*/
+.narrator__panel {
     padding-bottom: 10px;
     border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
 }
 
-.editor__narrator .glass-select {
+.narrator__transport {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Listen takes the room; the skips and Render stay at their natural width so
+   the primary action is the obvious one. */
+.narrator__transport #narratorPlayBtn {
     flex: 1;
     min-width: 0;
 }
 
-.editor__narrator .glass-btn {
+.narrator__transport .glass-btn {
     white-space: nowrap;
     flex-shrink: 0;
 }
 
-/* Reads "Read aloud" at rest and "Stop" while speaking, so the control never
+/* Square, so the skip and rebuild glyphs read as buttons rather than as very
+   short words. */
+.narrator__transport .glass-btn--icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+}
+
+.narrator__transport .glass-btn--icon ion-icon {
+    font-size: 1rem;
+}
+
+/* The play button carries both, so the icon needs to sit with the word rather
+   than above it. */
+.narrator__transport #narratorPlayBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.narrator__transport #narratorPlayBtn ion-icon {
+    font-size: 1rem;
+}
+
+.narrator__transport .glass-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Reads "Listen" at rest and "Pause" while speaking, so the control never
    claims to do something it is not about to do. */
-.editor__narrator .glass-btn--speaking {
+.narrator__transport .glass-btn--speaking {
     background: var(--accent, #00ccff);
     color: #06121a;
+}
+
+/*
+   Rendering a chapter is tens of seconds of real work. A bar is worth the
+   space here in a way it would not be for something instant - it is the
+   difference between "working" and "hung".
+*/
+.narrator__progress {
+    height: 3px;
+    margin-top: 8px;
+    border-radius: 2px;
+    background: var(--glass-white-md);
+    overflow: hidden;
+}
+
+.narrator__progress-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 2px;
+    background: var(--accent-aqua);
+    transition: width var(--dur-fast) linear;
 }
 
 .narrator__status {
@@ -82,4 +146,31 @@
     color: var(--text-muted, #777);
     max-height: 4.5em;
     overflow: hidden;
+}
+
+/*
+   The phonemes the voice will really use, shown as they are typed.
+
+   This is the thing a respelling could never tell you. "SY-liss" reads as
+   ess-why-liss, because espeak says the letters, and before this line the only
+   way to discover that was to listen and wonder why. Monospace because it is
+   symbols being compared character by character, not prose.
+*/
+.narrator__phonemes {
+    margin: var(--space-2xs) 0 0;
+    min-height: 1.2em;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    color: var(--accent-aqua);
+    word-break: break-all;
+}
+
+/* Grouping inside a long voice list: installed first, downloadable after. */
+.rail-menu__heading {
+    margin: var(--space-2xs) 0 2px;
+    padding: 0 var(--space-md);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.45;
 }

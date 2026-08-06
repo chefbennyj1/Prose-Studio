@@ -61,14 +61,17 @@
         <!--
             Story and Chapter are menus, not destinations, which is why they
             carry data-menu rather than data-target: nothing here navigates to
-            a section on its own any more. Each opens "Create New" (the old
-            behaviour) or "Open", and Open flies out into the list of what
-            already exists. Story sits at the top because it is the widest
+            a section on its own. One click shows "Create New" and the list of
+            what already exists. Story sits at the top because it is the widest
             thing you can pick - everything below is inside whatever it names.
 
+            The list used to sit behind an "Open" row that flew out sideways.
+            That row revealed its flyout on mouseenter and the click that
+            followed closed it again, so the menu could not be opened by
+            clicking at all. The level is gone rather than patched.
+
             "Create New" stays a .glass-dropdown-item so the kit's own handler
-            closes the menu on click. "Open" deliberately is not one: that same
-            handler would close the menu before its flyout could be seen.
+            closes the menu on click.
         -->
         <div class="rail-menu" data-menu="story">
             <button type="button" id="storyMenuBtn"
@@ -81,14 +84,9 @@
                     data-target="create-story" role="menuitem">
                     Create New
                 </button>
-                <div class="rail-menu__submenu">
-                    <button type="button" class="rail-menu__item rail-menu__item--parent"
-                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
-                        Open
-                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
-                    </button>
-                    <div class="rail-menu__flyout glass glass--frosted" role="menu"></div>
-                </div>
+                <div class="rail-menu__divider" role="separator"></div>
+                <div class="rail-menu__list" data-list="story" role="group"
+                    aria-label="Stories"></div>
             </div>
         </div>
 
@@ -103,14 +101,9 @@
                     data-target="create-chapter" role="menuitem">
                     Create New
                 </button>
-                <div class="rail-menu__submenu">
-                    <button type="button" class="rail-menu__item rail-menu__item--parent"
-                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
-                        Open
-                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
-                    </button>
-                    <div class="rail-menu__flyout glass glass--frosted" role="menu"></div>
-                </div>
+                <div class="rail-menu__divider" role="separator"></div>
+                <div class="rail-menu__list" data-list="chapter" role="group"
+                    aria-label="Chapters"></div>
             </div>
         </div>
 
@@ -129,10 +122,99 @@
             title="Plot Lab" aria-label="Plot Lab">
             <ion-icon name="bulb-outline"></ion-icon>
         </button>
+        <!-- Words the checker should accept and how the narrator says them -
+             one list, because they are very nearly the same words. -->
+        <button type="button" class="studio-rail__btn" data-target="dictionary"
+            title="Dictionary" aria-label="Dictionary">
+            <ion-icon name="book"></ion-icon>
+        </button>
 
         <div class="studio-rail__divider" role="separator"></div>
 
-        <!-- Configuration -->
+        <!--
+            Configuration.
+
+            Narrator is a menu rather than a destination for the same reason
+            Story and Chapter are: there is nothing to navigate to. Its three
+            rows came out of the editor's panel, where they were settings
+            sitting in the middle of a writing surface.
+
+            None of its submenus carry data-list, which is what tells RailMenu
+            that their contents belong to NarratorMenu.js and that they open on
+            click and stay open. The pronunciation one holds a form; a flyout
+            that closed when the pointer left the row could never be typed in.
+        -->
+        <div class="rail-menu rail-menu--up" data-menu="narrator">
+            <button type="button" id="narratorMenuBtn"
+                class="studio-rail__btn rail-menu__trigger"
+                title="Narrator" aria-label="Narrator" aria-haspopup="menu">
+                <ion-icon name="headset-outline"></ion-icon>
+            </button>
+            <div class="glass-dropdown-menu glass glass--frosted" role="menu">
+                <!-- Piper, on this machine. One voice: it reads a paragraph
+                     back and it renders the finished chapter, because local
+                     synthesis costs nothing to run twice. -->
+                <div class="rail-menu__submenu" data-narrator="voice">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Voice</span>
+                        <span class="rail-menu__value" id="narratorVoiceValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="narratorVoiceFlyout" role="menu"></div>
+                </div>
+
+                <!-- Layered at playback, never mixed into the rendered files:
+                     the track is not part of the narration and must not be
+                     part of its cache. -->
+                <div class="rail-menu__submenu" data-narrator="music">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Music</span>
+                        <span class="rail-menu__value" id="narratorMusicValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="narratorMusicFlyout" role="menu"></div>
+                </div>
+
+                <!--
+                    Reading pace. Piper's own trained pace reads a novel at
+                    about 220 words a minute, which is well past the 150-160
+                    of audiobook narration and is heard as rushed. Shown in
+                    wpm rather than as the length_scale it really is, because
+                    nobody thinks in length_scale.
+                -->
+                <div class="rail-menu__item rail-menu__stepper">
+                    <span class="rail-menu__label">Pace</span>
+                    <button type="button" id="narratorSlowerBtn" class="rail-menu__step"
+                        aria-label="Slower">&minus;</button>
+                    <span class="rail-menu__value" id="narratorPaceValue"></span>
+                    <button type="button" id="narratorFasterBtn" class="rail-menu__step"
+                        aria-label="Faster">+</button>
+                    <!-- A number cannot be judged by reading it. This speaks a
+                         sample line at whatever the pace currently is. -->
+                    <button type="button" id="narratorPaceTestBtn" class="rail-menu__step"
+                        title="Hear this pace" aria-label="Hear this pace">
+                        <ion-icon name="play"></ion-icon>
+                    </button>
+                </div>
+
+                <!-- Off by default. Rendering is local and cheap, but a writer
+                     who never listens should not have their machine
+                     synthesising every paragraph they touch. -->
+                <button type="button" id="narratorOnSaveBtn" class="rail-menu__item rail-menu__toggle"
+                    role="menuitemcheckbox" aria-checked="false">
+                    <span class="rail-menu__label">Render on save</span>
+                    <span class="rail-menu__switch" aria-hidden="true"></span>
+                </button>
+
+                <div class="rail-menu__divider" role="separator"></div>
+
+            </div>
+        </div>
+
         <button type="button" class="studio-rail__btn" data-target="library-settings"
             title="File &amp; AI Settings" aria-label="File and AI Settings">
             <ion-icon name="settings-outline"></ion-icon>

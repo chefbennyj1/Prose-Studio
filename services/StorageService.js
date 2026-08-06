@@ -15,12 +15,30 @@ const path = require('path');
 
 const GlobalSettings = require('../models/GlobalSettings');
 
-// Folder names, for both the browser's "new folder" and the story tree.
-// Refuses anything that would climb out, hide the folder, or collide with a
-// Windows device name.
-const SAFE_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9 _.-]{0,120}$/;
-const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
-const SEGMENT_RULE = 'Names may use letters, numbers, spaces, dashes, underscores and dots, must not start with a dot, and must be under 120 characters.';
+/**
+ * Folder and chapter names, for both the browser's "new folder" and the story
+ * tree. Refuses anything that would climb out, hide the entry, or collide with
+ * a Windows device name.
+ *
+ * Stated as what is FORBIDDEN rather than an allowlist of letters and dashes.
+ * The allowlist version rejected "Chapter 1 (original pre-refactor)" - a file
+ * sitting in a real story folder, written by the writer, perfectly legal on
+ * every filesystem - and because listChapters offered it while read() refused
+ * it, that one file made its whole story impossible to open. Apostrophes and
+ * commas would have done the same to any chapter titled "Mina's Return".
+ *
+ * The characters below are the ones that are genuinely unsafe: the Windows
+ * illegal set, which also covers the separators that would let a name climb
+ * out of its parent, plus control characters. Traversal is additionally caught
+ * by `..` here and by assertInsideRoot on every path that is built.
+ */
+const UNSAFE_CHARS = /[<>:"/\\|?*\u0000-\u001F]/;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+const SEGMENT_RULE = 'Names may not contain < > : " / \\ | ? *, may not start with a dot or space, ' +
+    'and must be under 120 characters.';
+
+// Kept for callers that want the shape rather than the check.
+const SAFE_SEGMENT = /^[^<>:"/\\|?*\u0000-\u001F]{1,120}$/;
 
 exports.SAFE_SEGMENT = SAFE_SEGMENT;
 exports.RESERVED = RESERVED;
@@ -28,7 +46,20 @@ exports.SEGMENT_RULE = SEGMENT_RULE;
 
 exports.isSafeSegment = (name) => {
     const clean = String(name || '').trim();
-    return Boolean(clean) && SAFE_SEGMENT.test(clean) && !RESERVED.test(clean) && !clean.includes('..');
+    if (!clean || clean.length > 120) return false;
+    if (UNSAFE_CHARS.test(clean)) return false;
+
+    // A leading dot hides the entry, and listStories/listChapters both skip
+    // dot-entries - so one could be created and then be invisible.
+    if (clean.startsWith('.')) return false;
+
+    // Windows silently strips a trailing dot or space, so the name on disk
+    // would not be the name that was asked for.
+    if (/[. ]$/.test(clean)) return false;
+
+    if (clean.includes('..')) return false;
+    if (RESERVED.test(clean)) return false;
+    return true;
 };
 
 // Read on nearly every manuscript call, changed about once in the life of an
