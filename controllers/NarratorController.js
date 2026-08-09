@@ -79,6 +79,18 @@ exports.removeVoice = async (req, res) => {
     }
 };
 
+/**
+ * The speakers a voice carries. One entry for an ordinary voice; 109 for
+ * VCTK, 904 for LibriTTS - all in the one file, reachable only by id.
+ */
+exports.getSpeakers = async (req, res) => {
+    try {
+        res.json({ ok: true, speakers: await PiperVoices.speakers(req.params.id) });
+    } catch (err) {
+        fail(res, err, 'getSpeakers');
+    }
+};
+
 /** What the voice will actually say. For tuning a pronunciation by eye. */
 exports.getPhonemes = async (req, res) => {
     const { voice, text } = req.query;
@@ -99,7 +111,7 @@ exports.getPhonemes = async (req, res) => {
 const SAY_LIMIT = 200;
 
 exports.say = async (req, res) => {
-    const { voice, text, lengthScale } = req.query;
+    const { voice, text, lengthScale, speaker, story } = req.query;
     const words = String(text || '').trim();
 
     if (!words) return fail(res, new Error('Nothing to say.'), 'say');
@@ -110,9 +122,21 @@ exports.say = async (req, res) => {
     try {
         // The pace matters here: this is also how the reading-speed control is
         // auditioned, and a sample at the wrong speed would be worse than none.
+        // Auditioning a voice or a pace is only useful against the prose as
+        // it will really be spoken, so the story's respellings are applied.
+        let words2 = words;
+        if (story) {
+            try {
+                const { applyLexicon } = require('../services/narrator/TextPlan');
+                const DictionaryService = require('../services/proofing/DictionaryService');
+                words2 = applyLexicon(words, await DictionaryService.lexicon(story));
+            } catch { /* an audition without the lexicon still beats none */ }
+        }
+
         const scale = Number(lengthScale);
-        const audio = await PiperService.speak(voice, words, {
-            lengthScale: Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : undefined
+        const audio = await PiperService.speak(voice, words2, {
+            lengthScale: Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : undefined,
+            speaker: Number(speaker) || 0
         });
         const wav = ChapterAudioService.wav(audio.audio, audio.sampleRate);
         res.writeHead(200, {
@@ -134,9 +158,9 @@ exports.say = async (req, res) => {
  * this so "Render" is never a blind commitment.
  */
 exports.getPlan = async (req, res) => {
-    const { story, chapter, voice, lengthScale } = req.query;
+    const { story, chapter, voice, lengthScale, speaker } = req.query;
     try {
-        const plan = await ChapterAudioService.plan(story, chapter, voice, Number(lengthScale) || 1);
+        const plan = await ChapterAudioService.plan(story, chapter, voice, Number(lengthScale) || 1, Number(speaker) || 0);
         res.json({
             ok: true,
             total: plan.total,
@@ -150,12 +174,13 @@ exports.getPlan = async (req, res) => {
 };
 
 exports.render = async (req, res) => {
-    const { story, chapter, voice, lengthScale, force } = req.body || {};
+    const { story, chapter, voice, lengthScale, force, speaker } = req.body || {};
     const io = req.app.locals.io;
 
     try {
         const manifest = await ChapterAudioService.render(story, chapter, voice, {
             lengthScale: Number(lengthScale) || 1,
+            speaker: Number(speaker) || 0,
             force: force === true,
             onProgress: (progress) => {
                 io?.emit('narrator:render-progress', { story, chapter, ...progress });

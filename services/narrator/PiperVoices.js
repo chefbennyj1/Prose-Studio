@@ -73,6 +73,28 @@ class PiperVoices {
         }
     }
 
+    /**
+     * The speakers a voice carries, as [{ id, name }] in id order.
+     *
+     * Most voices are one person and answer with a single entry. Some are a
+     * whole corpus: en_GB-vctk-medium holds 109 and en_US-libritts-high holds
+     * 904, all in one file, reachable only by passing a speaker id at
+     * synthesis time. Until there was a picker, every render in the app used
+     * id 0 — which for VCTK is "p239", chosen by nothing but its position.
+     *
+     * Read from the config, never cached beyond the config itself: it is a few
+     * KB and the model is not loaded to answer.
+     */
+    async speakers(id) {
+        const config = JSON.parse(await fsp.readFile(`${this.pathFor(id)}.json`, 'utf8'));
+        const map = config.speaker_id_map || {};
+
+        const list = Object.entries(map).map(([name, sid]) => ({ id: sid, name }));
+        if (!list.length) return [{ id: 0, name: 'default' }];
+
+        return list.sort((a, b) => a.id - b.id);
+    }
+
     async installed() {
         let names;
         try {

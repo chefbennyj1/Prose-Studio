@@ -12,13 +12,21 @@
  * word count and drawn as rules across the page, because a writer cannot know
  * where page 4 ends and should not have to. See PAGE_WORDS.
  *
- * The three buttons map onto the three tiers that do the checking, in order of
- * how much they cost:
+ * Checking runs in four tiers, in order of what each one costs:
  *   - the browser spellchecks live, for free, as you type
+ *   - "Grammar & mechanics" is regex on the server: punctuation, dialogue
+ *     mechanics, the grammar a parser is not needed for, and paragraph layout.
+ *     Milliseconds, so it can be run as often as the writer likes
  *   - "Spelling" runs the server dictionary, which reports what the browser
  *     cannot: a readable list, grouped and counted, seeded with character names
- *   - "Scan page" and "Critique" wake the local model, which is why they are
- *     on-demand buttons and not something that fires on every keystroke
+ *   - "Line edits" and "Critique" wake a model, which is why they are asked for
+ *     rather than something that fires on every keystroke
+ *
+ * None of those are buttons here any more. The editor's right-hand panel was
+ * carrying its own controls - two selects and three buttons - in the middle of
+ * a writing surface; choosing what to check now lives in the studio rail's
+ * Review menu, which dispatches `runReview`, and the panel is a results drawer
+ * that opens when there is something to read and closes to give the width back.
  */
 
 import { escapeHtml, renderMarkdown } from './EditorRender.js';
@@ -49,6 +57,10 @@ const LAST_PLACE_KEY = 'prose_engine_last_place';
 
 let els = {};
 
+// The `runReview` listener is bound to `document` and so survives the section
+// being torn down. See initEditor.
+let reviewWired = false;
+
 // The writing surface. Everything that reads or writes the manuscript text
 // goes through this, never through the DOM - see Surface.js.
 let surface = null;
@@ -74,11 +86,9 @@ export async function initEditor(container) {
         pages: document.getElementById('editorPageCount'),
         state: document.getElementById('editorSaveState'),
         saveBtn: document.getElementById('editorSaveBtn'),
-        lens: document.getElementById('editorLensSelect'),
-        engine: document.getElementById('editorEngineSelect'),
-        spellBtn: document.getElementById('editorSpellBtn'),
-        scanBtn: document.getElementById('editorScanBtn'),
-        critiqueBtn: document.getElementById('editorCritiqueBtn'),
+        panel: document.getElementById('editorPanel'),
+        panelTitle: document.getElementById('editorPanelTitle'),
+        panelClose: document.getElementById('editorPanelClose'),
         output: document.getElementById('editorOutput'),
         playBtn: document.getElementById('narratorPlayBtn'),
         playIcon: document.getElementById('narratorPlayIcon'),
@@ -106,9 +116,35 @@ export async function initEditor(container) {
         }
     });
 
-    await Promise.all([openLastPlace(), loadCriticOptions()]);
+    // Which check to run, and how, is the rail's decision - see ReviewMenu.js.
+    // The editor only knows how to run them and where to put the answer.
+    //
+    // Registered before the first await, and announced once it is live. The
+    // rail is always on screen but this section is injected on navigation, so
+    // a check started from another section arrives while the editor is still
+    // being built; ReviewMenu waits for `editorReady` rather than firing into
+    // a listener that does not exist yet.
+    // Bound once for the life of the page, not once per visit. Sections are
+    // rebuilt on navigation and this listener lives on `document`, so binding
+    // it inside initEditor unguarded would leave the previous visit's listener
+    // attached and run every check twice on the second visit, three times on
+    // the third.
+    if (!reviewWired) {
+        document.addEventListener('runReview', (event) => {
+            const detail = event.detail || {};
+            if (detail.task === 'mechanics') runMechanics(detail.mechanics);
+            else if (detail.task === 'spelling') runSpelling();
+            else if (detail.task === 'edits') runScan(detail.mechanics);
+            else if (detail.task === 'critique') runCritique(detail.lens, detail.engine);
+        });
+        reviewWired = true;
+    }
+    document.dispatchEvent(new CustomEvent('editorReady'));
+
+    await openLastPlace();
 
     els.saveBtn.addEventListener('click', () => save());
+    els.panelClose?.addEventListener('click', () => closeDrawer());
 
     // Chosen from the Story or Chapter menu in the studio rail. A story with
     // no chapter named means "open this story at its first chapter", which is
@@ -135,10 +171,6 @@ export async function initEditor(container) {
     document.addEventListener('storyTreeChanged', (e) => {
         openLastPlace({ story: e.detail?.story, chapter: e.detail?.chapter });
     });
-
-    els.spellBtn.addEventListener('click', runSpelling);
-    els.scanBtn.addEventListener('click', runScan);
-    els.critiqueBtn.addEventListener('click', runCritique);
 
     setUpNarrator();
 
@@ -610,6 +642,7 @@ function setUpNarrator() {
     document.addEventListener('narratorVoiceChanged', () => refreshAudio());
     document.addEventListener('narratorLexiconChanged', () => refreshAudio());
     document.addEventListener('narratorPaceChanged', () => refreshAudio());
+    document.addEventListener('narratorSpeakerChanged', () => refreshAudio());
 
     if (window.socket) {
         window.socket.on('narrator:render-progress', ({ story, chapter, done, total }) => {
@@ -666,7 +699,8 @@ async function audioPlan() {
     try {
         const res = await fetch('/api/narrator/audio/plan' +
             `?story=${encodeURIComponent(doc.story)}&chapter=${encodeURIComponent(doc.chapter)}` +
-            `&voice=${encodeURIComponent(voice)}&lengthScale=${currentScale()}`);
+            `&voice=${encodeURIComponent(voice)}&lengthScale=${currentScale()}` +
+            `&speaker=${currentSpeaker()}`);
         const data = await res.json();
         return data.ok ? data : null;
     } catch {
@@ -722,7 +756,10 @@ async function renderChapter({ force = false, quiet = false } = {}) {
         const res = await fetch('/api/narrator/audio/render', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ story: doc.story, chapter: doc.chapter, voice, force, lengthScale: currentScale() })
+            body: JSON.stringify({
+                story: doc.story, chapter: doc.chapter, voice, force,
+                lengthScale: currentScale(), speaker: currentSpeaker()
+            })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
@@ -791,6 +828,22 @@ function currentVoice() {
  * computed at one pace would report every paragraph as pending against a
  * render done at another.
  */
+/**
+ * Which speaker within the current voice. Read from storage rather than
+ * imported for the same reason as the pace: plan and render must agree, and
+ * the speaker is part of every segment hash.
+ */
+function currentSpeaker() {
+    try {
+        const voice = currentVoice();
+        const all = JSON.parse(localStorage.getItem('narrator_speakers') || '{}');
+        const id = Number(all[voice]);
+        return Number.isInteger(id) && id >= 0 ? id : 0;
+    } catch {
+        return 0;
+    }
+}
+
 function currentScale() {
     try {
         const raw = Number(localStorage.getItem('narrator_length_scale'));
@@ -834,47 +887,69 @@ function setNarratorStatus(line, paragraph, working = false) {
 
 /* ---------- checking ---------- */
 
-async function loadCriticOptions() {
-    try {
-        const res = await fetch('/api/critic/options');
-        const data = await res.json();
-        if (!data.ok) return;
-
-        els.lens.innerHTML = '';
-        data.lenses.forEach(l => {
-            const o = document.createElement('option');
-            o.value = l.id; o.textContent = l.label; o.title = l.blurb;
-            if (l.id === data.defaultLens) o.selected = true;
-            els.lens.appendChild(o);
-        });
-
-        els.engine.innerHTML = '';
-        data.engines.forEach(e => {
-            const o = document.createElement('option');
-            o.value = e.id;
-            o.textContent = e.ok ? e.label : `${e.label} (unavailable)`;
-            o.title = e.ok ? e.blurb : e.reason;
-            o.disabled = !e.ok;
-            if (e.id === data.defaultEngine && e.ok) o.selected = true;
-            els.engine.appendChild(o);
-        });
-    } catch (err) {
-        console.error('[Editor] Could not load critic options', err);
-    }
+/**
+ * The drawer.
+ *
+ * Opened by whatever has something to say and closed by the writer, because it
+ * costs 340px of the page and an empty panel is not worth that. `hidden` rather
+ * than a class: the aside genuinely has nothing in it between scans, and a
+ * hidden element is one screen readers skip and CSS does not have to fight.
+ */
+function openDrawer(title) {
+    if (!els.panel) return;
+    els.panel.hidden = false;
+    if (els.panelTitle && title) els.panelTitle.textContent = title;
 }
 
-function busy(button, on, label) {
-    button.disabled = on;
-    if (on) {
-        button.dataset.idle = button.textContent;
-        button.textContent = label;
-    } else if (button.dataset.idle) {
-        button.textContent = button.dataset.idle;
+function closeDrawer() {
+    if (els.panel) els.panel.hidden = true;
+}
+
+/** Tell the rail what was found, so its badge can carry the number. */
+function announce(total, error = 0) {
+    document.dispatchEvent(new CustomEvent('reviewFinished', { detail: { total, error } }));
+}
+
+function working(title, message) {
+    openDrawer(title);
+    els.output.innerHTML = `<p class="text-accent">${escapeHtml(message)}</p>`;
+}
+
+function failed(err) {
+    els.output.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
+    announce(0);
+}
+
+/**
+ * Mechanics: punctuation, dialogue, grammar, layout.
+ *
+ * No model and no plugin behind this one - it is regex on the server and comes
+ * back in milliseconds, which is why it is the check offered first and the one
+ * that can be run as often as the writer likes.
+ */
+async function runMechanics(options) {
+    if (!surface.getValue().trim()) {
+        working('Mechanics', 'Nothing open to scan.');
+        return;
+    }
+
+    working('Mechanics', 'Scanning...');
+    try {
+        const res = await fetch('/api/proofing/mechanics', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: surface.getValue(), options: options || {} })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+        renderMechanics(data);
+    } catch (err) {
+        failed(err);
     }
 }
 
 async function runSpelling() {
-    busy(els.spellBtn, true, '...');
+    working('Spelling', 'Checking...');
     try {
         // The story is what keys the dictionary. Sending no key was the whole
         // bug: the checker loaded an empty custom word list, so a word added
@@ -887,16 +962,14 @@ async function runSpelling() {
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
         renderSpelling(data);
+        announce(data.findings.length, data.findings.length);
     } catch (err) {
-        els.output.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
-    } finally {
-        busy(els.spellBtn, false);
+        failed(err);
     }
 }
 
-async function runScan() {
-    busy(els.scanBtn, true, 'scanning...');
-    els.output.innerHTML = '<p class="text-accent">Checking spelling, then waking the local model. Suggestions arrive when it finishes.</p>';
+async function runScan(mechanics) {
+    working('Review', 'Checking spelling and mechanics, then waking the local model. Edits arrive when it finishes.');
     try {
         const res = await fetch('/api/proofing/scan', {
             method: 'POST',
@@ -904,6 +977,7 @@ async function runScan() {
             body: JSON.stringify({
                 text: surface.getValue(),
                 socketId: window.socket?.id,
+                mechanics: mechanics || {},
                 target: { document: [doc.story, doc.chapter].filter(Boolean).join(' / ') }
             })
         });
@@ -911,6 +985,12 @@ async function runScan() {
         if (!data.ok) throw new Error(data.message);
 
         renderSpelling(data.spelling);
+        if (data.mechanics) renderMechanics(data.mechanics, { append: true });
+
+        const spelt = data.spelling?.findings?.length || 0;
+        const mech = data.mechanics?.counts || { total: 0, error: 0 };
+        announce(spelt + mech.total, spelt + mech.error);
+
         if (!data.suggestionsPending) {
             els.output.insertAdjacentHTML('beforeend',
                 `<p class="text-muted italic">${escapeHtml(data.suggestionsUnavailable || 'Edit suggestions unavailable.')}</p>`);
@@ -919,34 +999,168 @@ async function runScan() {
                 '<p class="text-muted italic" id="editorPending">Waiting on the local model for edit suggestions...</p>');
         }
     } catch (err) {
-        els.output.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
-    } finally {
-        busy(els.scanBtn, false);
+        failed(err);
     }
 }
 
-async function runCritique() {
+async function runCritique(lens, engine) {
     const range = surface.getSelection();
     const selection = surface.getValue().substring(range.from, range.to);
     const body = selection.trim() || surface.getValue();
     if (!body.trim()) return;
 
-    busy(els.critiqueBtn, true, 'thinking...');
-    els.output.innerHTML = `<p class="text-accent">Running the ${els.lens.value} pass${selection.trim() ? ' on your selection' : ''}. The local model takes a few minutes.</p>`;
+    working('Critique', `Running the ${lens || 'critique'} pass${selection.trim() ? ' on your selection' : ''}. The model takes a few minutes.`);
     try {
         const res = await fetch('/api/critic/text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: body, lens: els.lens.value, engine: els.engine.value })
+            body: JSON.stringify({ text: body, lens, engine })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
         els.output.innerHTML = renderMarkdown(data.critique);
+        announce(0);
     } catch (err) {
-        els.output.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
-    } finally {
-        busy(els.critiqueBtn, false);
+        failed(err);
     }
+}
+
+/**
+ * Mechanics findings.
+ *
+ * Grouped, errors before style, each one showing the line it sits on and the
+ * text around it — a finding whose quote is a single comma is unreadable on its
+ * own, so the context travels with it and the span is marked inside that.
+ *
+ * "Fix" appears only where the scanner has an answer it is sure of. The rest —
+ * fragments, long paragraphs, two speakers in one paragraph — are things only
+ * the writer can resolve, and offering a machine rewrite of those would be
+ * worse than offering nothing.
+ */
+function renderMechanics(payload, { append = false } = {}) {
+    const { findings, counts, stats } = payload;
+
+    // When appended to a full scan the badge is the caller's to set, because
+    // the mechanics count alone would silently drop the spelling findings
+    // sitting directly above it in the same drawer.
+    if (!append) {
+        openDrawer('Mechanics');
+        announce(counts.total, counts.error);
+    }
+
+    if (!findings.length) {
+        const clean = `<h4>Mechanics</h4><p class="text-muted">Nothing to flag in ${stats.words.toLocaleString()} words.</p>`;
+        if (append) els.output.insertAdjacentHTML('beforeend', clean);
+        else els.output.innerHTML = clean;
+        return;
+    }
+
+    const order = { error: 0, style: 1 };
+    const sorted = [...findings].sort((a, b) =>
+        (order[a.severity] - order[b.severity]) || a.offset - b.offset);
+
+    const rows = sorted.map((finding, index) => {
+        const fix = finding.replacement === null
+            ? ''
+            : `<button class="editor__apply" data-mech="${index}">fix</button>`;
+
+        return `<li class="editor__finding editor__finding--${escapeHtml(finding.severity)}">
+                <div class="editor__finding-head">
+                    <strong>${escapeHtml(finding.label)}</strong>
+                    <span class="text-muted">line ${finding.line}</span>
+                </div>
+                <blockquote>${markQuote(finding)}</blockquote>
+                <p class="text-muted">${escapeHtml(finding.message)}</p>
+                ${finding.replacement === null ? '' :
+                `<div class="editor__replacement">${escapeHtml(finding.replacement)}</div>`}
+                <div class="editor__finding-actions">
+                    ${fix}<button class="editor__jump" data-mech="${index}">jump</button>
+                </div>
+            </li>`;
+    }).join('');
+
+    const summary = `${counts.error} to fix, ${counts.style} to consider &middot;
+        ${stats.sentences.toLocaleString()} sentences, ${stats.averageSentence} words average,
+        ${stats.dialoguePercent}% dialogue`;
+
+    const html = `<h4>Mechanics</h4><p class="text-muted">${summary}</p>
+                  <ul class="editor__list">${rows}</ul>`;
+
+    if (append) els.output.insertAdjacentHTML('beforeend', html);
+    else els.output.innerHTML = html;
+
+    els.output.querySelectorAll('.editor__apply[data-mech]').forEach((btn) => {
+        btn.addEventListener('click', () => applyMechanics(sorted[Number(btn.dataset.mech)], btn, sorted));
+    });
+    els.output.querySelectorAll('.editor__jump[data-mech]').forEach((btn) => {
+        const finding = sorted[Number(btn.dataset.mech)];
+        btn.addEventListener('click', () => {
+            surface.setSelection(finding.offset, finding.offset + finding.length);
+            surface.focus();
+        });
+    });
+}
+
+/**
+ * The finding's context with its own span marked, so a one-character finding
+ * is readable. `contextOffset` is where the quote starts inside the context;
+ * searching the context for the quote instead would mark the wrong comma
+ * whenever the same fragment appears twice in the same sentence.
+ */
+function markQuote(finding) {
+    const context = finding.context || finding.quote;
+    const at = finding.contextOffset;
+
+    if (!Number.isInteger(at) || at < 0 || at + finding.length > context.length
+        || context.substr(at, finding.length) !== finding.quote) {
+        return escapeHtml(context);
+    }
+
+    return escapeHtml(context.slice(0, at))
+        + `<mark>${escapeHtml(finding.quote)}</mark>`
+        + escapeHtml(context.slice(at + finding.length));
+}
+
+/**
+ * Apply a mechanics fix.
+ *
+ * The guard is the one applySuggestion uses: an offset is only trustworthy
+ * against the text that was scanned, and the writer may have kept typing.
+ *
+ * The shift afterwards is what makes the list usable rather than usable once.
+ * A fix that is not the same length as the text it replaces moves everything
+ * after it, so every later finding in the list would fail its own guard and
+ * the writer would be told to rescan after every single fix. Moving the
+ * remaining offsets by the delta keeps the rest of the list live, and findings
+ * before the edit are untouched because nothing before it moved.
+ */
+function applyMechanics(finding, btn, list = []) {
+    const text = surface.getValue();
+    if (text.substr(finding.offset, finding.length) !== finding.quote) {
+        btn.textContent = 'text moved — rescan';
+        btn.disabled = true;
+        return;
+    }
+
+    surface.setValue(
+        text.slice(0, finding.offset) + finding.replacement + text.slice(finding.offset + finding.length),
+        { keepHistory: true }
+    );
+
+    const delta = finding.replacement.length - finding.length;
+    if (delta !== 0) {
+        for (const other of list) {
+            if (other !== finding && other.offset > finding.offset) other.offset += delta;
+        }
+    }
+    // Applied, so it must not be applied again if the writer clicks twice.
+    finding.length = finding.replacement.length;
+    finding.quote = finding.replacement;
+
+    btn.textContent = 'fixed';
+    btn.disabled = true;
+    updateCounts();
+    markDirty();
 }
 
 function renderSpelling(spelling) {
@@ -1017,6 +1231,10 @@ function currentSeriesFolder() {
 }
 
 function renderSuggestions(payload) {
+    // These arrive minutes later, over the socket. The writer may well have
+    // shut the drawer in the meantime, and results appearing into a hidden
+    // panel would look like the scan silently failed.
+    openDrawer('Review');
     document.getElementById('editorPending')?.remove();
 
     if (!payload.ok) {

@@ -103,10 +103,14 @@ async function audioDir(story, chapter) {
  */
 const RENDER_VERSION = 4;
 
-/** Voice, pipeline and text together: changing any must produce a new file. */
-function hashFor(voice, lengthScale, text) {
+/**
+ * Voice, speaker, pace, pipeline and text together: changing any of them must
+ * produce a different file. The speaker matters as much as the voice on a
+ * multi-speaker model - en_GB-vctk-medium is 109 different people in one file.
+ */
+function hashFor(voice, lengthScale, speaker, text) {
     return crypto.createHash('sha1')
-        .update(`v${RENDER_VERSION} ${voice} ${lengthScale} ${text}`)
+        .update(`v${RENDER_VERSION} ${voice} ${lengthScale} s${speaker} ${text}`)
         .digest('hex')
         .slice(0, 16);
 }
@@ -149,7 +153,7 @@ class ChapterAudioService {
      * rendering anything. Used to report what is already done and what a
      * render would cost before the writer commits to it.
      */
-    async plan(story, chapter, voice, lengthScale = 1) {
+    async plan(story, chapter, voice, lengthScale = 1, speaker = 0) {
         const [{ text }, lexicon] = await Promise.all([
             ManuscriptService.read(story, chapter),
             DictionaryService.lexicon(story)
@@ -166,7 +170,7 @@ class ChapterAudioService {
             const body = block.text.trim();
             if (!body) continue;
 
-            const hash = hashFor(voice, lengthScale, body);
+            const hash = hashFor(voice, lengthScale, speaker, body);
             segments.push({
                 kind: 'text',
                 hash,
@@ -228,9 +232,9 @@ class ChapterAudioService {
         return entry.job;
     }
 
-    async #render(story, chapter, voice, { lengthScale = 1, force = false, onProgress } = {}) {
+    async #render(story, chapter, voice, { lengthScale = 1, speaker = 0, force = false, onProgress } = {}) {
         const started = Date.now();
-        const { dir, segments, total } = await this.plan(story, chapter, voice, lengthScale);
+        const { dir, segments, total } = await this.plan(story, chapter, voice, lengthScale, speaker);
         await fsp.mkdir(dir, { recursive: true });
 
         // Force means "distrust what is on disk" - the words and the voice are
@@ -265,7 +269,7 @@ class ChapterAudioService {
                 segment.cached = false;
             }
 
-            const audio = await PiperService.speak(voice, segment.text, { lengthScale });
+            const audio = await PiperService.speak(voice, segment.text, { lengthScale, speaker });
             sampleRate = audio.sampleRate;
 
             // Written to a temporary name first: a half-written wav that
@@ -289,6 +293,7 @@ class ChapterAudioService {
             chapter,
             voice,
             lengthScale,
+            speaker,
             sampleRate,
             seconds,
             renderedAt: Date.now(),

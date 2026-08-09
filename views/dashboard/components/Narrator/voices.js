@@ -79,6 +79,44 @@ export function setSpeed(value) {
     return speed;
 }
 
+/* ---------- speaker, on multi-speaker voices ---------- */
+
+const SPEAKER_KEY = 'narrator_speakers';
+
+/**
+ * Which speaker within a voice, remembered PER VOICE.
+ *
+ * A speaker is an index into one model's own roster, so it does not travel:
+ * id 0 is "p239" in en_GB-vctk-medium and somebody else entirely in
+ * en_US-libritts-high. Carrying one number across a voice change would land
+ * the writer on an unrelated stranger, so each voice keeps its own choice and
+ * gets it back when you return to it.
+ *
+ * Defaults to 0, which is what every render did before there was a picker -
+ * not a recommendation, just the first row of the table.
+ */
+export function getSpeaker(voice) {
+    if (!voice) return 0;
+    try {
+        const all = JSON.parse(read(SPEAKER_KEY) || '{}');
+        const id = Number(all[voice]);
+        return Number.isInteger(id) && id >= 0 ? id : 0;
+    } catch {
+        return 0;
+    }
+}
+
+export function setSpeaker(voice, id) {
+    if (!voice) return 0;
+    const chosen = Number.isInteger(Number(id)) && Number(id) >= 0 ? Number(id) : 0;
+    try {
+        const all = JSON.parse(read(SPEAKER_KEY) || '{}');
+        all[voice] = chosen;
+        write(SPEAKER_KEY, JSON.stringify(all));
+    } catch { /* see read() */ }
+    return chosen;
+}
+
 /* ---------- music bed ---------- */
 
 /**

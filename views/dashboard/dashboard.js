@@ -16,6 +16,7 @@ import { initUserSettings } from './sections/user-settings/user-settings.js';
 import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
 import { initPluginManager } from './sections/plugin-manager/plugin-manager.js';
 import { initRailMenus } from './components/RailMenu/RailMenu.js';
+import { initReviewMenu } from './components/RailMenu/ReviewMenu.js';
 import { initNarratorMenu } from './components/Narrator/NarratorMenu.js';
 import { initDictionary } from './sections/dictionary/dictionary.js';
 
@@ -33,7 +34,30 @@ export async function init(container) {
         window.socket.on('connect', () => {
             console.log(`[WebSocket] Connected with ID: ${window.socket.id}`);
         });
-        
+
+        /*
+           Say when the connection drops and when it comes back.
+
+           Socket.io reconnects on its own and listeners survive it, so this
+           changes no behaviour — it exists so that "the editor stopped
+           noticing my file changes" can be diagnosed in one glance instead of
+           guessed at. Live updates have two halves that can fail
+           independently: this transport, and the filesystem watch behind it.
+           Both now say so.
+        */
+        window.socket.on('disconnect', (reason) => {
+            console.warn(`[WebSocket] Disconnected: ${reason}`);
+        });
+        window.socket.io.on('reconnect', (attempt) => {
+            console.log(`[WebSocket] Reconnected after ${attempt} attempt(s).`);
+        });
+
+        window.socket.on('manuscript:watcher', ({ watching, root }) => {
+            if (watching) console.log(`[Watcher] Live updates active on ${root}`);
+            else console.warn('[Watcher] Live updates are NOT active - file changes will go unnoticed.');
+        });
+
+
         window.socket.on('plugin_toast', (data) => {
             if (window.GlassToast) {
                 window.GlassToast.show(data.type || 'info', data.title || 'Notification', data.message || '');
@@ -82,10 +106,11 @@ export async function init(container) {
     // lazily loaded section, so this runs once here rather than on
     // fragmentLoaded.
     //
-    // Order matters: initRailMenus wires the open/close mechanics that
-    // NarratorMenu's flyoutOpened listeners depend on.
+    // Order matters: initRailMenus wires the open/close mechanics that the
+    // Narrator and Review menus' flyoutOpened listeners depend on.
     initRailMenus();
     try { initNarratorMenu(); } catch (err) { console.error('[Dashboard] Narrator menu init failed', err); }
+    try { initReviewMenu(); } catch (err) { console.error('[Dashboard] Review menu init failed', err); }
 
     // --- Lazy Initialize Sub-Systems when fragments load ---
     container.addEventListener('fragmentLoaded', (e) => {

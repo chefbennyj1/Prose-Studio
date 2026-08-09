@@ -225,6 +225,11 @@ router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
 
+// Mechanics: punctuation, dialogue, grammar, layout. Hand-rolled rules rather
+// than a model, so this one answers in milliseconds and costs nothing to run.
+router.get('/proofing/mechanics/rules', isAuth, ProofingController.getMechanicsRules);
+router.post('/proofing/mechanics', isAuth, ProofingController.checkMechanics);
+
 // --- DICTIONARY (spelling + pronunciation, one list) ---
 // These replaced /proofing/dictionary and /proofing/pronunciation, which were
 // two stores keyed differently: a word added to one was never seen by the
@@ -244,6 +249,7 @@ const NarratorController = require('../controllers/NarratorController.js');
 router.get('/narrator/voices', isAuth, NarratorController.getVoices);
 router.post('/narrator/voices/install', isAuth, NarratorController.installVoice);
 router.delete('/narrator/voices/:id', isAuth, NarratorController.removeVoice);
+router.get('/narrator/voices/:id/speakers', isAuth, NarratorController.getSpeakers);
 router.get('/narrator/phonemes', isAuth, NarratorController.getPhonemes);
 router.get('/narrator/say', isAuth, NarratorController.say);
 router.get('/narrator/audio/plan', isAuth, NarratorController.getPlan);

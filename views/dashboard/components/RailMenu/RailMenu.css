@@ -254,3 +254,101 @@
     font-size: var(--text-sm);
     color: var(--color-text-muted, #999);
 }
+
+/* ============================================================
+   REVIEW MENU
+   The four checks, the critic's settings, and the mechanics rule
+   toggles. See ReviewMenu.js.
+   ============================================================ */
+
+/*
+   An action row, not a setting: these start something and then the menu
+   closes. The icon is what makes them scannable - four rows of plain text
+   read as a list to be searched, four icons read as a set of tools.
+*/
+.rail-menu__action ion-icon {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    opacity: 0.75;
+}
+
+/*
+   What the check costs, on the row that offers it. Mechanics and spelling
+   answer in milliseconds; line edits and critique wake a model and take
+   minutes. Knowing which is which before you press is the difference between
+   waiting and wondering whether it worked.
+*/
+.rail-menu__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
+/* Section headings inside the rules flyout. Not interactive, so not an item. */
+.rail-menu__group-label {
+    padding: var(--space-sm) var(--space-md) var(--space-xs);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+}
+
+/* Which rules are mistakes and which are questions, said once per row so a
+   writer switching off "Fragment" can see they are switching off a question. */
+.rail-menu__severity {
+    font-size: var(--text-xs);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
+.rail-menu__severity--error {
+    background: rgba(229, 72, 77, 0.16);
+    color: #e5484d;
+}
+
+.rail-menu__severity--style {
+    background: var(--glass-white-md);
+    color: var(--color-text-muted);
+}
+
+/*
+   The rules flyout carries every rule there is, which is far more rows than a
+   voice list. RailMenu.place() keeps it inside the window; this keeps it
+   scrollable once it gets there.
+*/
+.rail-menu__flyout--tall {
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+}
+
+/*
+   THE BADGE.
+
+   What the last scan found, carried on the rail so the drawer can be shut
+   without losing the number. Red only when something is actually wrong -
+   style findings are questions, and a chapter with twelve long sentences
+   should not wear a red badge for it.
+*/
+.studio-rail__badge {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-full);
+    background: var(--glass-white-md);
+    color: var(--color-text);
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+
+.studio-rail__badge--error {
+    background: #e5484d;
+    color: #fff;
+}

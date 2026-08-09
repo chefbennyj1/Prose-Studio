@@ -1,7 +1,68 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — narrator rebuilt on Piper, uncommitted. See below.
+**CLAUDE:** idle — mechanics scanner and the studio rail refactor landed,
+uncommitted. See below. Narrator/Piper work further down is also still
+uncommitted.
+
+---
+
+## Mechanics scanner + the rail refactor, 2026-08-09
+
+**Uncommitted.** Rules verified by `scratchpad/mech-test.js`: 25 faulty lines
+each fire their expected rule, 18 correct lines fire nothing, every finding's
+`quote` matches `text.substr(offset, length)` exactly. Layout verified by
+screenshot against a harness built from the real markup and stylesheets.
+
+### Why regex and not a model
+
+The critic and SuggestionService already ask a model for judgment and both pay
+for it — `SuggestionService.verify()` exists entirely to throw away suggestions
+the model could not locate in the text it was given. Mechanical faults need an
+exact span, the same answer every time, and an answer now. So `MechanicsService`
+is hand-rolled rules: instant, free, offline, and its offsets are correct by
+construction rather than by verification.
+
+- `MechanicsText.js` — sentences, paragraphs, quoted-speech spans
+- `MechanicsLexicon.js` — speech verbs, action verbs, finite verbs, a/an
+- `MechanicsRules.js` — 26 rules across punctuation / dialogue / grammar / structure
+- `MechanicsService.js` — runner; anchors and de-duplicates findings
+- `POST /api/proofing/mechanics`, `GET /api/proofing/mechanics/rules`
+
+### The traps this cost time on
+
+- **A `]` inside a character class built by template literal ends the class.**
+  The sentence-boundary pattern demanded a trailer that is almost never there,
+  so the splitter found *no* boundaries at all and handed every rule one
+  sentence per paragraph. It failed silently — 19 paragraphs, 19 "sentences" —
+  and produced two false comma splices. `TRAILER_CLASS` is now pre-escaped.
+- **Fiction breaks grammar on purpose.** Anything a good writer does
+  deliberately is reported as `style`, never `error`, and the rail has a
+  per-rule toggle so a voice built on fragments can switch that rule off rather
+  than learn to ignore the panel. Rules that cannot be sure stay out entirely.
+- **Guards are most of the work.** Comma-splice skips participial openers
+  ("Tired, she waited"), subordinate clauses ("When the rain fell, he ran"),
+  and parentheticals ("she looked at him, he thought, and left"). `he/she/it
+  were` skips the subjunctive. Removing any of these brings false positives
+  straight back.
+
+### The rail
+
+Every control left the editor's right panel: lens, engine, Spelling, Scan,
+Critique are now the Review menu (`components/RailMenu/ReviewMenu.js`), which
+dispatches `runReview`; the panel is an output-only drawer that opens on a
+result and closes to give the width back. Narrator *settings* were already in
+the rail; the *transport* is deliberately not — it is `position: fixed` at
+34px/34px, bottom right, because pausing is something you do while listening
+and a control inside a dropdown costs two clicks every time.
+
+- **Do not re-add measured positioning to the player.** An earlier version set
+  its offsets from the card geometry on resize; a flat viewport inset is
+  correct and Ben verified it. It was `position: absolute` before that and got
+  clipped by `#main-content`'s `overflow: hidden`.
+- `runReview` is bound to `document` and survives section teardown, so it is
+  guarded by `reviewWired` — without that it ran every check twice on the
+  second visit to the editor.
 
 > **ELEVENLABS AND KOKORO ARE BOTH GONE (Ben, 2026-08-06).** ElevenLabs was
 > cancelled on cost ("it would just cost too much for the writing process")

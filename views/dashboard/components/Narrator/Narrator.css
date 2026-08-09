@@ -4,12 +4,13 @@
    Transport controls only. Choosing the voice moved to the Narrator menu in
    the studio rail, and pronunciations to the Dictionary page - both are
    settings, and they were taking panel room from the critic's output.
-*/
-.narrator__panel {
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
-}
 
+   The transport itself has since left the panel too: it sits in a strip under
+   the writing page, because pausing playback is something you do while
+   listening and a control inside a dropdown costs two clicks to reach. Its
+   frame is .editor__transport in Editor.css; what remains here is the styling
+   of the buttons themselves, which did not change with the move.
+*/
 .narrator__transport {
     display: flex;
     align-items: center;

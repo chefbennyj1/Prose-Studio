@@ -132,6 +132,103 @@
         <div class="studio-rail__divider" role="separator"></div>
 
         <!--
+            REVIEW.
+
+            The four checks, in the order of what they cost to run, which is
+            also the order you want them in: mechanics and spelling are regex
+            and a dictionary and answer in milliseconds, line edits and
+            critique wake the local model and take minutes. The badge carries
+            the last count back so the rail can say there is something to read
+            without the drawer having to stay open.
+
+            This whole menu came out of the editor's right-hand panel. Those
+            were controls sitting in a writing surface, and the two selects in
+            particular - lens and engine - were settings dressed as part of the
+            page. The panel shows what was found; choosing what to look for
+            belongs with the navigation.
+        -->
+        <div class="rail-menu rail-menu--up" data-menu="review">
+            <button type="button" id="reviewMenuBtn"
+                class="studio-rail__btn rail-menu__trigger"
+                title="Review" aria-label="Review" aria-haspopup="menu">
+                <ion-icon name="search-outline"></ion-icon>
+                <span class="studio-rail__badge hidden" id="reviewBadge"></span>
+            </button>
+            <div class="glass-dropdown-menu glass glass--frosted" role="menu">
+                <!-- These four do not stopPropagation: the click is meant to
+                     reach the document handler that closes the menu, because
+                     each one starts something and there is nothing left to
+                     choose here afterwards. -->
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="mechanics" role="menuitem">
+                    <ion-icon name="construct-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Grammar &amp; mechanics</span>
+                    <span class="rail-menu__hint">instant</span>
+                </button>
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="spelling" role="menuitem">
+                    <ion-icon name="text-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Spelling</span>
+                    <span class="rail-menu__hint">instant</span>
+                </button>
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="edits" role="menuitem">
+                    <ion-icon name="color-wand-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Line edits</span>
+                    <span class="rail-menu__hint">local model</span>
+                </button>
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="critique" role="menuitem">
+                    <ion-icon name="glasses-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Critique</span>
+                    <span class="rail-menu__hint" id="reviewCritiqueHint">local model</span>
+                </button>
+
+                <div class="rail-menu__divider" role="separator"></div>
+
+                <!-- No data-list on any of these: their contents belong to
+                     ReviewMenu.js, so they open on click and stay open, the
+                     same contract the Narrator menu's submenus use. -->
+                <div class="rail-menu__submenu" data-review-menu="lens">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Critic lens</span>
+                        <span class="rail-menu__value" id="reviewLensValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="reviewLensFlyout" role="menu"></div>
+                </div>
+
+                <div class="rail-menu__submenu" data-review-menu="engine">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Critic engine</span>
+                        <span class="rail-menu__value" id="reviewEngineValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="reviewEngineFlyout" role="menu"></div>
+                </div>
+
+                <!-- Which mechanics rules run. Fiction breaks grammar on
+                     purpose, so a writer whose voice lives in fragments needs
+                     to be able to switch that one rule off rather than learn
+                     to ignore the whole panel. -->
+                <div class="rail-menu__submenu" data-review-menu="rules">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Mechanics rules</span>
+                        <span class="rail-menu__value" id="reviewRulesValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
+                        id="reviewRulesFlyout" role="menu"></div>
+                </div>
+            </div>
+        </div>
+
+        <!--
             Configuration.
 
             Narrator is a menu rather than a destination for the same reason
@@ -163,6 +260,21 @@
                     </button>
                     <div class="rail-menu__flyout glass glass--frosted"
                         id="narratorVoiceFlyout" role="menu"></div>
+                </div>
+
+                <!-- Only shown for voices that carry more than one person.
+                     VCTK holds 109 and LibriTTS 904, all in a single file and
+                     reachable only by id - so without this row every render
+                     used speaker 0, chosen by nothing but its position. -->
+                <div class="rail-menu__submenu hidden" data-narrator="speaker">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Speaker</span>
+                        <span class="rail-menu__value" id="narratorSpeakerValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="narratorSpeakerFlyout" role="menu"></div>
                 </div>
 
                 <!-- Layered at playback, never mixed into the rendered files:

@@ -27,7 +27,8 @@ import {
     getVoice, setVoice, resolveVoice, displayName,
     getRenderOnSave, setRenderOnSave,
     getSpeed, setSpeed,
-    getMusicTrack, setMusicTrack
+    getMusicTrack, setMusicTrack,
+    getSpeaker, setSpeaker
 } from './voices.js';
 
 let voices = null;      // { installed: [], voices: [], catalogueError }
@@ -43,6 +44,9 @@ export function initNarratorMenu() {
         slower: document.getElementById('narratorSlowerBtn'),
         faster: document.getElementById('narratorFasterBtn'),
         paceTest: document.getElementById('narratorPaceTestBtn'),
+        speakerRow: document.querySelector('[data-narrator="speaker"]'),
+        speakerValue: document.getElementById('narratorSpeakerValue'),
+        speakerFlyout: document.getElementById('narratorSpeakerFlyout'),
         musicValue: document.getElementById('narratorMusicValue'),
         musicFlyout: document.getElementById('narratorMusicFlyout')
     };
@@ -52,11 +56,15 @@ export function initNarratorMenu() {
     drawOnSave();
     drawPace();
     drawMusicValue();
-    loadVoices();
+    loadVoices().then(refreshSpeaker);
 
     // The chosen track has to reach the player before the first press of
     // Listen, which can happen before this flyout is ever opened.
     setMusic(getMusicTrack());
+
+    els.speakerFlyout?.addEventListener('click', onSpeakerClick);
+    document.querySelector('[data-narrator="speaker"]')
+        ?.addEventListener('flyoutOpened', () => drawSpeakerList());
 
     els.musicFlyout?.addEventListener('click', onMusicClick);
     document.querySelector('[data-narrator="music"]')
@@ -160,7 +168,8 @@ function auditionPace() {
     if (paceAudio) { paceAudio.pause(); paceAudio = null; }
 
     paceAudio = new Audio(`/api/narrator/say?voice=${encodeURIComponent(voice)}` +
-        `&lengthScale=${getSpeed()}&text=${encodeURIComponent(PACE_SAMPLE)}`);
+        `&speaker=${getSpeaker(voice)}&lengthScale=${getSpeed()}` +
+        `&text=${encodeURIComponent(PACE_SAMPLE)}`);
     paceAudio.play().catch(() => { paceAudio = null; });
 }
 
@@ -169,6 +178,124 @@ function drawOnSave() {
     const on = getRenderOnSave();
     els.onSave.setAttribute('aria-checked', on ? 'true' : 'false');
     els.onSave.classList.toggle('is-on', on);
+}
+
+/* ---------- speaker ---------- */
+
+/**
+ * A voice can be one person or a corpus. en_GB-vctk-medium holds 109 speakers
+ * and en_US-libritts-high holds 904, all inside the single model file and
+ * selectable only by passing an id at synthesis time. Until this row existed
+ * every render in the app used id 0 - "p239" on VCTK - which nobody chose.
+ *
+ * The row hides itself entirely for ordinary single-speaker voices rather than
+ * showing a list of one.
+ */
+
+let speakers = null;        // [{id, name}] for the voice currently loaded
+let speakersFor = null;     // which voice that list belongs to
+
+/**
+ * A line of the writer's own prose, used to audition a speaker.
+ *
+ * Deliberately dialogue with a beat of narration around it: a speaker that
+ * sounds fine reading description can be quite wrong in someone's mouth, and
+ * the mouth is what a novel mostly needs.
+ */
+const SPEAKER_SAMPLE = '"You should have told me," she said. He did not answer, and the rain kept on.';
+
+async function loadSpeakers(voice) {
+    if (!voice) return [];
+    if (speakersFor === voice && speakers) return speakers;
+
+    try {
+        const data = await (await fetch(`/api/narrator/voices/${encodeURIComponent(voice)}/speakers`)).json();
+        speakers = data.ok ? data.speakers : [];
+    } catch {
+        speakers = [];
+    }
+    speakersFor = voice;
+    return speakers;
+}
+
+/**
+ * Shows or hides the whole row, and labels it. Called whenever the voice
+ * changes, because whether this control means anything depends entirely on
+ * which voice is loaded.
+ */
+async function refreshSpeaker() {
+    if (!els.speakerRow) return;
+
+    const voice = getVoice();
+    const list = await loadSpeakers(voice);
+    const many = list.length > 1;
+
+    els.speakerRow.classList.toggle('hidden', !many);
+    if (!many) return;
+
+    const chosen = getSpeaker(voice);
+    const match = list.find(sp => sp.id === chosen);
+    els.speakerValue.textContent = match ? match.name : `#${chosen}`;
+}
+
+async function drawSpeakerList() {
+    const voice = getVoice();
+    const list = await loadSpeakers(voice);
+    if (!list.length) {
+        els.speakerFlyout.innerHTML = note('This voice has only one speaker.');
+        return;
+    }
+
+    const chosen = getSpeaker(voice);
+    els.speakerFlyout.innerHTML =
+        note(`${list.length} speakers. Clicking one plays a sample in your voice settings.`) +
+        list.map(sp => option(String(sp.id), sp.name, `#${sp.id}`, sp.id === chosen)).join('');
+
+    // Bring the current one into view - with 904 entries the tick is otherwise
+    // somewhere far down a scrolling list and impossible to find.
+    els.speakerFlyout.querySelector('.is-active')?.scrollIntoView({ block: 'center' });
+}
+
+/**
+ * Choosing a speaker plays it immediately. Auditioning is the entire point of
+ * the list, and a picker that made you close the menu and render a chapter to
+ * hear the result would be useless for comparing 109 of them.
+ */
+function onSpeakerClick(event) {
+    const item = event.target.closest('.rail-menu__entry');
+    if (!item) return;
+
+    const voice = getVoice();
+    const id = setSpeaker(voice, Number(item.dataset.id));
+    refreshSpeaker();
+    drawSpeakerList();
+
+    auditionSpeaker(voice, id);
+
+    // Every rendered paragraph was made by a different person now.
+    document.dispatchEvent(new CustomEvent('narratorSpeakerChanged', { detail: { voice, speaker: id } }));
+}
+
+let speakerAudio = null;
+
+function auditionSpeaker(voice, id) {
+    if (speakerAudio) { speakerAudio.pause(); speakerAudio = null; }
+
+    const story = openStory();
+    speakerAudio = new Audio(`/api/narrator/say?voice=${encodeURIComponent(voice)}` +
+        `&speaker=${id}&lengthScale=${getSpeed()}` +
+        (story ? `&story=${encodeURIComponent(story)}` : '') +
+        `&text=${encodeURIComponent(SPEAKER_SAMPLE)}`);
+    speakerAudio.play().catch(() => { speakerAudio = null; });
+}
+
+/** The open story, so an audition uses the writer's own pronunciations. */
+function openStory() {
+    try {
+        return JSON.parse(localStorage.getItem('prose_engine_last_place'))?.story || null;
+    } catch {
+        return null;
+    }
 }
 
 /* ---------- music ---------- */
@@ -333,6 +460,7 @@ async function onVoiceClick(event) {
     setVoice(id);
     drawVoiceValue();
     drawVoiceList(false);
+    refreshSpeaker();
     document.dispatchEvent(new CustomEvent('narratorVoiceChanged', { detail: { voice: id } }));
 }
 

@@ -24,7 +24,16 @@ app.locals.io = io;
 
 io.on('connection', (socket) => {
   console.log(`WebSocket client connected: ${socket.id}`);
-  
+
+  // A page that loads (or reconnects after a sleep) has no idea whether the
+  // filesystem watch behind live updates is actually running. Tell it, rather
+  // than leaving it to infer from an editor that has quietly stopped noticing
+  // anything.
+  try {
+    const ManuscriptWatcher = require('./services/manuscript/ManuscriptWatcher.js');
+    socket.emit('manuscript:watcher', ManuscriptWatcher.status());
+  } catch { /* watcher not loaded yet; it announces itself when it starts */ }
+
   socket.on('disconnect', () => {
     console.log(`WebSocket client disconnected: ${socket.id}`);
   });

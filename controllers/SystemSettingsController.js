@@ -27,20 +27,25 @@ exports.getGlobalSettings = async (req, res) => {
 exports.updateGlobalSettings = async (req, res) => {
     const { settings } = req.body;
     try {
-        // If an API key is provided and it's NOT the masked version, encrypt it
-        if (settings.critic && settings.critic.apiKey && !settings.critic.apiKey.includes('****')) {
-            settings.critic.apiKey = encrypt(settings.critic.apiKey);
-        } else if (settings.critic && settings.critic.apiKey && settings.critic.apiKey.includes('****')) {
-            // It's the masked version, don't update the field
-            delete settings.critic.apiKey;
+        let doc = await GlobalSettings.findOne({ key: "main" });
+        if (!doc) doc = new GlobalSettings({ key: "main" });
+
+        if (settings.storage) {
+            if (settings.storage.storyRoot !== undefined) doc.storage.storyRoot = settings.storage.storyRoot;
         }
 
-        const updated = await GlobalSettings.findOneAndUpdate(
-            { key: "main" },
-            { $set: settings },
-            { upsert: true, new: true }
-        );
-        res.json({ ok: true, settings: updated });
+        if (settings.critic) {
+            if (settings.critic.enabled !== undefined) doc.critic.enabled = settings.critic.enabled;
+            if (settings.critic.modelName !== undefined) doc.critic.modelName = settings.critic.modelName;
+            
+            // Only update the API key if a new, unmasked one is provided
+            if (settings.critic.apiKey && !settings.critic.apiKey.includes('****')) {
+                doc.critic.apiKey = encrypt(settings.critic.apiKey);
+            }
+        }
+
+        await doc.save();
+        res.json({ ok: true, settings: doc });
     } catch (err) {
         res.status(500).json({ ok: false, message: err.message });
     }

@@ -62,7 +62,13 @@
     text-align: right;
 }
 
+/* position: relative anchors the floating player. This box, rather than the
+   card, because it is exactly the content area — so the player's offsets are
+   measured against the same edges the drawer occupies, and clearing the drawer
+   is 340px + a gutter rather than that plus however much padding the card
+   happens to carry. */
 .editor__body {
+    position: relative;
     display: flex;
     flex: 1;
     min-height: 0;
@@ -124,8 +130,15 @@
     overflow-x: hidden;
 }
 
+/*
+   The bottom padding clears the floating player, which overlays this element's
+   last 73px or so. At the old 60px the final line of a chapter scrolled to
+   rest underneath the transport and could not be read without scrolling back
+   up. Page rules are drawn from --page-top downward and do not use this, so
+   growing it does not move them.
+*/
 .editor__page .cm-content {
-    padding: 40px 32px 60px;
+    padding: 40px 32px 110px;
     caret-color: currentColor;
 }
 
@@ -225,6 +238,132 @@
     opacity: 0.45;
 }
 
+/*
+   The page and its transport, stacked. Separate from the drawer so that
+   closing the drawer gives this column the width back rather than leaving a
+   340px hole beside a centred page.
+*/
+/*
+   min-height: 0 is load-bearing, not tidying. A flex item's default min-height
+   is auto, so this column refuses to shrink below the height of its content
+   and runs past the bottom of a card that is overflow: hidden.
+*/
+.editor__main {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+}
+
+/*
+   THE PLAYER.
+
+   Bottom right of the card, floating over the writing area like any other
+   media player rather than sitting in the layout. Two reasons it earns the
+   overlay: the page is a centred 6.5in column, so the space either side of it
+   is empty and costs nothing to occupy, and a docked strip would push the text
+   block up every time the status line wrapped.
+
+   Anchored to .editor, NOT to anything inside .editor__body. Positioned
+   against .editor__main it inherited that flex item's height, and whenever the
+   flex algorithm ran the column past the card the player went with it and lost
+   its bottom edge to the card's overflow. The card's own box cannot drift like
+   that.
+*/
+.editor__transport {
+    /*
+       Fixed, not absolute. Absolute made the player a descendant of a
+       clipping ancestor, and in a window where the card runs past the bottom
+       of #main-content (which is overflow: hidden) the player went over the
+       edge with it and lost its lower half. Fixed leaves that chain entirely,
+       so nothing between here and the viewport can crop it.
+
+       34px on both, and deliberately not measured. An earlier version set
+       these from the card's geometry on every resize, to keep the player
+       aligned with the writing column; against the viewport a flat inset is
+       simply where a floating player belongs, and it sits correctly without
+       any of that machinery.
+    */
+    position: fixed;
+    right: 34px;
+    bottom: 34px;
+    z-index: 5;
+    width: max-content;
+    max-width: min(420px, calc(100% - 36px));
+    padding: 8px 12px;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    border-radius: var(--radius-md, 10px);
+    /*
+       Nearly opaque, and built on --color-bg so it follows the theme. The
+       glass tokens are 4-20% white, which is right for a panel sitting on the
+       page background and quite wrong for one floating over the manuscript:
+       at that weight the prose read straight through the player and neither
+       the words nor the controls were legible.
+    */
+    background: var(--color-bg, #fff);
+    background: color-mix(in srgb, var(--color-bg, #fff) 92%, transparent);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+
+.editor__transport-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Narrator.css gives Listen flex: 1 for the old narrow panel. In a player
+   sized to its contents that would stretch it over everything else. */
+.editor__transport .narrator__transport #narratorPlayBtn {
+    flex: 0 0 auto;
+    min-width: 9ch;
+}
+
+/* Separates playback from rendering — one is listening, the other is work. */
+.editor__transport-spacer {
+    flex: 0 0 1px;
+    align-self: stretch;
+    margin: 2px 6px;
+    background: var(--glass-border, rgba(0, 0, 0, 0.12));
+}
+
+/*
+   The status line wraps and is shown in full. It had a max-height, and that
+   was simply wrong: this line carries what the narrator is doing and what a
+   render is about to cost, and a message clipped mid-sentence is worse than no
+   message. The player is sized to its contents, so letting this wrap grows the
+   box by a line rather than hiding the words.
+*/
+.editor__transport .narrator__status {
+    margin-top: 6px;
+    font-size: 0.75rem;
+}
+
+.editor__transport .narrator__status:empty {
+    display: none;
+}
+
+/*
+   The exception is the paragraph being spoken, which is a whole paragraph of
+   the manuscript and would grow the player without limit. Two lines is enough
+   to recognise where you are, and line-clamp fades the second line rather than
+   cutting a word in half.
+*/
+.editor__transport .narrator__now {
+    margin: 2px 0 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.editor__transport .narrator__progress {
+    margin-top: 6px;
+}
+
 .editor__panel {
     width: 340px;
     flex-shrink: 0;
@@ -236,21 +375,46 @@
     overflow-y: auto;
 }
 
-.editor__panel-head,
-.editor__panel-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+/* The drawer is output only, and `hidden` has to actually hide it — the flex
+   display above would otherwise override the attribute's default and the empty
+   panel would keep its 340px. */
+.editor__panel[hidden] {
+    display: none;
 }
 
-.editor__panel-head .glass-select {
-    flex: 1;
-    min-width: 0;
+.editor__panel-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.editor__panel-title {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.editor__panel-close {
+    display: flex;
+    padding: 4px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted, #777);
+    cursor: pointer;
+}
+
+.editor__panel-close:hover {
+    background: var(--glass-border, rgba(0, 0, 0, 0.08));
+    color: inherit;
 }
 
 .editor__output {
     font-size: 0.88rem;
     line-height: 1.5;
+    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .editor__output h4 {
@@ -307,6 +471,65 @@
     padding: 10px;
     border-radius: 6px;
     background: rgba(255, 65, 65, 0.12);
+}
+
+/*
+   MECHANICS FINDINGS.
+
+   The stripe down the left is the whole severity signal. An error is a
+   mistake; a style finding is a question, and a chapter with fifteen long
+   sentences is not a chapter with fifteen problems — colouring both the same
+   would be the fastest way to teach a writer to stop reading the panel.
+*/
+.editor__finding {
+    border-left: 3px solid transparent;
+    padding-left: 10px;
+}
+
+.editor__finding--error {
+    border-left-color: var(--color-danger, #e5484d);
+}
+
+.editor__finding--style {
+    border-left-color: var(--text-muted, #999);
+}
+
+.editor__finding-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.editor__finding-head .text-muted {
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+/* The flagged span inside its surrounding sentence. Without this a finding on
+   a single comma quotes a single comma, which tells the writer nothing. */
+.editor__output mark {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: rgba(255, 196, 0, 0.32);
+    color: inherit;
+}
+
+.editor__finding-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.editor__jump {
+    margin-top: 6px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.2));
+    border-radius: 4px;
+    color: inherit;
 }
 
 @media (max-width: 900px) {
