@@ -401,7 +401,22 @@
     margin-top: 6px;
 }
 
+/*
+   The cap is what makes overflow-y mean anything. Without a height to overflow
+   the drawer just grew with its contents, and a scan that found forty things
+   ran off the bottom of the card with no scrollbar anywhere to reach it —
+   overflow: auto only produces a scroller once the box is actually too small.
+
+   dvh rather than vh so a mobile browser's collapsing toolbar does not leave
+   the drawer taller than the visible window; vh is the fallback for anything
+   that does not know the unit.
+*/
 .editor__panel {
+    /* Without this the panel is content-box, so its 15px of padding sits
+       OUTSIDE both numbers below: the cap rendered 480px tall rather than 450,
+       and the drawer measured 371px wide rather than 340. Both now mean what
+       they say. */
+    box-sizing: border-box;
     width: 340px;
     flex-shrink: 0;
     display: flex;
@@ -409,6 +424,8 @@
     gap: 10px;
     padding: 15px;
     border-left: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    max-height: 50vh;
+    max-height: 50dvh;
     overflow-y: auto;
 }
 
