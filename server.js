@@ -118,8 +118,15 @@ function getSessionMiddleware() {
 // work with no database at all; everything below it can assume one.
 
 // 1. Body Parsing — the wizard posts JSON before a session store can exist
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+//
+// The limit is raised well past express's 100kb default because the editor
+// posts whole chapters: saving, spelling, the mechanics scan and the critic
+// all send the manuscript in the request body. 100kb is roughly 17,000 words,
+// so a long chapter silently crossed it and came back as a 413 — whose body is
+// an HTML error page, which reaches the editor as "Unexpected token '<'"
+// rather than as anything resembling "your chapter is too big".
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // 2. View Engine
 app.set("views", path.join(__dirname, "views"));
