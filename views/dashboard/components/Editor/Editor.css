@@ -31,6 +31,43 @@
     flex-shrink: 0;
 }
 
+/*
+   SAVE STATE.
+
+   A floppy disk when there is something to save, a green tick when there is
+   not — the one thing a writer glances at without wanting to read anything.
+
+   Saved is the resting state and is styled down to match: the primary
+   treatment is reserved for when there is actually work to do, so an unsaved
+   chapter is the thing that draws the eye rather than a button that shouts at
+   all times. It stays enabled either way; save() already no-ops when clean.
+*/
+#editorSaveBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* Wide enough for "Saved", which is the longer of the two labels, so the
+       bar does not twitch sideways every time the chapter is saved. Measured:
+       at 10ch the floor sat under both labels and did nothing. */
+    min-width: 7.5rem;
+    justify-content: center;
+}
+
+#editorSaveBtn ion-icon {
+    font-size: 1.05rem;
+}
+
+#editorSaveBtn.is-saved {
+    background: transparent;
+    box-shadow: none;
+    border-color: var(--glass-border, rgba(0, 0, 0, 0.14));
+    color: var(--text-muted, #777);
+}
+
+#editorSaveBtn.is-saved ion-icon {
+    color: var(--color-success, #2ea043);
+}
+
 .editor__count,
 .editor__state {
     white-space: nowrap;

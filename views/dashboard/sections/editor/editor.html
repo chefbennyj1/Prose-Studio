@@ -13,7 +13,17 @@
                 <span id="editorPageCount" class="editor__count" title="Standard manuscript pages, 250 words each">0 pages</span>
                 <span id="editorWordCount" class="editor__count">0 words</span>
                 <span id="editorSaveState" class="editor__state">saved</span>
-                <button id="editorSaveBtn" class="glass glass-btn glass-btn--primary">Save</button>
+                <!--
+                    The button carries the state itself: a floppy disk when
+                    there is something to save, a green tick when there is not.
+                    The line beside it stays, because it says the things a
+                    two-state icon cannot - autosaving, conflict, no story
+                    folder, and the error text when a save fails.
+                -->
+                <button id="editorSaveBtn" class="glass glass-btn glass-btn--primary is-saved">
+                    <ion-icon name="checkmark-circle" id="editorSaveIcon"></ion-icon>
+                    <span id="editorSaveLabel">Saved</span>
+                </button>
             </div>
         </div>
 

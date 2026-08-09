@@ -86,6 +86,8 @@ export async function initEditor(container) {
         pages: document.getElementById('editorPageCount'),
         state: document.getElementById('editorSaveState'),
         saveBtn: document.getElementById('editorSaveBtn'),
+        saveIcon: document.getElementById('editorSaveIcon'),
+        saveLabel: document.getElementById('editorSaveLabel'),
         panel: document.getElementById('editorPanel'),
         panelTitle: document.getElementById('editorPanelTitle'),
         panelClose: document.getElementById('editorPanelClose'),
@@ -397,8 +399,11 @@ async function openChapter(chapter, fromStory) {
         // A different file: the undo history goes with the old one.
         surface.setValue(data.text);
         showWhere();
-        setState('saved');
+        // Clear `dirty` first: setState redraws the Save button from it, so
+        // setting the text before the flag left a freshly opened chapter
+        // showing an unsaved floppy disk.
         dirty = false;
+        setState('saved');
         hadText = data.text.length > 0;
         updateCounts();
         rememberPlace();
@@ -456,6 +461,7 @@ async function onDiskChange(payload) {
             'Discard mine and reload</button></div></div>';
         document.getElementById('editorReloadChapter')?.addEventListener('click', () => {
             dirty = false;              // the writer just chose the file
+            drawSaveButton();
             openChapter(doc.chapter);
         });
         return;
@@ -536,6 +542,28 @@ async function save(isAuto = false) {
 
 function setState(text) {
     if (els.state) els.state.textContent = text;
+    drawSaveButton();
+}
+
+/**
+ * The Save button says whether there is anything to save.
+ *
+ * Driven by `dirty` rather than by the status text beside it, because that
+ * text carries transient things — "autosaving...", "conflict", an error
+ * message — and the button is answering one question only: is the file on disk
+ * the same as what is on screen.
+ *
+ * It stays enabled when saved. save() already returns early when there is
+ * nothing to do, and a writer who presses Save out of habit should get a
+ * button that acknowledges the press rather than one that looks broken.
+ */
+function drawSaveButton() {
+    if (!els.saveBtn) return;
+
+    els.saveBtn.classList.toggle('is-saved', !dirty);
+    if (els.saveIcon) els.saveIcon.setAttribute('name', dirty ? 'save-outline' : 'checkmark-circle');
+    if (els.saveLabel) els.saveLabel.textContent = dirty ? 'Save' : 'Saved';
+    els.saveBtn.title = dirty ? 'Save this chapter' : 'Everything is saved';
 }
 
 /**
