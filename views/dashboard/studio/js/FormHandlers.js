@@ -3,6 +3,7 @@
 import { setActiveScene } from './SceneSession.js';
 import { updateUrlState } from './Navigation.js';
 import { fetchChapterRange } from '../api/StudioClient.js';
+import { initGitHubSettings } from '../../sections/library-settings/github-settings.js';
 
 function updateStatus(statusEl, message, type = 'error') {
     if (!statusEl) return;
@@ -107,6 +108,9 @@ async function handleApiFormSubmit(options) {
 
 
 export function initFormHandlers(container) {
+    // Manuscript backup lives on this page too, but owns its own block.
+    try { initGitHubSettings(); } catch (err) { console.error('[Settings] GitHub block init failed', err); }
+
     // Page Builder Form Submission (Create Page)
     const createPageForm = document.getElementById('page-builder-form');      
     if (createPageForm) {

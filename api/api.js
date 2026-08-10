@@ -207,6 +207,20 @@ router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
 router.get('/proofing/mechanics/rules', isAuth, ProofingController.getMechanicsRules);
 router.post('/proofing/mechanics', isAuth, ProofingController.checkMechanics);
 
+// --- MANUSCRIPT BACKUP (GitHub) ---
+// isModerator rather than isAuth: this writes to the writer's GitHub account
+// and creates repositories, which is not something a reader account should
+// reach. Repositories created here are always private - see GitHubService.
+const GitController = require('../controllers/GitController.js');
+router.get('/git/status', isModerator, GitController.getStatus);
+router.post('/git/connect', isModerator, GitController.connect);
+router.post('/git/disconnect', isModerator, GitController.disconnect);
+router.get('/git/repos', isModerator, GitController.listRepos);
+router.post('/git/repos', isModerator, GitController.createRepo);
+router.post('/git/select', isModerator, GitController.selectRepo);
+router.post('/git/untrack-audio', isModerator, GitController.untrackAudio);
+router.post('/git/backup', isModerator, GitController.backup);
+
 // --- DICTIONARY (spelling + pronunciation, one list) ---
 // These replaced /proofing/dictionary and /proofing/pronunciation, which were
 // two stores keyed differently: a word added to one was never seen by the

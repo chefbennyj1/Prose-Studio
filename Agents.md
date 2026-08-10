@@ -1,9 +1,35 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — the local models and the whole plugin system are gone; the
-AI is Gemini and is opt-in. Mechanics scanner and rail refactor also landed.
-See below.
+**CLAUDE:** idle — GitHub manuscript backup built, uncommitted. **The network
+half is untested**: no token here, so `validate`/`createRepo`/`listRepos` and
+the push itself have never spoken to github.com. Everything local is verified.
+
+> **MANUSCRIPT REPOSITORIES ARE ALWAYS PRIVATE.** `private: true` in
+> `GitHubService.createRepo` is the only value it will send and there is no
+> parameter to change it. Do not add one. Publishing an unfinished novel is the
+> worst thing this feature could do and it must not be one checkbox away.
+
+### Backup, 2026-08-09/10
+
+`isomorphic-git` (pure JS) so no git install is needed — which forces HTTPS and
+a classic PAT rather than SSH. Classic, not fine-grained: fine-grained cannot
+create repositories without Administration write across every repo.
+
+Three traps, all found by asking "what if the writer already has a repo":
+
+- **Never rewrite their remote.** The first version deleted `origin` and wrote
+  its own HTTPS URL, which would silently break a writer's own SSH workflow.
+  It now pushes to an explicit URL and leaves `origin` alone.
+- **Never assume `main`.** An older repo is on `master`; pushing `main` would
+  make a second branch beside their real history.
+- **`.gitignore` does not untrack.** Audio already committed stays tracked, and
+  the commit loop originally decided add-vs-remove by "is it on disk" — which
+  re-added the very files `untrackAudio` had just removed. The action is now
+  decided explicitly in `pendingFiles`.
+
+Narration is `.audio/*.wav` **inside** the story folder — uncompressed, tens of
+MB a chapter. Excluding it is step one, not a nicety.
 
 > **THE LOCAL MODELS ARE GONE (Ben, 2026-08-09).** Do not reintroduce a local
 > LLM, `services/plugins`, `PluginLoader`, or the editor-presence heartbeat.

@@ -23,10 +23,14 @@
         <hr class="margin-y-40 border-dim">
 
         <h3>AI Settings</h3>
+        <!-- Rewritten when the local models were removed. The old copy said the
+             local model was always available and never sent text anywhere,
+             which stopped being true. -->
         <p class="text-muted margin-b-20">
-            Gemini as a cloud critic. The local model is always available and never sends
-            your text anywhere; Gemini is the stronger read, at the cost of sending the
-            passage to Google. You choose per critique, in the editor.
+            Gemini powers Critique and Line edits, and those are the only two things
+            in the editor that send your writing anywhere. They stay hidden until you
+            switch this on. Spelling, the mechanics scan and the narrator run on this
+            machine, free, whether this is on or off.
         </p>
 
         <div id="global-settings-form-container" class="glass glass--dark glass-card">
@@ -37,7 +41,7 @@
                         <span>Enable Gemini as a critic</span>
                     </label>
                     <p class="font-size-07 text-muted margin-t-5">
-                        Adds “Cloud (Gemini)” to the engine list in the editor.
+                        Adds Critique and Line edits to the Review menu in the rail.
                     </p>
                 </div>
 
@@ -68,6 +72,88 @@
                 </div>
                 <p id="globalSettingsStatus" class="font-size-07 text-muted margin-t-5"></p>
             </form>
+        </div>
+
+        <hr class="margin-y-40 border-dim">
+
+        <!--
+            MANUSCRIPT BACKUP.
+
+            Repositories created here are always private and there is no control
+            to change that, deliberately: the worst thing this feature could do
+            is publish an unfinished novel, and that must not be one checkbox
+            away. Someone who wants a public repository can change it on GitHub,
+            having thought about it.
+
+            No git installation is needed - isomorphic-git is pure JavaScript -
+            which is why authentication is a token rather than an SSH key.
+        -->
+        <h3>Manuscript Backup</h3>
+        <p class="text-muted margin-b-20">
+            Push your story folder to GitHub with one button. You get version history and
+            an off-site copy, and you can read back any earlier draft. New repositories are
+            always private. Nothing is installed — no need for Git on this machine.
+        </p>
+
+        <div class="glass glass--dark glass-card" id="github-settings">
+            <!-- Step 1: the account. -->
+            <div id="github-disconnected">
+                <div class="form-group">
+                    <label for="github-token">GitHub personal access token</label>
+                    <div class="flex-row gap-10 align-center">
+                        <input type="password" id="github-token" class="glass-input flex-1"
+                            placeholder="ghp_… paste your token here" autocomplete="off">
+                        <!-- Pre-fills the description and ticks the `repo` scope,
+                             so the writer generates and copies without hunting. -->
+                        <a href="#" id="github-token-link" target="_blank" rel="noopener"
+                            class="glass glass-btn glass-btn--sm">Create token</a>
+                    </div>
+                    <p class="font-size-07 text-muted margin-t-5">
+                        “Create token” opens GitHub with the right permission already ticked.
+                        Set an expiry you are happy with, generate it, and paste it here.
+                    </p>
+                </div>
+                <button type="button" id="github-connect-btn"
+                    class="glass glass-btn glass-btn--primary margin-t-10">Connect GitHub</button>
+            </div>
+
+            <!-- Step 2: which repository. -->
+            <div id="github-connected" hidden>
+                <p class="margin-0">
+                    Connected as <strong id="github-account"></strong>
+                    <button type="button" id="github-disconnect-btn"
+                        class="glass glass-btn glass-btn--sm margin-l-10">Disconnect</button>
+                </p>
+
+                <div class="margin-t-20 border-dim padding-20 border-radius-8">
+                    <div class="form-group">
+                        <label for="github-repo-select">Back up to</label>
+                        <select id="github-repo-select" class="glass-select width-100"></select>
+                        <p class="font-size-07 text-muted margin-t-5" id="github-repo-note"></p>
+                    </div>
+
+                    <div class="form-group margin-t-15">
+                        <label for="github-new-repo">…or create a new private repository</label>
+                        <div class="flex-row gap-10 align-center">
+                            <input type="text" id="github-new-repo" class="glass-input flex-1"
+                                placeholder="my-novel" autocomplete="off">
+                            <button type="button" id="github-create-btn"
+                                class="glass glass-btn glass-btn--sm">Create</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Only shown when a hand-built repository is already carrying
+                     rendered narration. See BackupService.untrackAudio. -->
+                <div id="github-audio-warning" class="margin-t-20 padding-20 border-radius-8" hidden>
+                    <strong>This repository is backing up narration audio.</strong>
+                    <p class="font-size-07 margin-t-5" id="github-audio-detail"></p>
+                    <button type="button" id="github-untrack-btn"
+                        class="glass glass-btn glass-btn--sm margin-t-10">Stop backing up audio</button>
+                </div>
+            </div>
+
+            <p id="github-status" class="font-size-07 text-muted margin-t-15"></p>
         </div>
     </div>
 </div>

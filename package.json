@@ -28,6 +28,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "express-session": "^1.18.2",
+    "isomorphic-git": "^1.41.3",
     "kokoro-js": "^1.2.1",
     "mime-types": "^3.0.1",
     "mongoose": "^8.18.1",

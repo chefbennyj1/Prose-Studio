@@ -24,6 +24,15 @@ const globalSettingsSchema = new Schema({
         enabled: { type: Boolean, default: false },
         apiKey: { type: String, default: "" }, // Encrypted
         modelName: { type: String, default: "gemini-flash-latest" }
+    },
+    // Manuscript backup to GitHub. `private` is recorded rather than chosen:
+    // repositories this creates are always private, and the field exists so the
+    // dashboard can show the visibility of one the writer connected themselves.
+    github: {
+        token: { type: String, default: "" },   // Encrypted classic PAT, `repo` scope
+        owner: { type: String, default: "" },
+        repo: { type: String, default: "" },
+        private: { type: Boolean, default: true }
     }
 }, { timestamps: true });
 

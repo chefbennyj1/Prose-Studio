@@ -532,6 +532,12 @@ async function save(isAuto = false) {
         updateCounts();
         rememberPlace();
 
+        // The story folder changed, so anything watching what is waiting to be
+        // backed up needs to look again. See BackupButton.
+        document.dispatchEvent(new CustomEvent('manuscriptSaved', {
+            detail: { story: doc.story, chapter: doc.chapter }
+        }));
+
         // The words on disk changed, so the audio for some paragraph is now
         // out of date. Brings it back in line if the writer asked for that.
         scheduleRenderAfterSave();

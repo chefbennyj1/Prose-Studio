@@ -16,6 +16,7 @@ import { initUserSettings } from './sections/user-settings/user-settings.js';
 import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
 import { initRailMenus } from './components/RailMenu/RailMenu.js';
 import { initReviewMenu } from './components/RailMenu/ReviewMenu.js';
+import { initBackupButton } from './components/RailMenu/BackupButton.js';
 import { initNarratorMenu } from './components/Narrator/NarratorMenu.js';
 import { initDictionary } from './sections/dictionary/dictionary.js';
 
@@ -109,6 +110,7 @@ export async function init(container) {
     initRailMenus();
     try { initNarratorMenu(); } catch (err) { console.error('[Dashboard] Narrator menu init failed', err); }
     try { initReviewMenu(); } catch (err) { console.error('[Dashboard] Review menu init failed', err); }
+    try { initBackupButton(); } catch (err) { console.error('[Dashboard] Backup button init failed', err); }
 
     // --- Lazy Initialize Sub-Systems when fragments load ---
     container.addEventListener('fragmentLoaded', (e) => {

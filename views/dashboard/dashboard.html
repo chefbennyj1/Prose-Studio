@@ -128,6 +128,27 @@
             <ion-icon name="book"></ion-icon>
         </button>
 
+        <!--
+            BACK UP.
+
+            One press: commit whatever changed in the story folder and push it
+            to GitHub. No branches, no staging, no rebase - a novelist wants
+            their work somewhere safe, not a version-control workflow.
+
+            Hidden until an account and a repository are configured in
+            Settings, the same way the AI rows are: a button that only ever
+            errors is worse than no button.
+
+            Rendered narration is excluded before the first commit. It is
+            uncompressed WAV inside the story folder, tens of megabytes a
+            chapter, and rebuildable from the text in seconds.
+        -->
+        <button type="button" id="backupBtn" class="studio-rail__btn hidden"
+            title="Back up to GitHub" aria-label="Back up to GitHub">
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            <span class="studio-rail__badge hidden" id="backupBadge"></span>
+        </button>
+
         <div class="studio-rail__divider" role="separator"></div>
 
         <!--
