@@ -76,7 +76,9 @@ const uploadUserAvatar = multer({
 // --- TEST ROUTE ---
 router.get('/test', (req, res) => res.json({ ok: true, message: "API is working" }));
 
-// --- PLUGIN / SYSTEM NOTIFICATIONS ---
+// --- SYSTEM NOTIFICATIONS ---
+// Secret-guarded rather than session-guarded: this is for a process on this
+// machine, not a signed-in user.
 router.all('/toast', (req, res) => {
     // Internal API Security: Validate the runtime secret
     const incomingSecret = req.headers['x-sequential-secret'];
@@ -97,35 +99,9 @@ router.all('/toast', (req, res) => {
     res.json({ ok: true });
 });
 
-// --- PLUGIN MANAGEMENT ---
-const PluginLoader = require('../services/PluginLoader.js');
-router.get('/plugins/list', isAdmin, (req, res) => {
-    try {
-        const plugins = PluginLoader.getAvailablePlugins();
-        res.json({ ok: true, plugins });
-    } catch (err) {
-        res.status(500).json({ ok: false, message: err.message });
-    }
-});
-
-router.get('/plugins/hooks/:hookName', isModerator, (req, res) => {
-    try {
-        const subscribers = PluginLoader.getHookSubscribers(req.params.hookName);
-        res.json({ ok: true, subscribers });
-    } catch (err) {
-        res.status(500).json({ ok: false, message: err.message });
-    }
-});
-
-router.post('/plugins/toggle', isAdmin, (req, res) => {
-    try {
-        const { folderName, enabled } = req.body;
-        PluginLoader.togglePlugin(folderName, enabled);
-        res.json({ ok: true, message: `Plugin ${folderName} set to ${enabled ? 'enabled' : 'disabled'}. Note: Requires server restart to take effect.` });
-    } catch (err) {
-        res.status(500).json({ ok: false, message: err.message });
-    }
-});
+// The plugin routes stood here. They went with the plugin system itself, which
+// existed to host a local llama.cpp engine and a proof-reader that depended on
+// it. Both are gone; the AI is Gemini, reached directly.
 
 // --- SYSTEM POWER (shutdown / restart from the dashboard) ---
 
@@ -145,17 +121,18 @@ function relaunchDetached() {
     }
 }
 
-router.post('/system/shutdown', isAdmin, async (req, res) => {
+// No shutdownAll() on either of these any more. It existed to kill the
+// llama-server child process the LLM plugin spawned; nothing the server starts
+// now outlives it.
+router.post('/system/shutdown', isAdmin, (req, res) => {
     console.log('[System] Shutdown requested from the dashboard.');
     res.json({ ok: true, message: 'Server shutting down.' });
-    await PluginLoader.shutdownAll();
     setTimeout(() => process.exit(0), 500);
 });
 
-router.post('/system/restart', isAdmin, async (req, res) => {
+router.post('/system/restart', isAdmin, (req, res) => {
     console.log('[System] Restart requested from the dashboard.');
     res.json({ ok: true, message: 'Server restarting.' });
-    await PluginLoader.shutdownAll();
     relaunchDetached();
     setTimeout(() => process.exit(0), 500);
 });

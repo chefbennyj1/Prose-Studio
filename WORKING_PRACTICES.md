@@ -37,9 +37,21 @@ it, before you call it finished.
 - **Labels tell the truth.** A button that deletes must not say "mark read."
   If behavior changes, the words on it change too — and flag the judgment
   call to Ben rather than deciding silently.
-- **Local-first AI is product identity.** Creative text never leaves the
-  writer's machine. Never propose swapping the local model for a cloud LLM
-  because it would be faster or smarter — the constraint *is* the feature.
+- **The AI is opt-in, and everything else is local.** This replaced
+  "local-first AI is product identity", which said creative text never leaves
+  the writer's machine and that swapping the local model for a cloud one must
+  never be proposed. Ben retired that rule deliberately on 2026-08-09: the
+  local Gemma ran on an 8192-token context, so it judged a chapter a fifth at
+  a time, and the engine around it was the source of every failure the editor
+  had. The AI is Gemini now.
+
+  The commitment moved rather than disappeared, and the new form is the rule:
+  **nothing reaches Google unless the writer switches AI on in Settings and
+  supplies a key**, and until they do, the features that need it are not shown
+  at all. Never make an AI feature the default, never make one reachable
+  without that gate, and never let a local feature grow a cloud dependency —
+  spelling, the mechanics scanner and the narrator all run offline and free,
+  and they are what make the opt-in honest rather than nominal.
 - **Commit and push in one step.** Never leave commits local. One commit per
   logical feature. Never sweep unrelated working-tree changes (or another
   agent's pending edits) into your commit — mention them instead.
@@ -74,9 +86,10 @@ the running app doing the thing while you watch. The recipe that works here:
    - nodemon restarts on any `.js/.ejs/.css` save — **don't edit server
      files while a verification run is in flight**; the restart kills
      in-flight requests and resets in-memory caches.
-   - The LLM engine is killed by a watchdog ~2 min after heartbeats stop and
-     takes ~60s to reload; the first scan after a quiet period is slow.
-     Detect readiness by polling `/health`, never by grepping logs.
+   - AI calls go to Gemini over the network, so they fail in ways a local
+     model did not: no key, AI switched off, rate limits, and a request body
+     that must stay under the 25mb parser limit. Check `/api/proofing/status`
+     for whether the AI can run at all before blaming a scan.
    - Node resolves modules from the *script's* directory: scripts outside
      the repo must `require('E:/Sequential Comic Server/node_modules/...')`.
 

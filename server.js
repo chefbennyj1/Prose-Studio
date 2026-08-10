@@ -194,13 +194,16 @@ const PORT = process.env.PORT || 3100;
 // swallowed by the retry loop, and surfaced two minutes later as "the local LLM
 // engine did not become ready". Writing it back leaves one source of truth.
 process.env.PORT = String(PORT);
+// Guards /api/toast, which is how a process on this machine raises a toast in
+// the dashboard without a user session.
 const SYSTEM_SECRET = crypto.randomBytes(32).toString('hex');
 app.locals.systemSecret = SYSTEM_SECRET;
-console.log('[System] Generated runtime API secret for internal plugins.');
+console.log('[System] Generated runtime API secret.');
 
-// Plugin System
-const PluginLoader = require('./services/PluginLoader');
-PluginLoader.loadAll(app, { port: PORT, systemSecret: SYSTEM_SECRET });
+// The plugin system was loaded here. It existed to host a local llama.cpp
+// engine and a proof-reader that depended on it, and both are gone: the AI is
+// Gemini now, reached directly, and everything that runs without it - spelling,
+// mechanics, the narrator - was never a plugin.
 
 app.use("/", siteRoutes);
 

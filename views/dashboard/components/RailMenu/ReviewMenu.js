@@ -26,24 +26,21 @@ import { escapeHtml } from '../Editor/EditorRender.js';
 
 const STORE_KEY = 'prose_engine_review';
 
-let critic = null;      // { engines, lenses, defaultEngine, defaultLens }
+let critic = null;      // { lenses, defaultLens, ai: { ok, reason } }
 let ruleset = null;     // { groups, rules, defaults }
 let els = {};
 
+// `engine` used to live here too, when a local Gemma and Gemini both answered.
 let choice = {
     lens: null,
-    engine: null,
     disabled: []
 };
 
 export function initReviewMenu() {
     els = {
         badge: document.getElementById('reviewBadge'),
-        critiqueHint: document.getElementById('reviewCritiqueHint'),
         lensValue: document.getElementById('reviewLensValue'),
         lensFlyout: document.getElementById('reviewLensFlyout'),
-        engineValue: document.getElementById('reviewEngineValue'),
-        engineFlyout: document.getElementById('reviewEngineFlyout'),
         rulesValue: document.getElementById('reviewRulesValue'),
         rulesFlyout: document.getElementById('reviewRulesFlyout')
     };
@@ -58,12 +55,14 @@ export function initReviewMenu() {
     });
 
     els.lensFlyout.addEventListener('click', onLensClick);
-    els.engineFlyout.addEventListener('click', onEngineClick);
     els.rulesFlyout.addEventListener('click', onRuleClick);
 
     submenu('lens')?.addEventListener('flyoutOpened', drawLensList);
-    submenu('engine')?.addEventListener('flyoutOpened', drawEngineList);
     submenu('rules')?.addEventListener('flyoutOpened', drawRuleList);
+
+    // Switching the AI on in Settings should put its rows in the menu without
+    // a reload; that page dispatches this once the key is saved.
+    document.addEventListener('aiSettingsChanged', loadCritic);
 
     document.addEventListener('reviewFinished', (event) => drawBadge(event.detail));
 
@@ -92,7 +91,6 @@ function start(task) {
         detail: {
             task,
             lens: choice.lens,
-            engine: choice.engine,
             mechanics: getMechanicsOptions()
         }
     }));
@@ -124,7 +122,6 @@ function restore() {
     try {
         const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
         choice.lens = saved.lens || null;
-        choice.engine = saved.engine || null;
         choice.disabled = Array.isArray(saved.disabled) ? saved.disabled : [];
     } catch {
         // A corrupt entry is not worth a broken menu; the defaults are fine.
@@ -151,37 +148,34 @@ async function loadCritic() {
             choice.lens = critic.defaultLens;
         }
 
-        // A remembered engine that is no longer available - the plugin was
-        // turned off, the API key was removed - has to fall back, or Critique
-        // fails on a choice the writer made weeks ago and has forgotten.
-        const engine = critic.engines.find(e => e.id === choice.engine);
-        if (!engine || !engine.ok) {
-            choice.engine = (critic.engines.find(e => e.id === critic.defaultEngine && e.ok)
-                || critic.engines.find(e => e.ok)
-                || {}).id || critic.defaultEngine;
-        }
-
+        drawAiRows();
         drawCriticValues();
     } catch (err) {
         console.error('[ReviewMenu] Could not load critic options', err);
-        if (els.lensValue) els.lensValue.textContent = 'unavailable';
+        drawAiRows();
     }
 }
 
-function drawCriticValues() {
-    if (!critic) return;
-
-    const lens = critic.lenses.find(l => l.id === choice.lens);
-    const engine = critic.engines.find(e => e.id === choice.engine);
-
-    if (els.lensValue) els.lensValue.textContent = lens ? lens.label : '';
-    if (els.engineValue) els.engineValue.textContent = engine ? shortEngine(engine.label) : '';
-    if (els.critiqueHint) els.critiqueHint.textContent = engine ? shortEngine(engine.label) : '';
+/**
+ * Show or hide the rows that need the AI.
+ *
+ * The AI is opt-in, so until it is switched on in Settings with a key these
+ * are not in the menu at all. Showing them greyed out would be worse: it makes
+ * the editor look crippled, when in fact everything above them - spelling, the
+ * whole mechanics scanner - works and always has.
+ */
+function drawAiRows() {
+    const on = !!critic?.ai?.ok;
+    document.querySelectorAll('[data-needs-ai]').forEach((row) => {
+        row.classList.toggle('hidden', !on);
+        if (!on && row.title !== undefined && critic?.ai?.reason) row.title = critic.ai.reason;
+    });
 }
 
-/** "Local (Gemma 3 4B)" is too wide for a rail row; the rest is in the flyout. */
-function shortEngine(label) {
-    return String(label).replace(/\s*\(.*$/, '');
+function drawCriticValues() {
+    if (!critic || !els.lensValue) return;
+    const lens = critic.lenses.find(l => l.id === choice.lens);
+    els.lensValue.textContent = lens ? lens.label : '';
 }
 
 function drawLensList() {
@@ -202,20 +196,6 @@ function drawLensList() {
         </button>`).join('');
 }
 
-function drawEngineList() {
-    if (!critic) {
-        els.engineFlyout.innerHTML = note('Loading...');
-        return;
-    }
-    els.engineFlyout.innerHTML = critic.engines.map(engine => `
-        <button type="button" class="rail-menu__item rail-menu__entry${engine.id === choice.engine ? ' is-active' : ''}"
-            role="menuitemradio" aria-checked="${engine.id === choice.engine}"
-            data-id="${escapeHtml(engine.id)}" ${engine.ok ? '' : 'disabled'}>
-            <span class="rail-menu__name">${escapeHtml(engine.label)}</span>
-            <span class="rail-menu__count">${escapeHtml(engine.ok ? engine.blurb : engine.reason)}</span>
-        </button>`).join('');
-}
-
 function onLensClick(event) {
     const entry = event.target.closest('.rail-menu__entry');
     if (!entry) return;
@@ -223,15 +203,6 @@ function onLensClick(event) {
     remember();
     drawCriticValues();
     drawLensList();
-}
-
-function onEngineClick(event) {
-    const entry = event.target.closest('.rail-menu__entry');
-    if (!entry || entry.disabled) return;
-    choice.engine = entry.dataset.id;
-    remember();
-    drawCriticValues();
-    drawEngineList();
 }
 
 /* ---------- mechanics rules ---------- */

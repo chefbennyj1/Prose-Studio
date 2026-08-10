@@ -14,7 +14,6 @@ import { initPlotLab } from './components/PlotLab/PlotLab.js';
 import { initAccounts } from './sections/accounts/accounts.js';
 import { initUserSettings } from './sections/user-settings/user-settings.js';
 import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
-import { initPluginManager } from './sections/plugin-manager/plugin-manager.js';
 import { initRailMenus } from './components/RailMenu/RailMenu.js';
 import { initReviewMenu } from './components/RailMenu/ReviewMenu.js';
 import { initNarratorMenu } from './components/Narrator/NarratorMenu.js';
@@ -23,7 +22,6 @@ import { initDictionary } from './sections/dictionary/dictionary.js';
 // Imported Refactored Modules
 import { initEventHandlers } from './studio/js/EventHandlers.js';
 import { initFormHandlers } from './studio/js/FormHandlers.js';
-import { startPresenceHeartbeat } from './studio/js/PluginHooks.js';
 
 export async function init(container) {
     console.log("Initializing Dashboard...");
@@ -147,9 +145,6 @@ export async function init(container) {
         if (section === 'user-settings') {
              try { initUserSettings(); } catch (err) { console.error("UserSettings init failed", err); }
         }
-        if (section === 'plugin-manager') {
-             try { initPluginManager(); } catch (err) { console.error("PluginManager init failed", err); }
-        }
     });
 
     // Inject Dictionary CSS
@@ -169,29 +164,30 @@ export async function init(container) {
     }
 
     // --- AI Status Indicator ---
-    // Reports the local engine, not cloud vision: the brain lights when the
-    // Local-Llm-Engine plugin is loaded and able to answer.
+    // The brain lights when the AI is switched on in Settings and has a key.
+    // It used to report whether a local engine had loaded; there is no local
+    // engine now, so what it answers is "will Critique and Line edits work".
     const updateAIIndicator = async () => {
         try {
             const res = await fetch('/api/proofing/status');
             if (!res.ok) return;
             const data = await res.json();
-            const localReady = !!(data.ok && data.suggestions?.ok);
+            const aiReady = !!(data.ok && data.suggestions?.ok);
 
-            window.AI_CONFIG = { localEngine: localReady };
+            window.AI_CONFIG = { ai: aiReady };
 
             const indicator = document.getElementById('dashboard-ai-indicator');
             const svg = document.getElementById('dashboard-ai-brain-svg');
             if (!indicator || !svg) return;
 
-            if (localReady) {
+            if (aiReady) {
                 svg.style.fill = '#00ccff';
                 svg.style.filter = 'drop-shadow(0 0 5px rgba(0,204,255,0.5))';
-                indicator.title = 'Local AI: available';
+                indicator.title = 'AI: on. Critique and Line edits send text to Google.';
             } else {
                 svg.style.fill = '#555';
                 svg.style.filter = 'none';
-                indicator.title = data.suggestions?.reason || 'Local AI: unavailable';
+                indicator.title = data.suggestions?.reason || 'AI: off. Spelling, mechanics and the narrator still work.';
             }
         } catch (e) {
             console.warn("[Dashboard] AI status check failed.");
@@ -228,9 +224,9 @@ export async function init(container) {
     const role = user.role || 'basic';
     console.log(`[Dashboard] Initializing for role: ${role}`);
 
-    // Keep presence-subscribed plugins (e.g. local LLM engines) alive while
-    // the dashboard is open; they shut down once the beats stop.
-    startPresenceHeartbeat();
+    // The presence heartbeat stood here. It kept a local LLM engine awake while
+    // the dashboard was open and let it shut down once the beats stopped. There
+    // is no local engine to keep awake now.
 
     // --- Server power controls (admin only) ---
     const restartBtn = document.getElementById('restartServerBtn');
@@ -241,7 +237,7 @@ export async function init(container) {
 
         restartBtn.onclick = async () => {
             const confirmed = await window.GlassConfirm.show('Restart Server',
-                'The server and all plugin processes will stop, then start fresh. The dashboard reloads when it is back.', 'Restart');
+                'The server will stop, then start fresh. The dashboard reloads when it is back.', 'Restart');
             if (!confirmed) return;
             await fetch('/api/system/restart', { method: 'POST' });
             if (window.GlassToast) window.GlassToast.show('info', 'Restarting', 'Waiting for the server to come back...', 0);
@@ -258,7 +254,7 @@ export async function init(container) {
 
         shutdownBtn.onclick = async () => {
             const confirmed = await window.GlassConfirm.show('Shut Down Server',
-                'The server and all plugin processes will stop. You will need to start it again manually.', 'Shut Down');
+                'The server will stop. You will need to start it again manually.', 'Shut Down');
             if (!confirmed) return;
             await fetch('/api/system/shutdown', { method: 'POST' });
             if (window.GlassToast) window.GlassToast.show('info', 'Server stopped', 'You can close this tab.', 0);

@@ -1,9 +1,64 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — mechanics scanner and the studio rail refactor landed,
-uncommitted. See below. Narrator/Piper work further down is also still
-uncommitted.
+**CLAUDE:** idle — the local models and the whole plugin system are gone; the
+AI is Gemini and is opt-in. Mechanics scanner and rail refactor also landed.
+See below.
+
+> **THE LOCAL MODELS ARE GONE (Ben, 2026-08-09).** Do not reintroduce a local
+> LLM, `services/plugins`, `PluginLoader`, or the editor-presence heartbeat.
+> The old rule — "local-first AI is product identity, never propose swapping
+> the local model for a cloud LLM" — was retired deliberately, not forgotten.
+> `WORKING_PRACTICES.md` carries the rule that replaced it.
+>
+> **The AI is opt-in and that part is not negotiable.** Nothing reaches Google
+> unless the writer switches AI on in Settings and supplies a key, and until
+> they do, Critique and Line edits are not shown in the rail at all. Spelling,
+> the mechanics scanner and the narrator stay local, instant and free — they
+> are what make the opt-in honest.
+
+---
+
+## The local models and the plugin system are gone, 2026-08-09
+
+**Uncommitted.** Verified: the API mounts, `/api/plugins/*` is 404,
+`/api/proofing/status` reports the AI off with a readable reason, and the
+mechanics scan still returns findings with the AI switched off.
+
+### Why
+
+The local Gemma 3 4B ran on an 8192-token context, so a chapter was cut into
+9000-character pieces and each was judged blind to the rest — structural
+critique of a fifth of a chapter. Every failure the editor had came from the
+engine around it: a ~60s cold load, a two-minute wait for it, a presence
+heartbeat that never fired for a plugin enabled after the tab opened, and a
+port mismatch that sent every status poll to a dead port. Gemini takes the
+chapter whole.
+
+The floor under that decision is the mechanics scanner. Spelling plus 26
+mechanics rules plus the narrator is a genuinely useful editor with the AI
+switched off, which is what makes "opt-in" a real choice rather than a slogan.
+
+### What went
+
+`LocalCriticService`, `PluginLoader`, `PluginHooks`, the plugin-manager section
+and its Plugins tab, the plugin routes, the presence heartbeat, the engine
+picker in the rail, and `services/plugins` entirely — about 815 lines of
+tracked code and ~500 more that was gitignored.
+
+Both plugins went with it. **Proof-Reader was already dead**: it subscribed to
+a `scene-saved` hook that nothing in the app had ever fired.
+
+### What was built
+
+- `services/gemini/GeminiClient.js` — one place that resolves the key and owns
+  the opt-in gate. Everything AI asks it whether it may run.
+- `SuggestionService` rewritten on Gemini's structured output. **`verify()`
+  stayed.** It was written for how freely a 4B invents a quote, and Gemini
+  paraphrases less often but not never; the cost of one slipping through is
+  corrupted prose in a file the writer trusts.
+- `CriticEngine` collapsed from an engine chooser to a passthrough.
+- `[data-needs-ai]` rows in the rail, hidden until the AI is on.
 
 ---
 

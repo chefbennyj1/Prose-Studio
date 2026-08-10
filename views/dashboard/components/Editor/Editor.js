@@ -137,7 +137,7 @@ export async function initEditor(container) {
             if (detail.task === 'mechanics') runMechanics(detail.mechanics);
             else if (detail.task === 'spelling') runSpelling();
             else if (detail.task === 'edits') runScan();
-            else if (detail.task === 'critique') runCritique(detail.lens, detail.engine);
+            else if (detail.task === 'critique') runCritique(detail.lens);
         });
         reviewWired = true;
     }
@@ -1039,7 +1039,7 @@ async function runScan() {
     }
 }
 
-async function runCritique(lens, engine) {
+async function runCritique(lens) {
     const range = surface.getSelection();
     const selection = surface.getValue().substring(range.from, range.to);
     const body = selection.trim() || surface.getValue();
@@ -1050,7 +1050,7 @@ async function runCritique(lens, engine) {
         const res = await fetch('/api/critic/text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: body, lens, engine })
+            body: JSON.stringify({ text: body, lens })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);

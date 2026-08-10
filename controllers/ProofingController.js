@@ -7,23 +7,29 @@ const MechanicsService = require('../services/proofing/MechanicsService');
  *
  * Two speeds, deliberately separated:
  *
- *   Spelling and mechanics are exact and take single-digit milliseconds for a
- *   chapter, so they return inline. Gemma's edit suggestions take minutes — a
- *   cold model load plus a pass per chunk — so the completion scan
- *   acknowledges immediately and pushes results over Socket.io when they land.
+ *   Spelling and mechanics are exact, local, and take single-digit milliseconds
+ *   for a chapter, so they return inline. Edit suggestions go to Gemini, which
+ *   is fast but not instant on a full chapter, so the scan acknowledges
+ *   immediately and pushes results over Socket.io when they land.
  *
- * That second pattern is lifted from the Proof-Reader plugin, which learned it
- * the hard way: holding a request open for the length of an LLM run consumes a
- * browser connection per save, and a few of those exhaust the pool and stall
- * the editor.
+ * That second pattern is kept even though the model is much quicker than the
+ * local one it replaced: holding a request open for the length of an LLM run
+ * consumes a browser connection per save, and a few of those exhaust the pool
+ * and stall the editor.
+ *
+ * Only the suggestions half needs the AI. Spelling and mechanics run whether or
+ * not the writer has switched it on, which is what makes the AI genuinely
+ * optional rather than nominally so.
  */
 
-exports.getStatus = (req, res) => {
+exports.getStatus = async (req, res) => {
     res.json({
         ok: true,
         spelling: { ok: true },
         mechanics: { ok: true },
-        suggestions: SuggestionService.availability()
+        // Async now: whether this can run is a question about saved settings
+        // and an API key, not about a plugin being loaded in this process.
+        suggestions: await SuggestionService.availability()
     });
 };
 
@@ -115,7 +121,7 @@ exports.scanOnComplete = async (req, res) => {
     }
 
     const engine = wants('suggestions')
-        ? SuggestionService.availability()
+        ? await SuggestionService.availability()
         : { ok: false, reason: null };
 
     // Answer now. The editor never waits on the model.
@@ -128,7 +134,7 @@ exports.scanOnComplete = async (req, res) => {
     });
 
     if (!engine.ok) {
-        console.log(`[ProofingController] Skipping suggestions: ${engine.reason}`);
+        if (engine.reason) console.log(`[ProofingController] Skipping suggestions: ${engine.reason}`);
         return;
     }
 

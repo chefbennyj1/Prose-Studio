@@ -18,7 +18,6 @@
                 <button class="glass-tab" role="tab" aria-selected="false" data-page="scheduled-tasks" tabindex="-1">Scanner</button>
                 <button class="glass-tab" role="tab" aria-selected="false" data-page="library-settings" tabindex="-1">Settings</button>
                 <button class="glass-tab" role="tab" aria-selected="false" data-page="accounts" tabindex="-1">Accounts</button>
-                <button class="glass-tab" role="tab" aria-selected="false" data-page="plugin-manager" tabindex="-1">Plugins</button>
                 <div class="divider-v" style="height: 20px; margin: 0 10px;"></div>
                 <a href="/library" class="glass-tab" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;" title="Go to Library">
                     <ion-icon name="library-outline"></ion-icon> Library
@@ -171,17 +170,27 @@
                     <span class="rail-menu__label">Spelling</span>
                     <span class="rail-menu__hint">instant</span>
                 </button>
-                <button type="button" class="rail-menu__item rail-menu__action"
-                    data-review="edits" role="menuitem">
+                <!--
+                    These two are the AI, and data-needs-ai is what hides them.
+                    The AI is opt-in: until it is switched on in Settings with a
+                    key, these rows are not in the menu at all, rather than
+                    being offered and then failing. Everything above them is
+                    local and always here, which is what makes the opt-in real.
+
+                    They are also the only two things in the editor that send
+                    text off this machine, and the hint says so.
+                -->
+                <button type="button" class="rail-menu__item rail-menu__action hidden"
+                    data-review="edits" data-needs-ai role="menuitem">
                     <ion-icon name="color-wand-outline" aria-hidden="true"></ion-icon>
                     <span class="rail-menu__label">Line edits</span>
-                    <span class="rail-menu__hint">local model</span>
+                    <span class="rail-menu__hint">Gemini</span>
                 </button>
-                <button type="button" class="rail-menu__item rail-menu__action"
-                    data-review="critique" role="menuitem">
+                <button type="button" class="rail-menu__item rail-menu__action hidden"
+                    data-review="critique" data-needs-ai role="menuitem">
                     <ion-icon name="glasses-outline" aria-hidden="true"></ion-icon>
                     <span class="rail-menu__label">Critique</span>
-                    <span class="rail-menu__hint" id="reviewCritiqueHint">local model</span>
+                    <span class="rail-menu__hint">Gemini</span>
                 </button>
 
                 <div class="rail-menu__divider" role="separator"></div>
@@ -189,7 +198,9 @@
                 <!-- No data-list on any of these: their contents belong to
                      ReviewMenu.js, so they open on click and stay open, the
                      same contract the Narrator menu's submenus use. -->
-                <div class="rail-menu__submenu" data-review-menu="lens">
+                <!-- Also AI-only: the lens picks what Critique looks for, and
+                     with the AI off there is no Critique to aim. -->
+                <div class="rail-menu__submenu hidden" data-review-menu="lens" data-needs-ai>
                     <button type="button" class="rail-menu__item rail-menu__item--parent"
                         data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
                         <span class="rail-menu__label">Critic lens</span>
@@ -200,16 +211,9 @@
                         id="reviewLensFlyout" role="menu"></div>
                 </div>
 
-                <div class="rail-menu__submenu" data-review-menu="engine">
-                    <button type="button" class="rail-menu__item rail-menu__item--parent"
-                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
-                        <span class="rail-menu__label">Critic engine</span>
-                        <span class="rail-menu__value" id="reviewEngineValue"></span>
-                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
-                    </button>
-                    <div class="rail-menu__flyout glass glass--frosted"
-                        id="reviewEngineFlyout" role="menu"></div>
-                </div>
+                <!-- The engine picker stood here. There was a choice to make
+                     when a local Gemma and Gemini both answered; there is one
+                     engine now, so the row was a menu with a single option. -->
 
                 <!-- Which mechanics rules run. Fiction breaks grammar on
                      purpose, so a writer whose voice lives in fragments needs

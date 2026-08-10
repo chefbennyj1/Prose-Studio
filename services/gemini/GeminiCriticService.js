@@ -1,40 +1,22 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const GlobalSettings = require("../../models/GlobalSettings");
-const { decrypt } = require("../../utils/encryption");
-const { getLens } = require("../critic/CriticLenses");
+const GeminiClient = require('./GeminiClient');
+const { getLens } = require('../critic/CriticLenses');
 
 /**
- * GeminiCriticService — the cloud critic path.
+ * GeminiCriticService — the critic.
  *
- * NOTE: this sends the manuscript to Google. It is deliberately not the
- * default; CriticEngine defaults to the local path and this runs only when the
- * writer explicitly picks "cloud". It buys a stronger model and a context
- * window that swallows a whole chapter, at the cost of the text leaving the
- * machine.
+ * NOTE: this sends the passage to Google. It runs only when the writer has
+ * switched AI on in Settings and supplied a key; GeminiClient owns that gate
+ * and the rail hides this feature entirely until it is open.
+ *
+ * It was once the alternative to a local Gemma 3 4B. What it buys over that is
+ * not only a stronger model but a context window that swallows a whole chapter
+ * — the local path judged 9000 characters at a time, which is no way to assess
+ * pacing or structure.
  */
 class GeminiCriticService {
-    async getClient() {
-        let apiKey = process.env.GEMINI_API_KEY;
-        try {
-            const settings = await GlobalSettings.findOne({ key: "main" });
-            if (settings && settings.critic && settings.critic.apiKey) {
-                const decrypted = decrypt(settings.critic.apiKey);
-                if (decrypted) apiKey = decrypted;
-            }
-        } catch (e) {
-            console.error("[GeminiCritic] Failed to fetch API key:", e.message);
-        }
-
-        if (!apiKey) throw new Error("Gemini API Key is missing.");
-        return new GoogleGenerativeAI(apiKey);
-    }
-
-    get engineName() {
-        return 'cloud';
-    }
-
+    /** Whether the AI is switched on and reachable. */
     availability() {
-        return { ok: true };
+        return GeminiClient.availability();
     }
 
     /**
@@ -48,11 +30,7 @@ class GeminiCriticService {
         if (!body) throw new Error('There is no text to critique.');
 
         try {
-            const genAI = await this.getClient();
-            const settings = await GlobalSettings.findOne({ key: "main" });
-            const targetModel = (settings?.critic?.modelName) || "gemini-flash-latest";
-
-            const model = genAI.getGenerativeModel({ model: targetModel });
+            const { model, modelName } = await GeminiClient.getModel();
 
             const instructions =
                 `You are a working fiction editor reviewing a passage of prose.\n\n` +
@@ -64,14 +42,11 @@ class GeminiCriticService {
                 `- Open with a short "What is working" section, then "Findings".\n` +
                 `- Format the response in Markdown.`;
 
-            const prompt = `${instructions}\n\nPASSAGE:\n\n${body}`;
-
-            console.log(`[GeminiCritic] Lens "${lens.id}": analysing with ${targetModel}...`);
-            const result = await model.generateContent(prompt);
+            console.log(`[GeminiCritic] Lens "${lens.id}": analysing with ${modelName}...`);
+            const result = await model.generateContent(`${instructions}\n\nPASSAGE:\n\n${body}`);
             const response = await result.response;
-            const text = response.text();
 
-            return `# ${lens.label} — cloud (${targetModel})\n\n_${lens.blurb}_\n\n${text}`;
+            return `# ${lens.label} — ${modelName}\n\n_${lens.blurb}_\n\n${response.text()}`;
         } catch (err) {
             console.error(`[GeminiCritic] Analysis Error:`, err.message);
             throw err;

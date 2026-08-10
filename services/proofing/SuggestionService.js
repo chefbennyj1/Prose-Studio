@@ -1,27 +1,35 @@
-const PluginLoader = require('../PluginLoader');
+const GeminiClient = require('../gemini/GeminiClient');
 
 /**
  * SuggestionService
  *
- * Asks the local Gemma for concrete edits — "replace this exact text with
- * that" — rather than the prose critique the CriticEngine produces. The
- * difference matters: a critique is read by a human, but a suggestion is
- * *applied to the manuscript*, so a suggestion that cannot be located exactly
- * is worse than no suggestion at all.
+ * Asks Gemini for concrete edits — "replace this exact text with that" — rather
+ * than the prose critique CriticEngine produces. The difference matters: a
+ * critique is read by a human, but a suggestion is *applied to the manuscript*,
+ * so a suggestion that cannot be located exactly is worse than no suggestion at
+ * all.
  *
- * That drives the two rules enforced below:
- *   - `original` must appear in the text verbatim. A 4B will happily
- *     paraphrase the line it is proposing to change.
- *   - `original` must appear exactly ONCE in its chunk. A fragment occurring
- *     twice cannot be applied safely: a naive replace would hit the wrong
- *     sentence and silently corrupt prose the writer never reviewed.
+ * That drives the two rules enforced in verify():
+ *   - `original` must appear in the text verbatim. Models paraphrase the line
+ *     they are proposing to change.
+ *   - `original` must appear exactly ONCE. A fragment occurring twice cannot be
+ *     applied safely: a naive replace would hit the wrong sentence and silently
+ *     corrupt prose the writer never reviewed.
+ *
+ * VERIFY STAYS, EVEN THOUGH THE MODEL IS BETTER NOW. This ran against a local
+ * Gemma 3 4B, and verify() was written for how freely a 4B invents a quote.
+ * Gemini paraphrases less often, not never, and the cost of the one that slips
+ * through is corrupted prose in a file the writer trusts. The check is cheap.
+ *
+ * What did go with the local model is the chunking. A 4B ran on an 8192-token
+ * context, so a chapter had to be cut into 9000-character pieces and analysed
+ * blind to everything outside each one — which lost exactly the cross-paragraph
+ * repetition a line editor is looking for. Gemini takes the chapter whole.
  *
  * Spelling is deliberately out of scope — SpellService owns that, exactly and
- * instantly. Narrowing this prompt to judgment calls is what makes a 4B
- * useful here rather than noisy.
+ * instantly — and so is punctuation, which MechanicsService now does with
+ * regex. Narrowing this to judgment calls is what keeps it worth the wait.
  */
-
-const CHUNK_CHARS = 9000;
 
 // Shortest span worth offering as a line edit. See the note in verify().
 const MIN_SPAN_CHARS = 12;
@@ -45,128 +53,43 @@ const SUGGESTION_SCHEMA = {
     required: ['suggestions']
 };
 
+const INSTRUCTIONS =
+    'You are a line editor proposing specific edits to a passage of prose.\n\n' +
+    'Propose edits that make the prose stronger: cut filler, replace filter words ' +
+    '("he felt", "she saw", "it seemed") with direct action, replace weak verb-plus-adverb ' +
+    'pairs with one strong verb, break up unintentional repetition, and tighten sentences ' +
+    'that carry less than their length.\n\n' +
+    'Rules:\n' +
+    '- Do NOT report spelling mistakes. Those are handled elsewhere.\n' +
+    '- Do NOT report punctuation, capitalisation or grammar. Those are handled elsewhere.\n' +
+    '- "original" must be copied EXACTLY from the passage, character for character. Never paraphrase it.\n' +
+    '- Choose an "original" span that appears only once in the passage.\n' +
+    '- "replacement" is the full text that should stand in its place.\n' +
+    '- Preserve the author\'s voice. Do not make the prose more formal or more generic. ' +
+    'Deliberate fragments, dialect and invented words are choices, not errors.\n' +
+    '- Keep "reason" under 20 words.\n' +
+    '- Only propose an edit that clearly improves the line. Strong prose needs few; an empty list is a valid answer.';
+
 class SuggestionService {
-    constructor() {
-        // Must match server.js, which writes the resolved port back into the
-        // environment so this agrees with it. The fallback is only for a
-        // process that loads this without the server having booted.
-        this.port = Number(process.env.PORT) || 3100;
-    }
-
+    /** Whether this can run at all — the AI is opt-in. See GeminiClient. */
     availability() {
-        const plugin = PluginLoader.loadedPlugins['Local-Llm-Engine'];
-        if (!plugin) {
-            return { ok: false, reason: 'The Local-Llm-Engine plugin is not enabled. Enable it in the plugin manager and restart the server.' };
-        }
-        return { ok: true };
-    }
-
-    /**
-     * Wait for the local engine, and ASK it to start rather than hoping.
-     *
-     * The engine normally comes up on the dashboard's editor-presence
-     * heartbeat, but that is not something a server-side scan can rely on: the
-     * browser caches its plugin-subscriber list for the life of the page, so a
-     * plugin enabled after the tab was opened is never beaten to and the engine
-     * never starts. This then waited the full two minutes for something nobody
-     * had asked to run, and failed telling the writer to "start it from the
-     * dashboard" — which is exactly what this can do itself.
-     *
-     * The start is fired once and not awaited: loading the model takes ~60s and
-     * the polling below is already the thing watching for it to finish.
-     */
-    async waitForEngine(timeoutMs = 120000) {
-        const base = `http://localhost:${this.port}/api/plugins/Local-Llm-Engine`;
-        const deadline = Date.now() + timeoutMs;
-        let asked = false;
-
-        while (Date.now() < deadline) {
-            try {
-                const res = await fetch(`${base}/status`);
-                const data = await res.json();
-                if (data.isRunning) return true;
-
-                if (!asked) {
-                    asked = true;
-                    console.log('[SuggestionService] Engine is down; asking it to start.');
-                    fetch(`${base}/start`, { method: 'POST' })
-                        .catch(err => console.error('[SuggestionService] Start request failed:', err.message));
-                }
-            } catch (err) {
-                // Not answering yet.
-            }
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        return false;
-    }
-
-    /** Gemma 3 has no system role: instructions lead the single user turn. */
-    buildPrompt(instructions, content) {
-        return `<start_of_turn>user\n${instructions}\n\n${content}<end_of_turn>\n<start_of_turn>model\n`;
-    }
-
-    /** Paragraph-boundary chunking; a chunk cut mid-sentence produces
-     *  suggestions about the truncation instead of the writing. */
-    chunkText(text) {
-        const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-        const chunks = [];
-        let current = '';
-
-        for (const para of paragraphs) {
-            if (current && current.length + para.length + 2 > CHUNK_CHARS) {
-                chunks.push(current);
-                current = para;
-                continue;
-            }
-            current = current ? `${current}\n\n${para}` : para;
-        }
-        if (current) chunks.push(current);
-        return chunks;
-    }
-
-    async executeLLM(promptString) {
-        const response = await fetch(`http://localhost:${this.port}/api/plugins/Local-Llm-Engine/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: promptString,
-                n_predict: 800,
-                temperature: 0.2,
-                cache_prompt: true,
-                json_schema: SUGGESTION_SCHEMA
-            })
-        });
-
-        const data = await response.json();
-        if (!data.ok) throw new Error(`Local engine error: ${data.message}`);
-
-        try {
-            const parsed = JSON.parse(data.content);
-            return Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
-        } catch (err) {
-            console.error('[SuggestionService] Engine returned unparseable output:', data.content);
-            return [];
-        }
+        return GeminiClient.availability();
     }
 
     /**
      * Keep only suggestions that can be applied safely, and locate each one in
-     * the FULL document rather than in its chunk.
+     * the document.
      *
-     * Chunks are rebuilt by rejoining paragraphs with "\n\n", which is not
-     * necessarily how they were separated in the source, so a chunk-relative
-     * offset can drift against the real document. A drifted offset applied to
-     * the manuscript corrupts text the writer never reviewed. Searching the
-     * document directly makes the offset correct by construction, and makes
-     * uniqueness a document-wide guarantee — which is what an "apply" button
-     * actually needs.
+     * Searching the document directly makes the offset correct by construction
+     * and makes uniqueness a document-wide guarantee — which is what an "apply"
+     * button actually needs.
      *
      * @param {Array}  raw       Suggestions as returned by the model.
      * @param {string} document  The complete text being scanned.
-     * @param {Set}    claimed   Spans already taken by an earlier chunk.
      */
-    verify(raw, document, claimed = new Set()) {
+    verify(raw, document) {
         const kept = [];
+        const claimed = new Set();
 
         for (const item of raw) {
             const original = String(item.original || '').trim();
@@ -203,60 +126,46 @@ class SuggestionService {
 
     /**
      * @param {string} text
-     * @returns {Promise<{ suggestions: Array, chunks: number, failedChunks: number }>}
+     * @returns {Promise<{ suggestions: Array, model: string }>}
      */
     async suggest(text) {
-        const available = this.availability();
+        const available = await this.availability();
         if (!available.ok) throw new Error(available.reason);
 
         const body = String(text || '');
-        if (!body.trim()) return { suggestions: [], chunks: 0, failedChunks: 0 };
+        if (!body.trim()) return { suggestions: [], model: null };
 
-        if (!(await this.waitForEngine())) {
-            throw new Error('The local LLM engine was asked to start but did not come up within two minutes. Check the model path in the plugin manager and the server log for [LocalLlmEngine].');
+        const { model, modelName } = await GeminiClient.getModel({
+            // Gemini's own structured-output mode. This replaced llama-server's
+            // json_schema grammar and does the same job: unparseable output
+            // becomes impossible rather than something to defend against.
+            responseMimeType: 'application/json',
+            responseSchema: SUGGESTION_SCHEMA,
+            temperature: 0.2
+        });
+
+        console.log(`[SuggestionService] Asking ${modelName} for edits across ${body.length} characters...`);
+
+        const result = await model.generateContent(`${INSTRUCTIONS}\n\nPASSAGE:\n\n${body}`);
+        const response = await result.response;
+
+        let raw;
+        try {
+            raw = JSON.parse(response.text()).suggestions;
+        } catch (err) {
+            console.error('[SuggestionService] Model returned unparseable output:', err.message);
+            throw new Error('The model returned something that could not be read as edits. Try again.');
         }
+        if (!Array.isArray(raw)) raw = [];
 
-        const instructions =
-            'You are a line editor proposing specific edits to a passage of prose.\n\n' +
-            'Propose edits that make the prose stronger: cut filler, replace filter words ' +
-            '("he felt", "she saw", "it seemed") with direct action, replace weak verb-plus-adverb ' +
-            'pairs with one strong verb, break up unintentional repetition, and tighten sentences ' +
-            'that carry less than their length.\n\n' +
-            'Rules:\n' +
-            '- Do NOT report spelling mistakes. Those are handled elsewhere.\n' +
-            '- "original" must be copied EXACTLY from the passage, character for character. Never paraphrase it.\n' +
-            '- Choose an "original" span that appears only once in the passage.\n' +
-            '- "replacement" is the full text that should stand in its place.\n' +
-            '- Preserve the author\'s voice. Do not make the prose more formal or more generic.\n' +
-            '- Keep "reason" under 20 words.\n' +
-            '- Only propose an edit that clearly improves the line. Strong prose needs few; an empty list is a valid answer.';
-
-        const chunks = this.chunkText(body);
-        console.log(`[SuggestionService] Scanning ${chunks.length} chunk(s) for edits...`);
-
-        const suggestions = [];
-        const claimed = new Set();
-        let failedChunks = 0;
-
-        for (let i = 0; i < chunks.length; i++) {
-            const chunkText = chunks[i];
-            console.log(`[SuggestionService] Chunk ${i + 1}/${chunks.length} (${chunkText.length} chars)...`);
-            try {
-                const raw = await this.executeLLM(this.buildPrompt(instructions, `PASSAGE:\n${chunkText}`));
-                const verified = this.verify(raw, body, claimed);
-                if (raw.length !== verified.length) {
-                    console.log(`[SuggestionService] Dropped ${raw.length - verified.length} unusable suggestion(s) in chunk ${i + 1}.`);
-                }
-                suggestions.push(...verified);
-            } catch (err) {
-                console.error(`[SuggestionService] Chunk ${i + 1} failed:`, err.message);
-                failedChunks++;
-            }
+        const suggestions = this.verify(raw, body);
+        if (raw.length !== suggestions.length) {
+            console.log(`[SuggestionService] Dropped ${raw.length - suggestions.length} unusable suggestion(s).`);
         }
 
         suggestions.sort((a, b) => a.offset - b.offset);
         console.log(`[SuggestionService] ${suggestions.length} applicable suggestion(s).`);
-        return { suggestions, chunks: chunks.length, failedChunks };
+        return { suggestions, model: modelName };
     }
 }
 

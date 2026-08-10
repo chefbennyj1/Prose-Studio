@@ -276,28 +276,8 @@ export async function fetchPagePanels(volume, chapter, pageId, seriesId) {
     }
 }
 
-export async function fetchHookSubscribersAPI(hookName) {
-    try {
-        const res = await fetch(`/api/plugins/hooks/${hookName}`);
-        const data = await res.json();
-        return data.ok ? data.subscribers : [];
-    } catch (err) {
-        console.error("Error fetching hook subscribers:", err);
-        return [];
-    }
-}
-
-export async function firePluginHookAPI(folderName, hookName, payload) {
-    try {
-        const res = await fetch(`/api/plugins/${folderName}/hooks/${hookName}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        return await res.json();
-    } catch (err) {
-        console.error(`Error firing ${hookName} hook for ${folderName}:`, err);
-        return { ok: false, message: err.message };
-    }
-}
+// fetchHookSubscribersAPI and firePluginHookAPI stood here. They drove the
+// plugin hook system, which is gone along with the local models it existed to
+// host. Nothing in the browser fires a hook any more; the AI is Gemini, reached
+// by the server.
 
