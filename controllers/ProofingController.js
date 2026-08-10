@@ -83,25 +83,40 @@ exports.scanOnComplete = async (req, res) => {
         return res.status(400).json({ ok: false, message: "Provide a 'text' string to scan." });
     }
 
-    let spelling;
-    try {
-        spelling = await SpellService.check(text, { seriesFolder });
-    } catch (err) {
-        console.error('[ProofingController] Spell check failed:', err.message);
-        return res.status(500).json({ ok: false, message: err.message });
+    // What the caller actually asked for. Defaults to everything, which is what
+    // this endpoint has always done and what a completion scan wants.
+    //
+    // The caller has to be able to narrow it, because the rail offers spelling
+    // and mechanics as their own rows: running all three behind a button
+    // labelled "Line edits" gave the writer two lists they did not ask for and
+    // buried the one they did at the bottom.
+    const requested = Array.isArray(req.body?.parts) ? req.body.parts : null;
+    const wants = (part) => !requested || requested.includes(part);
+
+    let spelling = null;
+    if (wants('spelling')) {
+        try {
+            spelling = await SpellService.check(text, { seriesFolder });
+        } catch (err) {
+            console.error('[ProofingController] Spell check failed:', err.message);
+            return res.status(500).json({ ok: false, message: err.message });
+        }
     }
 
-    const engine = SuggestionService.availability();
-
-    // Mechanics rides along free: it is regex over text the request already
-    // holds, so there is no reason to make the writer ask for it separately
-    // when they have asked for a full scan.
+    // Mechanics rides along free when it is wanted: regex over text the request
+    // already holds, so a full scan has no reason to make the writer ask twice.
     let mechanics = null;
-    try {
-        mechanics = MechanicsService.scan(text, req.body?.mechanics || {});
-    } catch (err) {
-        console.error('[ProofingController] Mechanics scan failed:', err.message);
+    if (wants('mechanics')) {
+        try {
+            mechanics = MechanicsService.scan(text, req.body?.mechanics || {});
+        } catch (err) {
+            console.error('[ProofingController] Mechanics scan failed:', err.message);
+        }
     }
+
+    const engine = wants('suggestions')
+        ? SuggestionService.availability()
+        : { ok: false, reason: null };
 
     // Answer now. The editor never waits on the model.
     res.json({

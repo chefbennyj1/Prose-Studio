@@ -136,7 +136,7 @@ export async function initEditor(container) {
             const detail = event.detail || {};
             if (detail.task === 'mechanics') runMechanics(detail.mechanics);
             else if (detail.task === 'spelling') runSpelling();
-            else if (detail.task === 'edits') runScan(detail.mechanics);
+            else if (detail.task === 'edits') runScan();
             else if (detail.task === 'critique') runCritique(detail.lens, detail.engine);
         });
         reviewWired = true;
@@ -996,8 +996,22 @@ async function runSpelling() {
     }
 }
 
-async function runScan(mechanics) {
-    working('Review', 'Checking spelling and mechanics, then waking the local model. Edits arrive when it finishes.');
+/**
+ * Line edits, and nothing else.
+ *
+ * `parts` is what keeps that promise. This endpoint runs spelling, mechanics
+ * and the model's suggestions, and it used to run all three here — so a writer
+ * who pressed "Line edits" got a spelling list and a mechanics list first and
+ * had to scroll past both to reach the thing they asked for, which was still
+ * loading. Spelling and mechanics have their own rows in the rail.
+ */
+async function runScan() {
+    if (!surface.getValue().trim()) {
+        working('Line edits', 'Nothing open to scan.');
+        return;
+    }
+
+    working('Line edits', 'Waking the local model. Edits arrive when it finishes, which usually takes a few minutes.');
     try {
         const res = await fetch('/api/proofing/scan', {
             method: 'POST',
@@ -1005,26 +1019,20 @@ async function runScan(mechanics) {
             body: JSON.stringify({
                 text: surface.getValue(),
                 socketId: window.socket?.id,
-                mechanics: mechanics || {},
+                parts: ['suggestions'],
                 target: { document: [doc.story, doc.chapter].filter(Boolean).join(' / ') }
             })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
 
-        renderSpelling(data.spelling);
-        if (data.mechanics) renderMechanics(data.mechanics, { append: true });
-
-        const spelt = data.spelling?.findings?.length || 0;
-        const mech = data.mechanics?.counts || { total: 0, error: 0 };
-        announce(spelt + mech.total, spelt + mech.error);
-
         if (!data.suggestionsPending) {
-            els.output.insertAdjacentHTML('beforeend',
-                `<p class="text-muted italic">${escapeHtml(data.suggestionsUnavailable || 'Edit suggestions unavailable.')}</p>`);
+            els.output.innerHTML =
+                `<p class="text-muted italic">${escapeHtml(data.suggestionsUnavailable || 'Edit suggestions are unavailable.')}</p>`;
+            announce(0);
         } else {
-            els.output.insertAdjacentHTML('beforeend',
-                '<p class="text-muted italic" id="editorPending">Waiting on the local model for edit suggestions...</p>');
+            els.output.innerHTML =
+                '<p class="text-muted italic" id="editorPending">Waiting on the local model for edit suggestions...</p>';
         }
     } catch (err) {
         failed(err);
@@ -1262,16 +1270,18 @@ function renderSuggestions(payload) {
     // These arrive minutes later, over the socket. The writer may well have
     // shut the drawer in the meantime, and results appearing into a hidden
     // panel would look like the scan silently failed.
-    openDrawer('Review');
+    openDrawer('Line edits');
     document.getElementById('editorPending')?.remove();
 
     if (!payload.ok) {
         els.output.insertAdjacentHTML('beforeend',
             `<p class="text-danger">${escapeHtml(payload.message || 'Suggestion scan failed.')}</p>`);
+        announce(0);
         return;
     }
     if (!payload.suggestions.length) {
         els.output.insertAdjacentHTML('beforeend', '<h4>Edits</h4><p class="text-muted">No edits proposed.</p>');
+        announce(0);
         return;
     }
 
@@ -1284,6 +1294,7 @@ function renderSuggestions(payload) {
         </li>`).join('');
 
     els.output.insertAdjacentHTML('beforeend', `<h4>Edits</h4><ul class="editor__list">${rows}</ul>`);
+    announce(payload.suggestions.length);
 
     els.output.querySelectorAll('.editor__apply').forEach(btn => {
         btn.addEventListener('click', () => applySuggestion(payload.suggestions[Number(btn.dataset.index)], btn));
