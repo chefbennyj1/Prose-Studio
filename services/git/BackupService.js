@@ -260,7 +260,7 @@ class BackupService {
         try {
             await fsp.access(path.join(dir, '.git'));
         } catch {
-            await git.init({ fs, dir, defaultBranch: BRANCH });
+            await git.init({ fs, dir, defaultBranch: DEFAULT_BRANCH });
             created = true;
         }
         const wroteIgnore = await this.writeIgnore(dir);

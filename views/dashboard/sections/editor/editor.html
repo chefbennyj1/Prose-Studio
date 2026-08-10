@@ -24,6 +24,24 @@
                     <ion-icon name="checkmark-circle" id="editorSaveIcon"></ion-icon>
                     <span id="editorSaveLabel">Saved</span>
                 </button>
+
+                <!--
+                    Back up sits beside Save because it is the same kind of act
+                    - getting the work somewhere safe - and this is where a
+                    writer already looks to check that it is. It began in the
+                    studio rail, among the tools, where it was both the wrong
+                    category and genuinely hard to find.
+
+                    Hidden until a GitHub account is connected. It stays
+                    visible but marked unconfigured when an account exists and
+                    a repository has not been chosen, so it can say what is
+                    missing rather than vanish.
+                -->
+                <button type="button" id="backupBtn" class="glass glass-btn hidden"
+                    title="Back up to GitHub">
+                    <ion-icon name="cloud-upload-outline" id="backupIcon"></ion-icon>
+                    <span id="backupLabel">Back up</span>
+                </button>
             </div>
         </div>
 

@@ -68,6 +68,39 @@
     color: var(--color-success, #2ea043);
 }
 
+/*
+   BACK UP.
+
+   Beside Save, and quieter than it. Saving is the constant act and this is the
+   occasional one, so it never competes for the eye — until there is something
+   waiting, when the label carries the count.
+*/
+#backupBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+#backupBtn ion-icon {
+    font-size: 1.05rem;
+}
+
+/* Everything is already on GitHub: still pressable, just not asking to be. */
+#backupBtn.is-clean {
+    color: var(--text-muted, #777);
+}
+
+#backupBtn.is-clean ion-icon {
+    color: var(--color-success, #2ea043);
+}
+
+/* Connected, but no repository chosen yet. Present so it can explain itself
+   when pressed, rather than being invisible and unexplained. */
+#backupBtn.is-unconfigured {
+    opacity: 0.55;
+}
+
 .editor__count,
 .editor__state {
     white-space: nowrap;

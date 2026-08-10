@@ -1,102 +1,121 @@
 // views/dashboard/components/RailMenu/BackupButton.js
 
 /**
- * The Back up button in the studio rail.
+ * The Back up button in the editor's bar, beside Save.
  *
  * One press: commit whatever changed in the story folder, push it to GitHub.
  * No branches, no staging area, no rebase — a novelist wants their work
  * somewhere safe, not a version-control workflow. Everything that needs a
  * decision (which account, which repository) was decided once in Settings.
  *
- * Hidden until an account and a repository are both configured, on the same
- * reasoning as the AI rows in the Review menu: a control that can only ever
- * produce an error is worse than no control.
+ * It sits beside Save because it is the same kind of act and that is where a
+ * writer already looks to see whether their work is safe. It started in the
+ * studio rail and was hard to find there, among tools it is not one of.
  *
- * The badge counts files waiting to go up, so "have I backed up today?" is
- * answerable from the rail without opening anything.
+ * VISIBILITY IS TWO QUESTIONS, NOT ONE. Whether to show it depends only on
+ * having a GitHub account connected; whether it can actually run also needs a
+ * repository and a story folder. The first version required all three to
+ * appear, which made it invisible for anyone who connected an account and
+ * stopped there — and a button hidden on purpose is indistinguishable from one
+ * that is broken. Now it shows, and says what is missing.
  */
 
 let els = {};
-let ready = false;
+let canBackup = false;
+let missing = null;
 let running = false;
+let saveTimer = null;
 
 export function initBackupButton() {
-    els = {
-        btn: document.getElementById('backupBtn'),
-        badge: document.getElementById('backupBadge'),
-        icon: document.querySelector('#backupBtn ion-icon')
-    };
-    if (!els.btn) return;
-
-    els.btn.addEventListener('click', (event) => {
-        event.stopPropagation();   // not a section button; the rail must not navigate
-        run();
-    });
-
-    // Saving changes what is pending, so the count is refreshed after one.
-    // Debounced: autosave fires every few seconds while typing and each check
-    // walks the story folder.
-    let timer = null;
-    document.addEventListener('manuscriptSaved', () => {
-        clearTimeout(timer);
-        timer = setTimeout(refresh, 4000);
-    });
+    // The button lives in the editor section, which is injected on navigation
+    // rather than present at start-up. Editor.js announces when it is built.
+    document.addEventListener('editorReady', attach);
 
     document.addEventListener('githubSettingsChanged', refresh);
 
+    // Saving changes what is waiting to go up. Debounced, because autosave
+    // fires every few seconds while typing and each check walks the folder.
+    document.addEventListener('manuscriptSaved', () => {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(refresh, 4000);
+    });
+
+    // In case the editor is already on screen when this runs.
+    attach();
+}
+
+function attach() {
+    const btn = document.getElementById('backupBtn');
+    if (!btn) return;
+
+    els = {
+        btn,
+        icon: document.getElementById('backupIcon'),
+        label: document.getElementById('backupLabel')
+    };
+
+    // The node is rebuilt with the section, so this binds the current one.
+    els.btn.addEventListener('click', run);
     refresh();
 }
 
 async function refresh() {
-    if (running) return;
+    if (!els.btn || !document.body.contains(els.btn)) return;
 
     try {
         const data = await (await fetch('/api/git/status')).json();
         if (!data.ok) throw new Error(data.message);
 
-        ready = !!(data.connected && data.repo && data.storyRoot);
-        els.btn.classList.toggle('hidden', !ready);
-        if (!ready) return;
+        els.btn.classList.toggle('hidden', !data.connected);
+        if (!data.connected) return;
+
+        missing = !data.repo ? 'repo' : !data.storyRoot ? 'root' : null;
+        canBackup = !missing;
+
+        if (!canBackup) {
+            els.btn.classList.add('is-unconfigured');
+            els.label.textContent = 'Back up';
+            els.btn.title = missing === 'repo'
+                ? 'Choose a repository in Settings before backing up'
+                : 'Set a story folder in Settings before backing up';
+            return;
+        }
+
+        els.btn.classList.remove('is-unconfigured');
 
         const pending = data.repoState?.changed || 0;
-        drawBadge(pending);
-
+        els.label.textContent = pending ? `Back up (${pending})` : 'Backed up';
+        els.btn.classList.toggle('is-clean', pending === 0);
         els.btn.title = pending
-            ? `Back up to GitHub — ${pending} file${pending === 1 ? '' : 's'} changed`
-            : `Backed up to ${data.owner}/${data.repo} — nothing waiting`;
+            ? `${pending} file${pending === 1 ? '' : 's'} to push to ${data.owner}/${data.repo}`
+            : `Everything is on GitHub at ${data.owner}/${data.repo}`;
     } catch (err) {
-        // A failed check is not worth shouting about; the button simply does
-        // not appear, and Settings is where the reason lives.
         console.warn('[Backup] Could not read status:', err.message);
         els.btn.classList.add('hidden');
     }
 }
 
-function drawBadge(count) {
-    if (!els.badge) return;
+async function run() {
+    if (running) return;
 
-    if (!count) {
-        els.badge.classList.add('hidden');
-        els.badge.textContent = '';
+    const toast = (type, title, message) => window.GlassToast?.show(type, title, message);
+
+    // Pressed while something is missing: say which, rather than doing nothing.
+    if (!canBackup) {
+        toast('info', 'Not set up yet', missing === 'repo'
+            ? 'Choose a repository under Settings → Manuscript Backup.'
+            : 'Set a story folder under Settings before backing up.');
         return;
     }
-    els.badge.textContent = count > 99 ? '99+' : String(count);
-    els.badge.classList.remove('hidden');
-}
 
-async function run() {
-    if (running || !ready) return;
     running = true;
-
-    const toast = (type, title, message) =>
-        window.GlassToast?.show(type, title, message);
-
-    els.btn.classList.add('is-working');
+    els.btn.disabled = true;
+    els.label.textContent = 'Backing up…';
     if (els.icon) els.icon.setAttribute('name', 'cloud-upload');
 
     try {
-        // The word count rides along so the commit message says something a
-        // writer recognises in their own history.
+        // The word count rides along so the commit message says something the
+        // writer will recognise in their own history.
         const words = Number(
             (document.getElementById('editorWordCount')?.textContent || '').replace(/[^\d]/g, '')
         ) || 0;
@@ -116,12 +135,12 @@ async function run() {
             toast('info', 'Already up to date', 'Nothing had changed since the last backup.');
         }
     } catch (err) {
-        // These messages are written for a writer, not for someone who uses
-        // git — see BackupService.explainPushError.
+        // Written for a writer, not for someone who uses git — see
+        // BackupService.explainPushError.
         toast('error', 'Backup failed', err.message);
     } finally {
         running = false;
-        els.btn.classList.remove('is-working');
+        els.btn.disabled = false;
         if (els.icon) els.icon.setAttribute('name', 'cloud-upload-outline');
         refresh();
     }
