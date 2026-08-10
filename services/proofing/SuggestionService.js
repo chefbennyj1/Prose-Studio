@@ -47,7 +47,10 @@ const SUGGESTION_SCHEMA = {
 
 class SuggestionService {
     constructor() {
-        this.port = Number(process.env.PORT) || 3000;
+        // Must match server.js, which writes the resolved port back into the
+        // environment so this agrees with it. The fallback is only for a
+        // process that loads this without the server having booted.
+        this.port = Number(process.env.PORT) || 3100;
     }
 
     availability() {

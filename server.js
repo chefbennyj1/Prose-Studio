@@ -184,6 +184,16 @@ app.use("/accounts", accountRoutes);
 
 // 3000 belongs to the comic server; the two are routinely run side by side.
 const PORT = process.env.PORT || 3100;
+
+// Publish the resolved port back into the environment.
+//
+// Services that call this server's own API - the suggestion scan and the local
+// critic both poll the LLM plugin's status endpoint - read process.env.PORT and
+// carry their own fallback. With no PORT set those fallbacks said 3000 while
+// this said 3100, so every one of those calls went to a dead port, was
+// swallowed by the retry loop, and surfaced two minutes later as "the local LLM
+// engine did not become ready". Writing it back leaves one source of truth.
+process.env.PORT = String(PORT);
 const SYSTEM_SECRET = crypto.randomBytes(32).toString('hex');
 app.locals.systemSecret = SYSTEM_SECRET;
 console.log('[System] Generated runtime API secret for internal plugins.');
