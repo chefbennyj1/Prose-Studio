@@ -189,11 +189,16 @@ function drawLensList() {
         els.lensFlyout.innerHTML = note('Loading...');
         return;
     }
+    // The description is the row's tooltip, not a second column. Beside the
+    // name it did not fit: .rail-menu__count does not shrink, so a blurb that
+    // long held its width and cut the name it was describing down to an
+    // ellipsis. The label now says which pass this is; the tooltip says what it
+    // looks for.
     els.lensFlyout.innerHTML = critic.lenses.map(lens => `
         <button type="button" class="rail-menu__item rail-menu__entry${lens.id === choice.lens ? ' is-active' : ''}"
-            role="menuitemradio" aria-checked="${lens.id === choice.lens}" data-id="${escapeHtml(lens.id)}">
+            role="menuitemradio" aria-checked="${lens.id === choice.lens}" data-id="${escapeHtml(lens.id)}"
+            title="${escapeHtml(lens.blurb)}">
             <span class="rail-menu__name">${escapeHtml(lens.label)}</span>
-            <span class="rail-menu__count">${escapeHtml(lens.blurb)}</span>
         </button>`).join('');
 }
 
