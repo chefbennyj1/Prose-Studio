@@ -78,12 +78,26 @@ class LocalCriticService {
      * cold, so a first run after a quiet period waits rather than failing.
      */
     async waitForEngine(timeoutMs = 120000) {
+        const base = `http://localhost:${this.port}/api/plugins/Local-Llm-Engine`;
         const deadline = Date.now() + timeoutMs;
+        let asked = false;
+
         while (Date.now() < deadline) {
             try {
-                const res = await fetch(`http://localhost:${this.port}/api/plugins/Local-Llm-Engine/status`);
+                const res = await fetch(`${base}/status`);
                 const data = await res.json();
                 if (data.isRunning) return true;
+
+                // Ask, rather than wait for the dashboard's presence heartbeat
+                // to do it — that heartbeat never fires for a plugin enabled
+                // after the tab was opened. Not awaited: the model takes ~60s
+                // to load and the poll below is already watching for it.
+                if (!asked) {
+                    asked = true;
+                    console.log('[LocalCritic] Engine is down; asking it to start.');
+                    fetch(`${base}/start`, { method: 'POST' })
+                        .catch(err => console.error('[LocalCritic] Start request failed:', err.message));
+                }
             } catch (err) {
                 // Engine not answering yet; keep waiting.
             }
@@ -249,7 +263,7 @@ class LocalCriticService {
         }
 
         if (!(await this.waitForEngine())) {
-            throw new Error('The local LLM engine did not become ready. Start it from the dashboard and try again.');
+            throw new Error('The local LLM engine was asked to start but did not come up within two minutes. Check the model path in the plugin manager and the server log for [LocalLlmEngine].');
         }
 
         const chunks = this.chunkText(body);

@@ -58,13 +58,37 @@ class SuggestionService {
         return { ok: true };
     }
 
+    /**
+     * Wait for the local engine, and ASK it to start rather than hoping.
+     *
+     * The engine normally comes up on the dashboard's editor-presence
+     * heartbeat, but that is not something a server-side scan can rely on: the
+     * browser caches its plugin-subscriber list for the life of the page, so a
+     * plugin enabled after the tab was opened is never beaten to and the engine
+     * never starts. This then waited the full two minutes for something nobody
+     * had asked to run, and failed telling the writer to "start it from the
+     * dashboard" — which is exactly what this can do itself.
+     *
+     * The start is fired once and not awaited: loading the model takes ~60s and
+     * the polling below is already the thing watching for it to finish.
+     */
     async waitForEngine(timeoutMs = 120000) {
+        const base = `http://localhost:${this.port}/api/plugins/Local-Llm-Engine`;
         const deadline = Date.now() + timeoutMs;
+        let asked = false;
+
         while (Date.now() < deadline) {
             try {
-                const res = await fetch(`http://localhost:${this.port}/api/plugins/Local-Llm-Engine/status`);
+                const res = await fetch(`${base}/status`);
                 const data = await res.json();
                 if (data.isRunning) return true;
+
+                if (!asked) {
+                    asked = true;
+                    console.log('[SuggestionService] Engine is down; asking it to start.');
+                    fetch(`${base}/start`, { method: 'POST' })
+                        .catch(err => console.error('[SuggestionService] Start request failed:', err.message));
+                }
             } catch (err) {
                 // Not answering yet.
             }
@@ -186,7 +210,7 @@ class SuggestionService {
         if (!body.trim()) return { suggestions: [], chunks: 0, failedChunks: 0 };
 
         if (!(await this.waitForEngine())) {
-            throw new Error('The local LLM engine did not become ready. Start it from the dashboard and try again.');
+            throw new Error('The local LLM engine was asked to start but did not come up within two minutes. Check the model path in the plugin manager and the server log for [LocalLlmEngine].');
         }
 
         const instructions =
