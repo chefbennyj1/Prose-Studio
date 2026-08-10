@@ -71,7 +71,7 @@
     width: 100%;
     height: 8px;
     background: var(--glass-dark);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     margin-bottom: 15px;
     overflow: hidden;
     border: 1px solid var(--glass-border-subtle);

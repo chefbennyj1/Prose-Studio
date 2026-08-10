@@ -30,7 +30,8 @@ body {
     z-index: 10;
 }
 
-#main-content, .main-content {
+#main-content,
+.main-content {
     margin-left: 0 !important;
     flex: 1 !important;
     height: 100% !important;
@@ -53,14 +54,16 @@ body {
     box-sizing: border-box;
     position: relative;
     z-index: 1000;
-    overflow: visible !important; /* Override .glass overflow:hidden */
+    overflow: visible !important;
+    /* Override .glass overflow:hidden */
     border-bottom: 1px solid var(--glass-border) !important;
     background: var(--glass-white) !important;
     backdrop-filter: var(--blur-md) !important;
     -webkit-backdrop-filter: var(--blur-md) !important;
 }
 
-.topbar-left, .topbar-right {
+.topbar-left,
+.topbar-right {
     display: flex;
     align-items: center;
     gap: 20px;
@@ -98,13 +101,14 @@ body {
     background: var(--glass-white-lg);
     backdrop-filter: var(--blur-lg);
     border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     min-width: 150px;
     display: none;
     flex-direction: column;
     padding: 10px;
     box-shadow: var(--shadow-float);
-    z-index: 2000; /* Higher than topbar (1000) */
+    z-index: 2000;
+    /* Higher than topbar (1000) */
     margin-top: 10px;
 }
 
@@ -112,7 +116,8 @@ body {
     display: flex;
 }
 
-.topbar .dropdown a, .topbar .dropdown button {
+.topbar .dropdown a,
+.topbar .dropdown button {
     padding: 8px 12px;
     color: var(--color-text);
     text-decoration: none;
@@ -127,7 +132,8 @@ body {
     cursor: pointer;
 }
 
-.topbar .dropdown a:hover, .topbar .dropdown button:hover {
+.topbar .dropdown a:hover,
+.topbar .dropdown button:hover {
     background: var(--glass-white-md);
 }
 
@@ -169,7 +175,8 @@ body {
     margin: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    padding: 0 !important; /* Remove internal padding to maximize space */
+    padding: 0 !important;
+    /* Remove internal padding to maximize space */
 }
 
 /* Ensure sections have enough room and are visible */
@@ -211,7 +218,8 @@ body {
 .characters.dashboard-section.is-active .medium-container {
     flex: 1;
     overflow-y: auto !important;
-    max-height: calc(100vh - 120px); /* Failsafe height constraint */
+    max-height: calc(100vh - 120px);
+    /* Failsafe height constraint */
     min-height: 0;
     width: 100%;
     padding: 20px;
@@ -297,7 +305,8 @@ body {
     padding: 5px 0;
     border-bottom: 1px solid var(--glass-border);
     position: relative;
-    z-index: 101; /* Ensure it stays above the absolute tools-pane (z-index 100) */
+    z-index: 101;
+    /* Ensure it stays above the absolute tools-pane (z-index 100) */
 }
 
 .editor-container-flex {
@@ -307,7 +316,8 @@ body {
     min-height: 0;
     max-width: 100%;
     box-sizing: border-box;
-    position: relative; /* Ensure children can absolute-position correctly */
+    position: relative;
+    /* Ensure children can absolute-position correctly */
 }
 
 .preview-pane-flex {
@@ -354,7 +364,8 @@ body {
     position: relative;
     min-width: 320px;
     height: 100%;
-    max-height: 80dvh !important; /* Failsafe height constraint for scrolling */
+    max-height: 80dvh !important;
+    /* Failsafe height constraint for scrolling */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -363,7 +374,8 @@ body {
 .panel-editor-ui {
     flex: 1;
     overflow-y: auto !important;
-    padding: 0 20px 40px 20px; /* Padding for content */
+    padding: 0 20px 40px 20px;
+    /* Padding for content */
     box-sizing: border-box;
     min-height: 0;
 }
@@ -391,14 +403,15 @@ body {
 }
 
 .layout-editor.is-spread .editor-container-flex {
-    padding-right: 380px; /* 350px panel + 30px padding */
+    padding-right: 380px;
+    /* 350px panel + 30px padding */
 }
 
 .layout-editor.is-spread .preview-pane-flex {
-  flex: 1;
-  width: 100%;
-  border: none;
-  background: var(--color-bg);
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: var(--color-bg);
 }
 
 body .layout-editor:not(.is-spread) #pagePreviewFrame {
@@ -406,9 +419,10 @@ body .layout-editor:not(.is-spread) #pagePreviewFrame {
     height: calc(100dvh - 200px) !important;
     max-height: calc(100dvh - 200px) !important;
     max-width: 95% !important;
-    aspect-ratio: 6.625 / 10.25; /* US Standard Comic Page */
+    aspect-ratio: 6.625 / 10.25;
+    /* US Standard Comic Page */
     margin: 0 2% 0 2%;
-    filter: drop-shadow(0 15px 40px rgba(0,0,0,0.6));
+    filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.6));
     border-radius: 4px;
 }
 
@@ -417,9 +431,10 @@ body .layout-editor.is-spread #pagePreviewFrame {
     height: calc(100dvh - 200px) !important;
     max-height: calc(100dvh - 200px) !important;
     max-width: 98% !important;
-    aspect-ratio: 13.25 / 10.25; /* US Standard Comic Spread (2x Width) */
+    aspect-ratio: 13.25 / 10.25;
+    /* US Standard Comic Spread (2x Width) */
     margin: 0 2% 0 2%;
-    filter: drop-shadow(0 15px 40px rgba(0,0,0,0.6));
+    filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.6));
     border-radius: 4px;
 }
 
@@ -435,14 +450,15 @@ body .layout-editor.is-spread #pagePreviewFrame {
     border: 1px solid var(--glass-border);
     z-index: 100;
     box-shadow: var(--shadow-float);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
 }
 
 [data-theme="dark"] .layout-editor.is-spread .tools-pane-flex {
     background: var(--glass-dark-md);
 }
+
 /* --- Select Styles --- */
-select, 
+select,
 .gov-select {
     display: block;
     width: 100%;
@@ -452,7 +468,7 @@ select,
     color: var(--color-text);
     background: var(--glass-white-sm);
     border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     backdrop-filter: var(--blur-sm);
     -webkit-backdrop-filter: var(--blur-sm);
     appearance: none;

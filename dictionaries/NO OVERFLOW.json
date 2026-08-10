@@ -5,24 +5,37 @@
   "\"Hmph.\"": {
     "spoken": "Humph!"
   },
+  "amongst": {},
+  "arcologies": {},
+  "arcology": {},
+  "backlit": {},
   "BLAM": {},
+  "brutalist": {},
+  "C'mon": {},
   "datapad": {},
   "dra": {},
+  "eyeline": {},
   "grey": {},
   "Hmph": {},
+  "holo-montiors": {},
   "intelli": {},
   "lensed": {},
   "Mnemosyne": {
     "spoken": "Newmoscene"
   },
+  "Oshima": {},
   "pixelated": {},
+  "rebreather": {},
   "Rin": {},
+  "Rin's": {},
+  "SBC": {},
   "scanlines": {},
+  "sidelock": {},
   "Silas": {
     "spoken": "Sii-liss"
   },
   "spasmed": {},
-  "Takeda": {
-    "spoken": "Takehda"
-  }
+  "Takeda": {},
+  "Takeda's": {},
+  "wireframe": {}
 }

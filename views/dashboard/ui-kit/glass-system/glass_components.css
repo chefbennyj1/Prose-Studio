@@ -640,7 +640,7 @@
 .glass-input {
     width: 100%;
     padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     border: 1px solid var(--glass-border-subtle);
     background: var(--glass-white);
     backdrop-filter: var(--blur-sm);
@@ -680,7 +680,7 @@
 .glass-textarea {
     width: 100%;
     padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     border: 1px solid var(--glass-border-subtle);
     background: var(--glass-white);
     backdrop-filter: var(--blur-sm);
@@ -709,7 +709,7 @@
 .glass-select {
     width: 100%;
     padding: var(--space-sm) 40px var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     border: 1px solid var(--glass-border-subtle);
     background: var(--glass-white);
     backdrop-filter: var(--blur-sm);
@@ -1041,7 +1041,7 @@
 }
 
 .glass-accordion-item {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     overflow: hidden;
     transition: box-shadow var(--dur-fast);
 }
@@ -1262,7 +1262,7 @@
 }
 
 .glass-toast {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: var(--space-md) var(--space-lg);
     display: flex;
     align-items: center;
@@ -1420,7 +1420,7 @@
     top: calc(100% + 8px);
     left: 0;
     min-width: 200px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: var(--space-2xs);
     pointer-events: none;
     opacity: 0;
@@ -1806,7 +1806,7 @@
     left: 50%;
     transform: translateX(-50%) translateY(6px);
     min-width: 120px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     padding: 10px 14px;
     pointer-events: none;
     opacity: 0;
@@ -1976,7 +1976,7 @@
     top: calc(100% + 8px);
     left: 0;
     min-width: 190px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: var(--space-2xs);
     pointer-events: none;
     opacity: 0;
@@ -2665,7 +2665,7 @@
     .glass-table tbody tr {
         display: block;
         border: 1px solid var(--glass-border-subtle);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-xs);
         margin-bottom: var(--space-sm);
     }
 
@@ -2892,7 +2892,7 @@
 }
 
 .anim-demo {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: 28px 20px;
     display: flex;
     flex-direction: column;
@@ -3125,7 +3125,7 @@
 }
 
 .stats__item {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: var(--space-lg);
     text-align: center;
 }
@@ -3261,7 +3261,7 @@ label {
 }
 
 .notif {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: 18px 22px;
     display: flex;
     align-items: center;
@@ -4037,7 +4037,7 @@ label {
     max-width: 380px;
     max-height: 320px;
     overflow-y: auto;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
     padding: var(--space-2xs);
 }
 
@@ -4046,7 +4046,7 @@ label {
     align-items: flex-start;
     gap: var(--space-sm);
     padding: var(--space-sm);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     cursor: pointer;
     transition: background var(--dur-fast);
 }
@@ -4134,7 +4134,7 @@ label {
     color: var(--color-text);
     width: 340px;
     max-height: 420px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xs);
 }
 
 /* Display only while open: an unconditional display would override the

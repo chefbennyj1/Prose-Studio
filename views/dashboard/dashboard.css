@@ -15,16 +15,16 @@
 
 /* Account section specific meta */
 .meta {
-  border-top: 1px solid var(--border);
-  margin-top: 20px;
-  padding-top: 10px;
-  color: var(--muted);
-  font-size: 0.9em;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+    padding-top: 10px;
+    color: var(--muted);
+    font-size: 0.9em;
 }
 
 /* Range Input for Pan Sliders */
 input[type="range"] {
-  accent-color: var(--accent);
+    accent-color: var(--accent);
 }
 
 /* Dashboard-Specific Polish */
@@ -39,7 +39,7 @@ input[type="range"] {
 .dashboard-section textarea:not(.glass-textarea) {
     width: 100%;
     padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     border: 1px solid var(--glass-border-subtle);
     background: var(--glass-white);
     color: var(--color-text);
@@ -127,7 +127,7 @@ input[type="range"] {
     height: 300px;
     overflow-y: auto;
     border: 1px solid var(--glass-border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xs);
     background: var(--glass-dark);
 }
 

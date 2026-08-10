@@ -247,20 +247,58 @@
    the source text, not a preview — but a heading looks like a heading while
    you type it. Surface.js maps syntax tags to these class names.
 */
-.editor__page .md-h1 { font-size: 1.5em; font-weight: 700; }
-.editor__page .md-h2 { font-size: 1.3em; font-weight: 700; }
-.editor__page .md-h3 { font-size: 1.15em; font-weight: 700; }
+.editor__page .md-h1 {
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+.editor__page .md-h2 {
+    font-size: 1.3em;
+    font-weight: 700;
+}
+
+.editor__page .md-h3 {
+    font-size: 1.15em;
+    font-weight: 700;
+}
+
 .editor__page .md-h4,
 .editor__page .md-h5,
-.editor__page .md-h6 { font-weight: 700; }
-.editor__page .md-strong { font-weight: 700; }
-.editor__page .md-em { font-style: italic; }
-.editor__page .md-strike { text-decoration: line-through; }
+.editor__page .md-h6 {
+    font-weight: 700;
+}
+
+.editor__page .md-strong {
+    font-weight: 700;
+}
+
+.editor__page .md-em {
+    font-style: italic;
+}
+
+.editor__page .md-strike {
+    text-decoration: line-through;
+}
+
 .editor__page .md-link,
-.editor__page .md-url { color: var(--accent, #0088aa); }
-.editor__page .md-quote { color: var(--text-muted, #777); font-style: italic; }
-.editor__page .md-code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.9em; }
-.editor__page .md-rule { color: var(--text-muted, #999); letter-spacing: 0.3em; }
+.editor__page .md-url {
+    color: var(--accent, #0088aa);
+}
+
+.editor__page .md-quote {
+    color: var(--text-muted, #777);
+    font-style: italic;
+}
+
+.editor__page .md-code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+}
+
+.editor__page .md-rule {
+    color: var(--text-muted, #999);
+    letter-spacing: 0.3em;
+}
 
 /*
    The syntax characters themselves: present, but out of the way.
@@ -330,7 +368,7 @@
     max-width: min(420px, calc(100% - 36px));
     padding: 8px 12px;
     border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
-    border-radius: var(--radius-md, 10px);
+    border-radius: var(--radius-xs, 10px);
     /*
        Nearly opaque, and built on --color-bg so it follows the theme. The
        glass tokens are 4-20% white, which is right for a panel sitting on the
@@ -587,7 +625,13 @@
 }
 
 @media (max-width: 900px) {
-    .editor__body { flex-direction: column; }
-    .editor__panel { width: auto; border-left: 0; border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12)); }
-}
+    .editor__body {
+        flex-direction: column;
+    }
 
+    .editor__panel {
+        width: auto;
+        border-left: 0;
+        border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    }
+}
