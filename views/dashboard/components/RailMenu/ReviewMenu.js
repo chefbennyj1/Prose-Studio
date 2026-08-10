@@ -165,10 +165,20 @@ async function loadCritic() {
  * whole mechanics scanner - works and always has.
  */
 function drawAiRows() {
-    const on = !!critic?.ai?.ok;
+    // Hidden ONLY when the server has positively said the AI is off. Anything
+    // else - the request failed, or the response has no `ai` field because the
+    // server is still running older code - shows them.
+    //
+    // The first version hid on "not positively on", which is a silent failure
+    // in the one place it must not be: half the Review menu disappears, with
+    // nothing to say why and nothing to click to find out. Fail open and let
+    // the feature report its own error, which is a sentence the writer can act
+    // on rather than an absence they have to notice.
+    const off = critic?.ai && critic.ai.ok === false;
+
     document.querySelectorAll('[data-needs-ai]').forEach((row) => {
-        row.classList.toggle('hidden', !on);
-        if (!on && row.title !== undefined && critic?.ai?.reason) row.title = critic.ai.reason;
+        row.classList.toggle('hidden', !!off);
+        if (off && critic.ai.reason) row.title = critic.ai.reason;
     });
 }
 
