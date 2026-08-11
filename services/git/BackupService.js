@@ -53,9 +53,41 @@ desktop.ini
 *.tmp
 `;
 
+/**
+ * How long a push may go without progress before it is called dead.
+ *
+ * isomorphic-git's node client hands its options to simple-get, which hands
+ * them to http.request — so whatever socket timeout ends up applied is
+ * whatever the stack happens to default to, and "Request timed out" arrives
+ * with no indication of how long it actually waited. Setting it explicitly
+ * makes the number knowable, and generous: a first push carries the whole
+ * history at once, over a domestic upstream connection.
+ */
+const PUSH_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * The HTTP client, with that timeout applied.
+ *
+ * isomorphic-git's push does not forward `fetchOptions` to the client, so the
+ * only place to set it is here, by wrapping the client it calls.
+ */
+const httpClient = {
+    request: (options) => http.request({
+        ...options,
+        fetchOptions: { ...(options.fetchOptions || {}), timeout: PUSH_TIMEOUT_MS }
+    })
+};
+
 /** Token as the username is isomorphic-git's documented form for GitHub. */
 function auth(token) {
     return () => ({ username: token });
+}
+
+function formatBytes(bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}GB`;
+    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
+    return `${bytes}B`;
 }
 
 function remoteUrl(owner, repo) {
@@ -142,7 +174,14 @@ class BackupService {
         } catch { /* an empty repository has no log */ }
 
         result.hasIgnore = await this.hasIgnore(dir);
-        result.changed = (await this.pendingFiles(dir)).length;
+
+        const pending = await this.pendingFiles(dir);
+        result.changed = pending.length;
+        result.pendingBytes = await this.pendingBytes(dir, pending);
+        result.pendingHuman = formatBytes(result.pendingBytes);
+        // Named so a stalled push can be diagnosed from Settings rather than
+        // by guessing at the network.
+        result.largest = await this.largestPending(dir, pending);
 
         // Audio that got committed before there was a .gitignore to stop it.
         // Adding the ignore rule now would NOT remove these — git keeps
@@ -254,6 +293,37 @@ class BackupService {
         return changed;
     }
 
+    /**
+     * Total size on disk of the files about to be committed.
+     *
+     * Diagnostic rather than a gate: a push that stalls is nearly always a push
+     * carrying something it should not, and the log needs to be able to say so
+     * instead of leaving "Request timed out" to be read as a network fault.
+     */
+    async pendingBytes(dir, pending) {
+        let total = 0;
+        for (const file of pending) {
+            if (file.action !== 'add') continue;
+            try {
+                total += (await fsp.stat(path.join(dir, file.filepath))).size;
+            } catch { /* vanished between listing and measuring; not worth failing for */ }
+        }
+        return total;
+    }
+
+    /** The largest files waiting to go up, for when the total looks wrong. */
+    async largestPending(dir, pending, count = 5) {
+        const sized = [];
+        for (const file of pending) {
+            if (file.action !== 'add') continue;
+            try {
+                sized.push({ filepath: file.filepath, size: (await fsp.stat(path.join(dir, file.filepath))).size });
+            } catch { /* ignore */ }
+        }
+        return sized.sort((a, b) => b.size - a.size).slice(0, count)
+            .map(f => ({ ...f, human: formatBytes(f.size) }));
+    }
+
     /** Init, set the branch, and lay down the ignore rules before anything is staged. */
     async ensureRepo(dir) {
         let created = false;
@@ -349,11 +419,25 @@ class BackupService {
         // Push even with nothing new to commit: the previous run may have
         // committed and then failed to reach GitHub, and the writer pressing
         // the button again means "make sure it is up there".
+        // How much is actually going up. A push that times out is nearly always
+        // a push that is far bigger than the writer expects, and without this
+        // there is no way to tell that from a network problem.
+        const bytes = await this.pendingBytes(dir, pending);
+        console.log(`[Backup] Pushing ${pending.length} file(s), ${formatBytes(bytes)}, branch "${branch}".`);
+        if (bytes > 50 * 1024 * 1024) {
+            console.warn(`[Backup] That is large for a manuscript. Check for files that should be ignored.`);
+        }
+
         try {
             const result = await git.push({
                 fs,
-                http,
+                http: httpClient,
                 dir,
+                onProgress: (p) => {
+                    if (p.phase && p.loaded && p.total) {
+                        console.log(`[Backup] ${p.phase}: ${p.loaded}/${p.total}`);
+                    }
+                },
                 // An explicit URL rather than `remote: 'origin'`. The writer's
                 // origin may be an SSH URL, which isomorphic-git cannot speak,
                 // and is theirs regardless — this pushes over HTTPS with the
@@ -400,6 +484,11 @@ class BackupService {
         }
         if (/ENOTFOUND|EAI_AGAIN|network|fetch failed/i.test(raw)) {
             return 'Could not reach github.com. Check the connection and try again — the commit is saved locally either way.';
+        }
+        if (/timed out|ETIMEDOUT|ESOCKETTIMEDOUT/i.test(raw)) {
+            return 'The push to GitHub ran out of time. The commit is saved locally, so nothing is lost — press Back up again to retry. '
+                + 'If it keeps happening the push is probably carrying something large: check the file list in Settings for anything that '
+                + 'should not be in a manuscript repository.';
         }
         return `Push failed: ${raw}`;
     }
