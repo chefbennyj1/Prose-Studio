@@ -12,6 +12,14 @@ the push itself have never spoken to github.com. Everything local is verified.
 
 ### Backup, 2026-08-09/10
 
+**ONE REPOSITORY PER STORY**, not one for the story root. The root is the
+parent folder every story sits inside, so backing it up as a single repository
+swept unrelated work in with the novel — Ben's first real run pushed a
+benchmark story up alongside the manuscript. A novel is the unit a writer
+thinks in, so it is the unit that gets a repo. Mappings live in
+`github.repos[]`; a story with no mapping is simply not backed up, which is how
+scratch stories stay out.
+
 `isomorphic-git` (pure JS) so no git install is needed — which forces HTTPS and
 a classic PAT rather than SSH. Classic, not fine-grained: fine-grained cannot
 create repositories without Administration write across every repo.

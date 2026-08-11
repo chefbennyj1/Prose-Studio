@@ -213,6 +213,7 @@ router.post('/proofing/mechanics', isAuth, ProofingController.checkMechanics);
 // reach. Repositories created here are always private - see GitHubService.
 const GitController = require('../controllers/GitController.js');
 router.get('/git/status', isModerator, GitController.getStatus);
+router.get('/git/stories', isModerator, GitController.listStories);
 router.post('/git/connect', isModerator, GitController.connect);
 router.post('/git/disconnect', isModerator, GitController.disconnect);
 router.get('/git/repos', isModerator, GitController.listRepos);

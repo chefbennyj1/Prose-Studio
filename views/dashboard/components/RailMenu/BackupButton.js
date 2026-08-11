@@ -26,12 +26,23 @@ let missing = null;
 let running = false;
 let saveTimer = null;
 
+// Which story and chapter is open, for the commit message. Tracked from the
+// event the editor already dispatches rather than read out of the DOM.
+let where = { story: null, chapter: null };
+
 export function initBackupButton() {
     // The button lives in the editor section, which is injected on navigation
     // rather than present at start-up. Editor.js announces when it is built.
     document.addEventListener('editorReady', attach);
 
     document.addEventListener('githubSettingsChanged', refresh);
+
+    // Which story is open decides which repository the button targets, so a
+    // change of story is a change of target and the state has to be re-read.
+    document.addEventListener('manuscriptOpened', (event) => {
+        where = { story: event.detail?.story || null, chapter: event.detail?.chapter || null };
+        refresh();
+    });
 
     // Saving changes what is waiting to go up. Debounced, because autosave
     // fires every few seconds while typing and each check walks the folder.
@@ -63,32 +74,39 @@ async function refresh() {
     if (!els.btn || !document.body.contains(els.btn)) return;
 
     try {
-        const data = await (await fetch('/api/git/status')).json();
+        // Scoped to the open story: one repository per story, so the state
+        // being reported is that story's folder, not the root above it.
+        const query = where.story ? `?story=${encodeURIComponent(where.story)}` : '';
+        const data = await (await fetch(`/api/git/status${query}`)).json();
         if (!data.ok) throw new Error(data.message);
 
         els.btn.classList.toggle('hidden', !data.connected);
         if (!data.connected) return;
 
-        missing = !data.repo ? 'repo' : !data.storyRoot ? 'root' : null;
+        missing = !where.story ? 'story' : !data.mapping ? 'repo' : !data.storyRoot ? 'root' : null;
         canBackup = !missing;
 
         if (!canBackup) {
             els.btn.classList.add('is-unconfigured');
+            els.btn.classList.remove('is-clean');
             els.label.textContent = 'Back up';
-            els.btn.title = missing === 'repo'
-                ? 'Choose a repository in Settings before backing up'
-                : 'Set a story folder in Settings before backing up';
+            els.btn.title = missing === 'story'
+                ? 'Open a story to back it up'
+                : missing === 'repo'
+                    ? `"${where.story}" has no repository yet — set one in Settings`
+                    : 'Set a story folder in Settings before backing up';
             return;
         }
 
         els.btn.classList.remove('is-unconfigured');
 
+        const target = `${data.mapping.owner}/${data.mapping.repo}`;
         const pending = data.repoState?.changed || 0;
         els.label.textContent = pending ? `Back up (${pending})` : 'Backed up';
         els.btn.classList.toggle('is-clean', pending === 0);
         els.btn.title = pending
-            ? `${pending} file${pending === 1 ? '' : 's'} to push to ${data.owner}/${data.repo}`
-            : `Everything is on GitHub at ${data.owner}/${data.repo}`;
+            ? `${pending} file${pending === 1 ? '' : 's'} of "${where.story}" to push to ${target}`
+            : `"${where.story}" is up to date on GitHub at ${target}`;
     } catch (err) {
         console.warn('[Backup] Could not read status:', err.message);
         els.btn.classList.add('hidden');
@@ -102,9 +120,10 @@ async function run() {
 
     // Pressed while something is missing: say which, rather than doing nothing.
     if (!canBackup) {
-        toast('info', 'Not set up yet', missing === 'repo'
-            ? 'Choose a repository under Settings → Manuscript Backup.'
-            : 'Set a story folder under Settings before backing up.');
+        toast('info', 'Not set up yet',
+            missing === 'story' ? 'Open a story first.'
+                : missing === 'repo' ? `Give "${where.story}" a repository under Settings → Manuscript Backup.`
+                    : 'Set a story folder under Settings before backing up.');
         return;
     }
 
@@ -114,16 +133,16 @@ async function run() {
     if (els.icon) els.icon.setAttribute('name', 'cloud-upload');
 
     try {
-        // The word count rides along so the commit message says something the
-        // writer will recognise in their own history.
-        const words = Number(
-            (document.getElementById('editorWordCount')?.textContent || '').replace(/[^\d]/g, '')
-        ) || 0;
-
+        // Where the writer was working, so the commit can be found later by
+        // what they were doing rather than only by date.
+        //
+        // NOT the word count. That reads the editor, which holds one chapter,
+        // while the commit covers the whole story root — so it labelled a
+        // commit containing several stories with a single chapter's total.
         const res = await fetch('/api/git/backup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stats: { words } })
+            body: JSON.stringify({ context: where })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);

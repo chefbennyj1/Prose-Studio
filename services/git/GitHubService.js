@@ -74,11 +74,11 @@ class GitHubService {
         );
     }
 
-    /** Forgetting the token disconnects the account; the repo link goes too. */
+    /** Forgetting the token disconnects the account and every story mapping. */
     async clear() {
         await GlobalSettings.updateOne(
             { key: 'main' },
-            { $set: { 'github.token': '', 'github.owner': '', 'github.repo': '', 'github.private': true } },
+            { $set: { 'github.token': '', 'github.repos': [] } },
             { upsert: true }
         );
     }
@@ -86,23 +86,54 @@ class GitHubService {
     async getConnection() {
         try {
             const settings = await GlobalSettings.findOne({ key: 'main' }, 'github').lean();
-            const github = settings?.github || {};
-            return {
-                connected: !!github.token,
-                owner: github.owner || null,
-                repo: github.repo || null,
-                private: github.private !== false
-            };
+            return { connected: !!settings?.github?.token };
         } catch {
-            return { connected: false, owner: null, repo: null, private: true };
+            return { connected: false };
         }
     }
 
-    async setRepo({ owner, repo, isPrivate }) {
+    /** Every story-to-repository mapping the writer has set up. */
+    async listMappings() {
+        try {
+            const settings = await GlobalSettings.findOne({ key: 'main' }, 'github').lean();
+            return (settings?.github?.repos || []).filter(m => m.owner && m.repo);
+        } catch {
+            return [];
+        }
+    }
+
+    /** Where one story backs up to, or null if it is not backed up. */
+    async getRepoFor(story) {
+        if (!story) return null;
+        const mappings = await this.listMappings();
+        return mappings.find(m => m.story === story) || null;
+    }
+
+    /**
+     * Point a story at a repository, replacing any previous mapping for it.
+     *
+     * Pulling the old entry first rather than using a positional update: a
+     * story that has never been mapped has nothing to match, and $set on a
+     * non-existent array element silently does nothing.
+     */
+    async setRepoFor(story, { owner, repo, isPrivate }) {
         await GlobalSettings.updateOne(
             { key: 'main' },
-            { $set: { 'github.owner': owner, 'github.repo': repo, 'github.private': isPrivate !== false } },
+            { $pull: { 'github.repos': { story } } },
             { upsert: true }
+        );
+        await GlobalSettings.updateOne(
+            { key: 'main' },
+            { $push: { 'github.repos': { story, owner, repo, private: isPrivate !== false } } },
+            { upsert: true }
+        );
+    }
+
+    /** Stop backing a story up. The repository on GitHub is left alone. */
+    async removeRepoFor(story) {
+        await GlobalSettings.updateOne(
+            { key: 'main' },
+            { $pull: { 'github.repos': { story } } }
         );
     }
 
@@ -193,6 +224,21 @@ class GitHubService {
             empty: true,
             url: repo.html_url
         };
+    }
+
+    /**
+     * A repository name GitHub will accept, derived from a story's folder name.
+     *
+     * Story folders are named by the writer — "The Quiet Coast" — and GitHub
+     * allows only letters, digits, dots, hyphens and underscores.
+     */
+    suggestRepoName(story) {
+        return String(story || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9._-]+/g, '-')
+            .replace(/^[-.]+|[-.]+$/g, '')
+            .slice(0, 100) || 'manuscript';
     }
 }
 

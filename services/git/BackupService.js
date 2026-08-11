@@ -308,9 +308,11 @@ class BackupService {
      * choice and no rebase, because a novelist wants their work somewhere safe
      * rather than a version-control workflow.
      *
-     * @param {object} opts { dir, token, owner, repo, message, author }
+     * @param {object} opts { dir, token, owner, repo, message, context, author }
+     *        `context` is { story, chapter } — where the writer was working,
+     *        used to compose a message when none is supplied.
      */
-    async backup({ dir, token, owner, repo, message, author }) {
+    async backup({ dir, token, owner, repo, message, context = {}, author }) {
         if (!dir) throw new Error('No story folder is set. Choose one in Settings first.');
         if (!token) throw new Error('Connect a GitHub account in Settings first.');
         if (!owner || !repo) throw new Error('Choose a repository in Settings first.');
@@ -333,7 +335,9 @@ class BackupService {
             const sha = await git.commit({
                 fs,
                 dir,
-                message,
+                // Composed here rather than by the caller, because the file
+                // count is only known once pendingFiles has run.
+                message: message || this.buildMessage({ ...context, files: pending.length }),
                 author: {
                     name: author?.name || 'Prose Studio',
                     email: author?.email || 'prose-studio@localhost'
@@ -400,14 +404,35 @@ class BackupService {
         return `Push failed: ${raw}`;
     }
 
-    /** A commit message a writer can read in their own history. */
-    buildMessage(stats = {}) {
+    /**
+     * A commit message a writer can read in their own history.
+     *
+     * It describes what the commit actually contains, which is the whole story
+     * root — every story under it, not the open one. An earlier version put
+     * the editor's word count here, and that count is the open chapter's
+     * (`surface.getValue()`), so a commit holding four stories announced
+     * itself as "1,200 words". False precision is worse than none in a log you
+     * will read back in a year.
+     *
+     * What is useful instead: how much changed, and where you were working.
+     *
+     * @param {object} context { files, story, chapter }
+     */
+    buildMessage(context = {}) {
         const when = new Date().toLocaleDateString('en-GB', {
             day: 'numeric', month: 'short', year: 'numeric'
         });
-        const words = Number(stats.words) || 0;
+
         const parts = [`Manuscript backup — ${when}`];
-        if (words) parts.push(`${words.toLocaleString()} words`);
+
+        const files = Number(context.files) || 0;
+        if (files) parts.push(`${files} file${files === 1 ? '' : 's'}`);
+
+        // Where the writer was, so a commit can be found by what they were
+        // working on rather than only by date.
+        const where = [context.story, context.chapter].filter(Boolean).join(' / ');
+        if (where) parts.push(where);
+
         return parts.join(' · ');
     }
 }

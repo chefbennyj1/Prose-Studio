@@ -3,22 +3,30 @@
 /**
  * The Manuscript Backup block in Settings.
  *
- * Connect a GitHub account, pick or create somewhere to put the manuscript,
- * and clear up a repository that is already carrying narration audio.
+ * Connect a GitHub account, then give each story its own repository. A story
+ * with no repository is simply not backed up, which is how a scratch or
+ * benchmark story stays out of a manuscript's history.
+ *
+ * ONE REPOSITORY PER STORY. The first version backed up the story root — the
+ * parent folder every story sits inside — as a single repository, so the first
+ * real run pushed a test story up alongside the novel. A novel is the unit a
+ * writer thinks in, so it is the unit that gets a repository.
  *
  * The token is write-only from here. It is posted once, validated server-side,
- * stored encrypted, and never sent back — so this page can say *that* an
- * account is connected and *who* it belongs to, and can never redisplay the
- * credential itself.
+ * stored encrypted, and never sent back, so this page can say *that* an account
+ * is connected and never redisplay the credential itself.
  *
  * Repositories this creates are always private. There is no control for it on
  * purpose; see GitHubService.
  */
 
-let state = { connected: false, owner: null, repo: null, repoState: null };
+import { escapeHtml } from '../../components/Editor/EditorRender.js';
+
+let repos = [];     // everything on the account, for the dropdowns
+let els = {};
 
 export function initGitHubSettings() {
-    const els = {
+    els = {
         disconnected: document.getElementById('github-disconnected'),
         connected: document.getElementById('github-connected'),
         token: document.getElementById('github-token'),
@@ -26,187 +34,243 @@ export function initGitHubSettings() {
         connectBtn: document.getElementById('github-connect-btn'),
         disconnectBtn: document.getElementById('github-disconnect-btn'),
         account: document.getElementById('github-account'),
-        repoSelect: document.getElementById('github-repo-select'),
-        repoNote: document.getElementById('github-repo-note'),
-        newRepo: document.getElementById('github-new-repo'),
-        createBtn: document.getElementById('github-create-btn'),
-        audioWarning: document.getElementById('github-audio-warning'),
-        audioDetail: document.getElementById('github-audio-detail'),
-        untrackBtn: document.getElementById('github-untrack-btn'),
+        stories: document.getElementById('github-stories'),
         status: document.getElementById('github-status')
     };
     if (!els.connectBtn) return;
 
-    const say = (message, tone = 'muted') => {
-        els.status.textContent = message;
-        els.status.className = `font-size-07 margin-t-15 text-${tone}`;
-    };
+    els.connectBtn.addEventListener('click', connect);
+    els.disconnectBtn.addEventListener('click', disconnect);
 
-    const busy = (btn, on, label) => {
-        btn.disabled = on;
-        if (on) { btn.dataset.idle = btn.textContent; btn.textContent = label; }
-        else if (btn.dataset.idle) { btn.textContent = btn.dataset.idle; }
-    };
+    // One listener for every row, so rows can be redrawn freely.
+    els.stories.addEventListener('change', onRowChange);
+    els.stories.addEventListener('click', onRowClick);
 
-    async function refresh() {
-        try {
-            const data = await (await fetch('/api/git/status')).json();
-            if (!data.ok) throw new Error(data.message);
+    refresh();
+}
 
-            state = data;
-            if (els.tokenLink && data.tokenUrl) els.tokenLink.href = data.tokenUrl;
+function say(message, tone = 'muted') {
+    els.status.textContent = message;
+    els.status.className = `font-size-07 margin-t-15 text-${tone}`;
+}
 
-            els.disconnected.hidden = data.connected;
-            els.connected.hidden = !data.connected;
+function busy(btn, on, label) {
+    if (!btn) return;
+    btn.disabled = on;
+    if (on) { btn.dataset.idle = btn.textContent; btn.textContent = label; }
+    else if (btn.dataset.idle) { btn.textContent = btn.dataset.idle; }
+}
 
-            if (data.connected) {
-                els.account.textContent = data.owner || 'GitHub';
-                await loadRepos();
-                drawRepoNote();
-                drawAudioWarning();
-            }
+async function refresh() {
+    try {
+        const status = await (await fetch('/api/git/status')).json();
+        if (!status.ok) throw new Error(status.message);
 
-            if (!data.storyRoot) {
-                say('No story folder is set yet. Choose one above before backing up.', 'muted');
-            }
-        } catch (err) {
-            say(err.message, 'danger');
+        if (els.tokenLink && status.tokenUrl) els.tokenLink.href = status.tokenUrl;
+        els.disconnected.hidden = status.connected;
+        els.connected.hidden = !status.connected;
+
+        if (!status.storyRoot) {
+            say('No story folder is set yet. Choose one above before backing anything up.');
+            return;
         }
+        if (!status.connected) return;
+
+        await loadRepos();
+        await drawStories();
+    } catch (err) {
+        say(err.message, 'danger');
+    }
+}
+
+async function loadRepos() {
+    try {
+        const data = await (await fetch('/api/git/repos')).json();
+        repos = data.ok ? data.repos : [];
+    } catch {
+        repos = [];
+    }
+}
+
+/** A row per story: where it backs up to, or an offer to set it up. */
+async function drawStories() {
+    const data = await (await fetch('/api/git/stories')).json();
+    if (!data.ok) throw new Error(data.message);
+
+    if (!data.stories.length) {
+        els.stories.innerHTML = '<p class="text-muted">No stories yet. Create one from the rail.</p>';
+        return;
     }
 
-    /**
-     * The repository list, with the folder's own remote pre-selected.
-     *
-     * A writer who already has a repository has already answered "which one" —
-     * their story folder points at it — so that is what this offers first
-     * rather than making them find it in a list of a hundred.
-     */
-    async function loadRepos() {
-        try {
-            const data = await (await fetch('/api/git/repos')).json();
-            if (!data.ok) throw new Error(data.message);
+    els.stories.innerHTML = data.stories.map(story => {
+        const mapped = story.mapping;
+        const options = ['<option value="">Not backed up</option>']
+            .concat(repos.map(r => {
+                const selected = mapped && r.owner === mapped.owner && r.name === mapped.repo ? ' selected' : '';
+                const lock = r.private ? '🔒 ' : '⚠ public — ';
+                return `<option value="${escapeHtml(r.owner)}/${escapeHtml(r.name)}"
+                    data-private="${r.private}"${selected}>${lock}${escapeHtml(r.fullName)}</option>`;
+            }))
+            .join('');
 
-            const chosen = state.repo || state.repoState?.detected?.repo || null;
-            const owner = state.owner || state.repoState?.detected?.owner || null;
+        const warning = mapped && mapped.private === false
+            ? '<p class="font-size-07 text-danger margin-t-5">This repository is PUBLIC. Anyone can read this manuscript.</p>'
+            : '';
 
-            els.repoSelect.innerHTML = '<option value="">Choose a repository…</option>'
-                + data.repos.map(r => {
-                    const selected = r.name === chosen && r.owner === owner ? ' selected' : '';
-                    const lock = r.private ? '🔒 ' : '⚠ public — ';
-                    return `<option value="${r.owner}/${r.name}" data-private="${r.private}"${selected}>${lock}${r.fullName}</option>`;
-                }).join('');
-        } catch (err) {
-            els.repoSelect.innerHTML = '<option value="">Could not load repositories</option>';
-            say(err.message, 'danger');
-        }
+        return `
+        <div class="border-dim padding-20 border-radius-8 margin-b-15" data-story="${escapeHtml(story.name)}">
+            <div class="flex-row align-center gap-10">
+                <strong class="flex-1">${escapeHtml(story.name)}</strong>
+                <span class="font-size-07 text-muted">${story.chapters} chapter${story.chapters === 1 ? '' : 's'}</span>
+            </div>
+
+            <div class="form-group margin-t-10">
+                <select class="glass-select width-100" data-role="repo">${options}</select>
+                ${warning}
+            </div>
+
+            <div class="flex-row gap-10 align-center margin-t-10">
+                <input type="text" class="glass-input flex-1" data-role="new-name"
+                    placeholder="${escapeHtml(story.suggested)}" autocomplete="off">
+                <button type="button" class="glass glass-btn glass-btn--sm" data-role="create">
+                    Create private repo
+                </button>
+            </div>
+
+            <div data-role="audio" class="margin-t-10" hidden>
+                <p class="font-size-07 text-danger margin-0" data-role="audio-detail"></p>
+                <button type="button" class="glass glass-btn glass-btn--sm margin-t-5" data-role="untrack">
+                    Stop backing up audio
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Audio is a property of the story's own folder, so each mapped row is
+    // checked separately once the rows exist.
+    for (const story of data.stories) {
+        if (story.mapping) checkAudio(story.name);
     }
+}
 
-    function drawRepoNote() {
-        const detected = state.repoState?.detected;
-        const parts = [];
-
-        if (detected && !state.repo) {
-            parts.push(`This folder already points at ${detected.owner}/${detected.repo}.`);
-        }
-        if (state.repoState?.branch) {
-            parts.push(`Branch: ${state.repoState.branch}.`);
-        }
-        if (state.repoState?.remoteIsSsh) {
-            parts.push('Your existing SSH remote is left untouched — backups push over HTTPS with the token.');
-        }
-        els.repoNote.textContent = parts.join(' ');
-    }
-
-    function drawAudioWarning() {
-        const tracked = state.repoState?.trackedAudio || [];
-        els.audioWarning.hidden = tracked.length === 0;
+/** Warn when a story's repository is already carrying rendered narration. */
+async function checkAudio(story) {
+    try {
+        const data = await (await fetch(`/api/git/status?story=${encodeURIComponent(story)}`)).json();
+        const tracked = data.repoState?.trackedAudio || [];
         if (!tracked.length) return;
 
-        els.audioDetail.textContent =
-            `${tracked.length} rendered audio file(s) are being tracked by git. They are large, `
-            + 'rebuildable from the text in seconds, and will bloat the repository. '
-            + 'Removing them from the backup leaves them on disk.';
-    }
+        const row = els.stories.querySelector(`[data-story="${CSS.escape(story)}"]`);
+        if (!row) return;
 
-    /* ---------- actions ---------- */
+        row.querySelector('[data-role="audio"]').hidden = false;
+        row.querySelector('[data-role="audio-detail"]').textContent =
+            `${tracked.length} rendered audio file(s) are tracked by git here. They are large and `
+            + 'rebuildable from the text in seconds. Removing them leaves them on disk.';
+    } catch { /* the warning is a nicety; never block the page for it */ }
+}
 
-    els.connectBtn.addEventListener('click', async () => {
-        const token = els.token.value.trim();
-        if (!token) return say('Paste a token first.', 'danger');
+/* ---------- actions ---------- */
 
-        busy(els.connectBtn, true, 'Checking…');
-        try {
-            const res = await fetch('/api/git/connect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
-            });
-            const data = await res.json();
-            if (!data.ok) throw new Error(data.message);
+async function connect() {
+    const token = els.token.value.trim();
+    if (!token) return say('Paste a token first.', 'danger');
 
-            els.token.value = '';   // never leave a credential sitting in the DOM
-            say(data.warning || `Connected as ${data.name}.`, data.warning ? 'danger' : 'muted');
-            await refresh();
-        } catch (err) {
-            say(err.message, 'danger');
-        } finally {
-            busy(els.connectBtn, false);
-        }
-    });
-
-    els.disconnectBtn.addEventListener('click', async () => {
-        await fetch('/api/git/disconnect', { method: 'POST' });
-        say('Disconnected. Your repository and its history are untouched.');
-        await refresh();
-    });
-
-    els.repoSelect.addEventListener('change', async () => {
-        const value = els.repoSelect.value;
-        if (!value) return;
-
-        const [owner, repo] = value.split('/');
-        const isPrivate = els.repoSelect.selectedOptions[0]?.dataset.private === 'true';
-
-        const res = await fetch('/api/git/select', {
+    busy(els.connectBtn, true, 'Checking…');
+    try {
+        const res = await fetch('/api/git/connect', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ owner, repo, isPrivate })
+            body: JSON.stringify({ token })
         });
         const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
 
-        say(data.ok
-            ? `Backing up to ${owner}/${repo}.${isPrivate ? '' : ' Warning: this repository is PUBLIC.'}`
-            : data.message, data.ok && isPrivate ? 'muted' : 'danger');
+        els.token.value = '';   // never leave a credential sitting in the DOM
+        els.account.textContent = data.name;
+        say(data.warning || `Connected as ${data.name}. Now give each story a repository.`,
+            data.warning ? 'danger' : 'muted');
+        await refresh();
+        document.dispatchEvent(new CustomEvent('githubSettingsChanged'));
+    } catch (err) {
+        say(err.message, 'danger');
+    } finally {
+        busy(els.connectBtn, false);
+    }
+}
+
+async function disconnect() {
+    await fetch('/api/git/disconnect', { method: 'POST' });
+    say('Disconnected. Your repositories and their history are untouched.');
+    await refresh();
+    document.dispatchEvent(new CustomEvent('githubSettingsChanged'));
+}
+
+async function onRowChange(event) {
+    const select = event.target.closest('[data-role="repo"]');
+    if (!select) return;
+
+    const story = select.closest('[data-story]').dataset.story;
+    const [owner, repo] = (select.value || '').split('/');
+    const isPrivate = select.selectedOptions[0]?.dataset.private === 'true';
+
+    const res = await fetch('/api/git/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ story, owner: owner || null, repo: repo || null, isPrivate })
     });
+    const data = await res.json();
 
-    els.createBtn.addEventListener('click', async () => {
-        const name = els.newRepo.value.trim();
-        if (!name) return say('Give the repository a name.', 'danger');
+    if (!data.ok) return say(data.message, 'danger');
 
-        busy(els.createBtn, true, 'Creating…');
+    say(owner
+        ? `"${story}" backs up to ${owner}/${repo}.${isPrivate ? '' : ' WARNING: that repository is PUBLIC.'}`
+        : `"${story}" will not be backed up.`, owner && !isPrivate ? 'danger' : 'muted');
+
+    document.dispatchEvent(new CustomEvent('githubSettingsChanged'));
+    if (owner) checkAudio(story);
+}
+
+async function onRowClick(event) {
+    const row = event.target.closest('[data-story]');
+    if (!row) return;
+    const story = row.dataset.story;
+
+    const createBtn = event.target.closest('[data-role="create"]');
+    if (createBtn) {
+        const input = row.querySelector('[data-role="new-name"]');
+        const name = (input.value.trim() || input.placeholder).trim();
+
+        busy(createBtn, true, 'Creating…');
         try {
             const res = await fetch('/api/git/repos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name, story })
             });
             const data = await res.json();
             if (!data.ok) throw new Error(data.message);
 
-            els.newRepo.value = '';
-            say(`Created ${data.repo.fullName} (private). It is now the backup target.`);
+            say(`Created ${data.repo.fullName} (private) for "${story}".`);
             await refresh();
+            document.dispatchEvent(new CustomEvent('githubSettingsChanged'));
         } catch (err) {
             say(err.message, 'danger');
         } finally {
-            busy(els.createBtn, false);
+            busy(createBtn, false);
         }
-    });
+        return;
+    }
 
-    els.untrackBtn.addEventListener('click', async () => {
-        busy(els.untrackBtn, true, 'Working…');
+    const untrackBtn = event.target.closest('[data-role="untrack"]');
+    if (untrackBtn) {
+        busy(untrackBtn, true, 'Working…');
         try {
-            const res = await fetch('/api/git/untrack-audio', { method: 'POST' });
+            const res = await fetch('/api/git/untrack-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ story })
+            });
             const data = await res.json();
             if (!data.ok) throw new Error(data.message);
 
@@ -215,9 +279,7 @@ export function initGitHubSettings() {
         } catch (err) {
             say(err.message, 'danger');
         } finally {
-            busy(els.untrackBtn, false);
+            busy(untrackBtn, false);
         }
-    });
-
-    refresh();
+    }
 }

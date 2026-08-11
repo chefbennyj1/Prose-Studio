@@ -25,14 +25,26 @@ const globalSettingsSchema = new Schema({
         apiKey: { type: String, default: "" }, // Encrypted
         modelName: { type: String, default: "gemini-flash-latest" }
     },
-    // Manuscript backup to GitHub. `private` is recorded rather than chosen:
-    // repositories this creates are always private, and the field exists so the
-    // dashboard can show the visibility of one the writer connected themselves.
+    // Manuscript backup to GitHub.
+    //
+    // One repository PER STORY, not one for the story root. The root is the
+    // parent folder every story sits inside, so backing it up as a single
+    // repository swept unrelated work in with the novel — a scratch story used
+    // for testing went up alongside the real manuscript on the first run. A
+    // novel is the unit a writer thinks in, so it is the unit that gets a repo.
+    //
+    // `private` is recorded rather than chosen: repositories this creates are
+    // always private, and the field exists so the dashboard can show the
+    // visibility of one the writer connected themselves.
     github: {
         token: { type: String, default: "" },   // Encrypted classic PAT, `repo` scope
-        owner: { type: String, default: "" },
-        repo: { type: String, default: "" },
-        private: { type: Boolean, default: true }
+        repos: [{
+            _id: false,
+            story: { type: String, required: true },   // folder name under the story root
+            owner: { type: String, default: "" },
+            repo: { type: String, default: "" },
+            private: { type: Boolean, default: true }
+        }]
     }
 }, { timestamps: true });
 
