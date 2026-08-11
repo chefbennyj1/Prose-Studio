@@ -1,6 +1,7 @@
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const https = require('https');
 const git = require('isomorphic-git');
 const http = require('isomorphic-git/http/node');
 
@@ -66,15 +67,32 @@ desktop.ini
 const PUSH_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
- * The HTTP client, with that timeout applied.
+ * A connection per push, never a pooled one.
+ *
+ * THIS IS THE FIX FOR "works after a server restart". Node 19 made
+ * https.globalAgent keepAlive:true, so sockets are pooled and reused — and its
+ * `lifo` scheduling hands back the most recently used one first. When a laptop
+ * sleeps or changes network those sockets die silently: no FIN, no RST, so Node
+ * still believes they are good. The next push is handed a dead socket and waits
+ * for a reply that can never arrive, until the socket timeout. Restarting the
+ * server emptied the pool, which is why that appeared to fix it.
+ *
+ * Backups are minutes or hours apart, so connection reuse buys nothing here and
+ * costs a stalled push after every idle period.
+ */
+const pushAgent = new https.Agent({ keepAlive: false });
+
+/**
+ * The HTTP client, with the timeout and the fresh-connection agent applied.
  *
  * isomorphic-git's push does not forward `fetchOptions` to the client, so the
- * only place to set it is here, by wrapping the client it calls.
+ * only place to set either is here, by wrapping the client it calls.
  */
 const httpClient = {
     request: (options) => http.request({
         ...options,
-        fetchOptions: { ...(options.fetchOptions || {}), timeout: PUSH_TIMEOUT_MS }
+        agent: pushAgent,
+        fetchOptions: { ...(options.fetchOptions || {}), timeout: PUSH_TIMEOUT_MS, agent: pushAgent }
     })
 };
 
@@ -429,6 +447,36 @@ class BackupService {
         }
 
         try {
+            await this.pushWithRetry({ dir, branch, owner, repo, token });
+        } catch (err) {
+            throw new Error(this.explainPushError(err));
+        }
+
+        return {
+            committed,
+            pushed: true,
+            branch,
+            bytes,
+            files: pending.length,
+            url: `https://github.com/${owner}/${repo}`
+        };
+    }
+
+    /**
+     * Push, and try once more if the connection was the problem.
+     *
+     * The dedicated agent above should stop stale pooled sockets reaching a
+     * push at all, but a connection can also die between being opened and being
+     * used — a laptop waking, a wifi handover. One retry on a connection-shaped
+     * failure turns that from "press it again after restarting the server" into
+     * something the writer never sees.
+     *
+     * Only connection failures are retried. A rejected push, a bad token or a
+     * missing repository will fail again in exactly the same way, and retrying
+     * those would just double the wait before the real message arrives.
+     */
+    async pushWithRetry({ dir, branch, owner, repo, token }, attempt = 1) {
+        try {
             const result = await git.push({
                 fs,
                 http: httpClient,
@@ -449,17 +497,17 @@ class BackupService {
             });
 
             if (result.error) throw new Error(result.error);
+            return result;
         } catch (err) {
-            throw new Error(this.explainPushError(err));
-        }
+            const raw = String(err?.message || err);
+            const connectionFailed = /timed out|ETIMEDOUT|ESOCKETTIMEDOUT|ECONNRESET|EPIPE|socket hang up/i.test(raw);
 
-        return {
-            committed,
-            pushed: true,
-            branch,
-            files: pending.length,
-            url: `https://github.com/${owner}/${repo}`
-        };
+            if (connectionFailed && attempt === 1) {
+                console.warn(`[Backup] Push failed on the connection (${raw}). Retrying once with a fresh one.`);
+                return this.pushWithRetry({ dir, branch, owner, repo, token }, 2);
+            }
+            throw err;
+        }
     }
 
     /**
