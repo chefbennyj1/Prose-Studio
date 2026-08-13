@@ -494,6 +494,29 @@ export function createSurface(host, options = {}) {
             }
         },
 
+        /**
+         * Replace one span, leaving the rest of the document alone.
+         *
+         * setValue({ keepHistory }) rewrites the whole document in a single
+         * transaction, which works but is a blunt instrument for a one-line
+         * edit: it makes Ctrl+Z undo the entire chapter rather than the change
+         * that was just applied, and CodeMirror has to remap every position in
+         * the document. This touches only what changed, so undo takes back
+         * exactly the edit and the caret lands on the new text.
+         */
+        replaceRange(from, to, insert) {
+            applying = true;
+            try {
+                view.dispatch({
+                    changes: { from, to, insert },
+                    selection: { anchor: from, head: from + insert.length },
+                    scrollIntoView: true
+                });
+            } finally {
+                applying = false;
+            }
+        },
+
         getSelection() {
             const range = view.state.selection.main;
             return { from: range.from, to: range.to };

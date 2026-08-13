@@ -1793,23 +1793,52 @@ function renderSuggestions(payload) {
 }
 
 /**
- * Apply an edit at its recorded offset. The offset is only trustworthy against
- * the text that was scanned, so re-verify the span still reads as expected
- * before touching the document — the writer may have kept typing.
+ * Apply a line edit.
+ *
+ * FIND THE TEXT AGAIN RATHER THAN TRUSTING THE OFFSET.
+ *
+ * The recorded offset describes the document as it was SCANNED, and the first
+ * edit applied invalidates it for every later one: a replacement that is not
+ * the same length as what it replaced moves everything after it. The previous
+ * version only checked the stored offset, so applying one edit made every
+ * remaining button in the list report "text moved" and refuse — which read as
+ * the feature being broken, because a list of ten edits could only ever apply
+ * the one the writer happened to press first.
+ *
+ * Re-locating is safe HERE specifically because SuggestionService.verify
+ * guarantees `original` occurs exactly once in the chapter — it drops anything
+ * ambiguous before the writer ever sees it. That is not true of mechanics
+ * findings, whose quote may be a single comma, which is why applyMechanics
+ * shifts offsets instead of searching.
+ *
+ * The uniqueness is re-checked at apply time rather than assumed: the writer
+ * may have typed a second copy of that sentence since the scan, and replacing
+ * the wrong one would corrupt prose they never reviewed.
  */
 function applySuggestion(s, btn) {
     const text = surface.getValue();
-    if (text.substr(s.offset, s.length) !== s.original) {
-        btn.textContent = 'text moved — reload and rescan';
+
+    // The recorded offset first - it is right in the common case and costs
+    // nothing to check - then a search for the span itself.
+    const at = text.substr(s.offset, s.length) === s.original
+        ? s.offset
+        : text.indexOf(s.original);
+
+    const refuse = (message) => {
+        btn.textContent = message;
         btn.disabled = true;
-        return;
+    };
+
+    if (at === -1) return refuse('that line has changed — rescan');
+    if (text.indexOf(s.original, at + s.original.length) !== -1) {
+        // Ambiguous now, though it was unique when scanned.
+        return refuse('appears more than once — rescan');
     }
-    // keepHistory: this is an edit to the writer's document, so Ctrl+Z must
-    // take it back off again.
-    surface.setValue(
-        text.slice(0, s.offset) + s.replacement + text.slice(s.offset + s.length),
-        { keepHistory: true }
-    );
+
+    // Only the span, so Ctrl+Z takes back this edit rather than the chapter,
+    // and the caret lands on the new words so the writer sees what happened.
+    surface.replaceRange(at, at + s.original.length, s.replacement);
+
     btn.textContent = 'applied';
     btn.disabled = true;
     updateCounts();
