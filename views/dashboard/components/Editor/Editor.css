@@ -146,6 +146,103 @@
 }
 
 /*
+   THE FORMATTING BAR.
+
+   Aligned with the 6.5in text block rather than the full width, so the controls
+   sit over the page they act on instead of floating off in the margin.
+
+   Quiet by default. This is a writing surface, and a row of dark controls above
+   the words competes with them; these come forward on hover and otherwise stay
+   out of the way.
+*/
+.editor__format {
+    /* Without this the horizontal padding sits outside max-width, so the bar
+       is 64px wider than the page and starts 32px to its left — the controls
+       drift out of the margin instead of sitting over the text they act on. */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    max-width: calc(6.5in + var(--gutter-width, 46px));
+    margin: 0 auto;
+    /*
+       Left padding puts the B GLYPH over the first letter of the prose, which
+       is 46px of gutter plus .cm-content's own 32px, less the 7px the button
+       carries inside its own box. Matching the button's border box to the text
+       instead leaves every letter in the bar sitting 7px right of the column
+       it is meant to label, which reads as a misalignment rather than a bar.
+
+       16px above and 4px below: the prose underneath already has .cm-content's
+       40px, so the bar needs its air on the header side or it sits welded to
+       the rule above it with a 40px hole beneath.
+    */
+    padding: 16px 32px 4px 71px;
+    flex-wrap: wrap;
+}
+
+.editor__format-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 30px;
+    height: 28px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--radius-sm, 5px);
+    background: transparent;
+    color: var(--text-muted, #777);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--dur-fast, 0.15s), color var(--dur-fast, 0.15s);
+}
+
+.editor__format-btn:hover {
+    background: var(--glass-white-md, rgba(0, 0, 0, 0.06));
+    color: var(--color-text, inherit);
+}
+
+.editor__format-btn ion-icon {
+    font-size: 0.95rem;
+}
+
+/* The letters carry the meaning, so they wear it: B is bold, I is italic,
+   S is struck through. Faster to read than any icon set would be. */
+.editor__format-btn[data-format="bold"] span,
+.editor__format-btn[data-format="heading"] span {
+    font-weight: 700;
+}
+
+.editor__format-btn--em span {
+    font-style: italic;
+    font-weight: 600;
+}
+
+.editor__format-btn--strike span {
+    text-decoration: line-through;
+}
+
+/* The em dash is a thin horizontal rule of a glyph, so at the size the letters
+   want it reads as a stray mark rather than a control. Set slightly larger and
+   nudged up off the baseline it sits where the eye expects a dash to be. */
+.editor__format-btn--dash span {
+    font-size: 1.2rem;
+    line-height: 0.6;
+    position: relative;
+    top: -1px;
+}
+
+.editor__format-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 6px;
+    background: var(--glass-border, rgba(0, 0, 0, 0.15));
+}
+
+/*
    The page: the 6.5in text block plus the margin its line numbers sit in.
    6.5in is the text block of a US Letter page with one-inch margins — the
    width the words will actually occupy in print.
@@ -159,6 +256,19 @@
     position: relative;
     flex: 1;
     min-width: 0;
+    /*
+       min-height: 0 stated rather than relied upon. A flex item's automatic
+       minimum size refuses to shrink below its content — which for a chapter is
+       enormous — and the column would then run past the card, taking the
+       docked player with it and off the bottom of an overflow: hidden ancestor.
+
+       It happens to shrink correctly without this, because `overflow-x: auto`
+       below makes the item's overflow non-visible and the automatic minimum
+       becomes 0. That is a real spec rule but an invisible one: anyone removing
+       the horizontal scroll would silently take the player off screen and have
+       no reason to connect the two. Stated, it cannot be lost that way.
+    */
+    min-height: 0;
     max-height: 65vh;
     max-width: calc(6.5in + var(--gutter-width, 46px));
     margin: 0 auto;
@@ -201,14 +311,20 @@
 }
 
 /*
-   The bottom padding clears the floating player, which overlays this element's
-   last 73px or so. At the old 60px the final line of a chapter scrolled to
-   rest underneath the transport and could not be read without scrolling back
-   up. Page rules are drawn from --page-top downward and do not use this, so
-   growing it does not move them.
+   The bottom padding was 110px to clear the FLOATING player, which used to
+   overlay this element's last 73px — at 60px the final line of a chapter came
+   to rest underneath the transport and could not be read without scrolling back
+   up. The player is a docked bar below this box now and overlays nothing, so
+   that reservation is dead space and the writing area gets it back.
+
+   40px matches the top, which is what it should have been all along: this is
+   the page's margin, not a hiding place for a control.
+
+   Page rules are drawn from --page-top downward and do not use this, so
+   changing it does not move them.
 */
 .editor__page .cm-content {
-    padding: 40px 32px 110px;
+    padding: 40px 32px;
     caret-color: currentColor;
 }
 
@@ -364,113 +480,6 @@
     flex-direction: column;
 }
 
-/*
-   THE PLAYER.
-
-   Bottom right of the card, floating over the writing area like any other
-   media player rather than sitting in the layout. Two reasons it earns the
-   overlay: the page is a centred 6.5in column, so the space either side of it
-   is empty and costs nothing to occupy, and a docked strip would push the text
-   block up every time the status line wrapped.
-
-   Anchored to .editor, NOT to anything inside .editor__body. Positioned
-   against .editor__main it inherited that flex item's height, and whenever the
-   flex algorithm ran the column past the card the player went with it and lost
-   its bottom edge to the card's overflow. The card's own box cannot drift like
-   that.
-*/
-.editor__transport {
-    /*
-       Fixed, not absolute. Absolute made the player a descendant of a
-       clipping ancestor, and in a window where the card runs past the bottom
-       of #main-content (which is overflow: hidden) the player went over the
-       edge with it and lost its lower half. Fixed leaves that chain entirely,
-       so nothing between here and the viewport can crop it.
-
-       34px on both, and deliberately not measured. An earlier version set
-       these from the card's geometry on every resize, to keep the player
-       aligned with the writing column; against the viewport a flat inset is
-       simply where a floating player belongs, and it sits correctly without
-       any of that machinery.
-    */
-    position: fixed;
-    right: 34px;
-    bottom: 34px;
-    z-index: 5;
-    width: max-content;
-    max-width: min(420px, calc(100% - 36px));
-    padding: 8px 12px;
-    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
-    border-radius: var(--radius-xs, 10px);
-    /*
-       Nearly opaque, and built on --color-bg so it follows the theme. The
-       glass tokens are 4-20% white, which is right for a panel sitting on the
-       page background and quite wrong for one floating over the manuscript:
-       at that weight the prose read straight through the player and neither
-       the words nor the controls were legible.
-    */
-    background: var(--color-bg, #fff);
-    background: color-mix(in srgb, var(--color-bg, #fff) 92%, transparent);
-    backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-}
-
-.editor__transport-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* Narrator.css gives Listen flex: 1 for the old narrow panel. In a player
-   sized to its contents that would stretch it over everything else. */
-.editor__transport .narrator__transport #narratorPlayBtn {
-    flex: 0 0 auto;
-    min-width: 9ch;
-}
-
-/* Separates playback from rendering — one is listening, the other is work. */
-.editor__transport-spacer {
-    flex: 0 0 1px;
-    align-self: stretch;
-    margin: 2px 6px;
-    background: var(--glass-border, rgba(0, 0, 0, 0.12));
-}
-
-/*
-   The status line wraps and is shown in full. It had a max-height, and that
-   was simply wrong: this line carries what the narrator is doing and what a
-   render is about to cost, and a message clipped mid-sentence is worse than no
-   message. The player is sized to its contents, so letting this wrap grows the
-   box by a line rather than hiding the words.
-*/
-.editor__transport .narrator__status {
-    margin-top: 6px;
-    font-size: 0.75rem;
-}
-
-.editor__transport .narrator__status:empty {
-    display: none;
-}
-
-/*
-   The exception is the paragraph being spoken, which is a whole paragraph of
-   the manuscript and would grow the player without limit. Two lines is enough
-   to recognise where you are, and line-clamp fades the second line rather than
-   cutting a word in half.
-*/
-.editor__transport .narrator__now {
-    margin: 2px 0 0;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-}
-
-.editor__transport .narrator__progress {
-    margin-top: 6px;
-}
 
 /*
    The cap is what makes overflow-y mean anything. Without a height to overflow
@@ -568,6 +577,226 @@
 .editor__replacement {
     padding-left: 10px;
     border-left: 3px solid var(--accent, #00ccff);
+}
+
+/* A quiet icon button for the editor's bar. Not a .glass-btn: Save and Back up
+   are actions with consequences and wear a button; this only opens a panel. */
+.editor__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    /* Width follows the label. It carries the word "Search" in the editor bar,
+       where the feature still has to be found; min-width keeps it square when
+       it is icon-only. */
+    min-width: 30px;
+    height: 30px;
+    padding: 0 9px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    border: 0;
+    border-radius: var(--radius-sm, 5px);
+    background: transparent;
+    color: var(--text-muted, #777);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: background var(--dur-fast, 0.15s), color var(--dur-fast, 0.15s);
+}
+
+.editor__icon-btn:hover {
+    background: var(--glass-white-md, rgba(0, 0, 0, 0.06));
+    color: var(--color-text, inherit);
+}
+
+/*
+   THE SEARCH PANEL.
+
+   The form is sticky at the top of the drawer: results can run to hundreds of
+   rows, and having to scroll back up to change "whole word" would make the
+   toggles feel like they belong to a different screen.
+*/
+.editor__search {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    background: var(--color-bg, #fff);
+    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+}
+
+/* The box grows, the button does not. A "Search" button that changes width as
+   the drawer resizes reads as part of the layout rather than a control. */
+.editor__search-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.editor__search-go {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.editor__search-input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.15));
+    border-radius: var(--radius-sm, 5px);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.editor__search-input:focus {
+    outline: none;
+    border-color: var(--accent, #00ccff);
+}
+
+.editor__search-opts {
+    display: flex;
+    gap: 14px;
+    margin-top: 6px;
+    color: var(--text-muted, #777);
+    font-size: 0.85rem;
+}
+
+.editor__search-opts label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.editor__search-group h5 {
+    margin: 12px 0 4px;
+    font-size: 0.9rem;
+}
+
+.editor__search-hits {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.editor__search-hit {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    padding: 5px 6px;
+    border: 0;
+    border-radius: var(--radius-sm, 5px);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.88rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.editor__search-hit:hover {
+    background: var(--glass-white-md, rgba(0, 0, 0, 0.06));
+}
+
+/* Fixed width so the snippets line up into a column the eye can run down,
+   rather than starting at a different x on every row. */
+.editor__search-line {
+    flex: 0 0 3ch;
+    color: var(--text-muted, #999);
+    text-align: right;
+}
+
+.editor__search-text {
+    flex: 1;
+    min-width: 0;
+}
+
+/*
+   Search hits in the results list wear the ACCENT, not the drawer's amber.
+
+   Two reasons, and the specificity here is deliberate. `.editor__output mark`
+   further down this file paints findings amber and has identical specificity,
+   so being later in the file it would win - hence the extra class.
+
+   Amber in that drawer means "this is the fault we are pointing at", which a
+   search term is not; and the same word is simultaneously marked out in the
+   manuscript by .cm-proseMatch. Panel and page showing one hit in two different
+   colours reads as two features that happen to have run at once.
+*/
+.editor__output .editor__search-text mark {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent, #00ccff) 30%, transparent);
+    color: inherit;
+}
+
+/*
+   SEARCH HITS IN THE MANUSCRIPT.
+
+   Deliberately quieter than a code editor's find-highlight. VS Code paints a
+   solid block because code is SCANNED; a manuscript page is READ, and forty
+   solid blocks down a page of prose measurably slow that down — which defeats
+   the surface this is drawn on.
+
+   A wash of the accent behind the word plus a weighted underline is enough to
+   catch a moving eye without breaking the line. The underline carries it if the
+   background is too subtle on a given theme, and it survives when a hit lands
+   on already-styled Markdown.
+*/
+.cm-proseMatch {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent, #00ccff) 22%, transparent);
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #00ccff) 55%, transparent);
+}
+
+/*
+   OVERUSED WORDS.
+
+   The samples are nested inside a finding that already has a bottom rule, so
+   they carry none of their own - a second set of dividers inside the first
+   reads as a broken table rather than a list within a list.
+*/
+.editor__samples {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+}
+
+.editor__samples li {
+    padding: 4px 0;
+    border-bottom: 0;
+}
+
+/*
+   The verdict chip is Gemini's opinion, and it is the ONLY thing in this panel
+   that is. It sits beside a count that was measured, so it is deliberately
+   quiet: a loud red "tic" badge would read as the authoritative half of the
+   row, which is exactly backwards.
+*/
+.editor__verdict {
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--glass-white-md, rgba(0, 0, 0, 0.06));
+    color: var(--text-muted, #777);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.editor__verdict--tic {
+    background: color-mix(in srgb, var(--color-warning, #c47f00) 16%, transparent);
+    color: var(--color-warning, #a06a00);
+}
+
+.editor__summary {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--accent, #00ccff);
+    background: var(--glass-white-sm, rgba(0, 0, 0, 0.03));
 }
 
 .editor__sugg {

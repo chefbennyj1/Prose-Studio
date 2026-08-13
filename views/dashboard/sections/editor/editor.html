@@ -10,6 +10,25 @@
             </div>
 
             <div class="flex-row-center gap-15">
+                <!--
+                    Search the whole story. Ctrl+Shift+F does the same thing,
+                    but a shortcut nobody is told about is a feature nobody
+                    has: every other action in this app has a visible way in,
+                    and this one shipped with none until it was noticed missing.
+
+                    Here rather than in the studio rail because the rail's
+                    buttons all switch SECTION, and this switches nothing - it
+                    opens a panel over the chapter you are already reading.
+                -->
+                <button type="button" id="editorSearchBtn" class="editor__icon-btn"
+                    title="Search this story (Ctrl+Shift+F)" aria-label="Search this story">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <!-- The word stays HERE, where the feature has to be
+                         discovered. Inside the panel it can go: by then the
+                         writer has a search box in front of them and the icon
+                         beside it is unambiguous. -->
+                    <span>Search</span>
+                </button>
                 <span id="editorPageCount" class="editor__count" title="Standard manuscript pages, 250 words each">0 pages</span>
                 <span id="editorWordCount" class="editor__count">0 words</span>
                 <span id="editorSaveState" class="editor__state">saved</span>
@@ -48,6 +67,89 @@
         <div class="editor__body">
             <div class="editor__main">
                 <!--
+                    THE FORMATTING BAR.
+
+                    Every button here is SEMANTIC — it says what a piece of text
+                    is, not how it looks. There is deliberately no font, size,
+                    colour or alignment, and that is not an omission:
+
+                    - The manuscript is Markdown on disk. That is what Git backs
+                      up and diffs, what MechanicsService anchors findings into
+                      by character offset, and what the narrator reads. Storing
+                      a font per paragraph costs all three.
+                    - Standard manuscript format is one font, double-spaced,
+                      left-aligned - the same assumption the 250-words-a-page
+                      count rests on. A font picker invites the one thing that
+                      marks a submission as amateur before it is read.
+
+                    How the page LOOKS while writing is a separate question and
+                    belongs in an appearance setting, where it changes the view
+                    and never the file.
+
+                    The bar exists because nobody knows Markdown. A novelist who
+                    wants a word in italics will not guess `*like this*`, so
+                    without this the feature may as well not be there.
+                -->
+                <div class="editor__format" role="toolbar" aria-label="Formatting">
+                    <button type="button" class="editor__format-btn" data-format="bold"
+                        title="Bold (Ctrl+B)" aria-label="Bold">
+                        <span aria-hidden="true">B</span>
+                    </button>
+                    <button type="button" class="editor__format-btn editor__format-btn--em"
+                        data-format="italic" title="Italic (Ctrl+I)" aria-label="Italic">
+                        <span aria-hidden="true">I</span>
+                    </button>
+                    <button type="button" class="editor__format-btn editor__format-btn--strike"
+                        data-format="strike" title="Strikethrough" aria-label="Strikethrough">
+                        <span aria-hidden="true">S</span>
+                    </button>
+
+                    <div class="editor__format-divider" role="separator"></div>
+
+                    <button type="button" class="editor__format-btn" data-format="heading"
+                        title="Chapter heading" aria-label="Heading">
+                        <span aria-hidden="true">H</span>
+                    </button>
+                    <button type="button" class="editor__format-btn" data-format="quote"
+                        title="Block quote — letters, epigraphs, documents" aria-label="Block quote">
+                        <ion-icon name="chatbox-ellipses-outline"></ion-icon>
+                    </button>
+                    <!-- The most useful button here. Every novel needs scene
+                         breaks, the convention is not obvious, and left to
+                         invent one a writer reaches for a row of hyphens that
+                         means nothing to a typesetter or a parser. -->
+                    <button type="button" class="editor__format-btn" data-format="scene"
+                        title="Scene break" aria-label="Scene break">
+                        <ion-icon name="ellipsis-horizontal"></ion-icon>
+                    </button>
+
+                    <div class="editor__format-divider" role="separator"></div>
+
+                    <!--
+                        The em dash, and the one button here that exists purely
+                        because of the keyboard.
+
+                        Everything else in this bar saves the writer from having
+                        to know Markdown. This one saves them from hardware: a
+                        laptop has no numeric keypad, so the Alt+0151 that
+                        Windows documents for this character cannot be pressed
+                        at all. The em dash is the interruption mark - the
+                        punctuation dialogue leans on hardest - so the
+                        alternative is two hyphens and a search-and-replace at
+                        the end of the book.
+
+                        The glyph IS the icon. No icon set draws this better
+                        than the character does, and it shows the exact mark
+                        that will land in the manuscript.
+                    -->
+                    <button type="button" class="editor__format-btn editor__format-btn--dash"
+                        data-format="emdash" title="Em dash &mdash; (no keypad needed)"
+                        aria-label="Insert em dash">
+                        <span aria-hidden="true">&mdash;</span>
+                    </button>
+                </div>
+
+                <!--
                     CodeMirror is created here by Surface.js, which also owns the
                     line numbers and the attributes that used to sit on the old
                     textarea: spellcheck stays on (the browser's checker is local,
@@ -58,6 +160,7 @@
                     export time.
                 -->
                 <div id="editorSurface" class="editor__page"></div>
+
             </div>
 
             <!--
@@ -81,82 +184,6 @@
                 </div>
                 <div id="editorOutput" class="editor__output"></div>
             </aside>
-
-            <!--
-            THE PLAYER.
-
-            A direct child of .editor__body and positioned against it, NOT
-            against .editor__main. Anchored to .editor__main it inherited that
-            nested flex column's height, and whenever the flex algorithm ran
-            the column past the card the player went with it and had its
-            bottom clipped away. .editor__body is exactly the content area, so
-            it cannot drift like that, and clearing the drawer is the drawer's
-            own width rather than that plus whatever padding the card carries.
-
-            It is absolutely positioned, so it takes no part in the flex row it
-            sits in and does not narrow the writing column.
-
-            Every setting the narrator has - voice, speaker, pace, music,
-            render-on-save - is in the rail's Narrator menu, because settings
-            are chosen once and left alone. These are not settings. Pausing is
-            something you do while listening, and a control that lives inside a
-            dropdown which closes when you touch it costs two clicks every
-            single time.
-
-            Render is deliberately explicit rather than automatic. It is the
-            writer saying "this draft is worth hearing", and the status line
-            says what that will cost before they commit - paragraphs already
-            done are reused. Re-render distrusts the files and rebuilds the
-            whole chapter, for audio that is wrong for a reason the text hash
-            cannot see.
-        -->
-        <div class="editor__transport">
-            <!--
-                Transport icons, not words. play-skip-* are the track-skip
-                glyphs rather than the seek ones, which is what these do: they
-                move a whole paragraph, they do not scrub.
-
-                The play button keeps its label as well as its icon. It is the
-                primary action and it is the one control here whose meaning
-                changes as you use it, so it says which state it is about to
-                put you in.
-
-                Keeps narrator__transport so the button, icon and
-                speaking-state styling in Narrator.css still applies; only the
-                layout differs now that this is a floating player rather than a
-                narrow column.
-            -->
-            <div class="editor__transport-row narrator__transport">
-                <button type="button" id="narratorPrevBtn" class="glass glass-btn glass-btn--icon"
-                    title="Previous paragraph" aria-label="Previous paragraph" disabled>
-                    <ion-icon name="play-skip-back"></ion-icon>
-                </button>
-                <button type="button" id="narratorPlayBtn" class="glass glass-btn glass-btn--primary"
-                    disabled>
-                    <ion-icon name="play" id="narratorPlayIcon"></ion-icon>
-                    <span id="narratorPlayLabel">Listen</span>
-                </button>
-                <button type="button" id="narratorNextBtn" class="glass glass-btn glass-btn--icon"
-                    title="Next paragraph" aria-label="Next paragraph" disabled>
-                    <ion-icon name="play-skip-forward"></ion-icon>
-                </button>
-
-                <div class="editor__transport-spacer"></div>
-
-                <button type="button" id="narratorRenderBtn"
-                    class="glass glass-btn glass-btn--sm">Render</button>
-                <button type="button" id="narratorRerenderBtn"
-                    class="glass glass-btn glass-btn--icon"
-                    title="Rebuild every paragraph" aria-label="Re-render whole chapter">
-                    <ion-icon name="refresh"></ion-icon>
-                </button>
-            </div>
-
-            <div id="narratorStatus" class="narrator__status"></div>
-            <div class="narrator__progress hidden" id="narratorProgress">
-                <div class="narrator__progress-bar" id="narratorProgressBar"></div>
-            </div>
-            </div>
         </div>
 
     </div>

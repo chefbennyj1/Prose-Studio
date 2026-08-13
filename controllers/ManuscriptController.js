@@ -1,4 +1,5 @@
 const ManuscriptService = require('../services/manuscript/ManuscriptService');
+const SearchService = require('../services/manuscript/SearchService');
 
 /**
  * A missing story root is a configuration gap, not a bad request: answer 409
@@ -62,6 +63,32 @@ exports.readChapter = async (req, res) => {
         res.json({ ok: true, pageWords: ManuscriptService.PAGE_WORDS, ...(await ManuscriptService.read(story, chapter)) });
     } catch (err) {
         fail(res, err, 'readChapter');
+    }
+};
+
+/**
+ * Search every chapter of a story. Read only - see SearchService on why there
+ * is no replace beside it.
+ *
+ * A blank query is an empty result rather than a 400: the panel calls this as
+ * the writer types and clearing the box should empty the list, not raise an
+ * error under their hands.
+ */
+exports.searchStory = async (req, res) => {
+    const { story, query, caseSensitive, wholeWord } = req.body || {};
+    if (typeof story !== 'string' || !story.trim()) {
+        return res.status(400).json({ ok: false, message: "Provide a 'story' to search." });
+    }
+
+    try {
+        const result = await SearchService.search(story, query, {
+            caseSensitive: !!caseSensitive,
+            wholeWord: !!wholeWord
+        });
+        console.log(`[Manuscript] Search "${result.query}" in "${story}": ${result.total} hit(s) across ${result.chapters.length} of ${result.searched} chapter(s).`);
+        res.json({ ok: true, ...result });
+    } catch (err) {
+        fail(res, err, 'searchStory');
     }
 };
 

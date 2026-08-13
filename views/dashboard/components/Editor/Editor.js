@@ -135,10 +135,33 @@ export async function initEditor(container) {
         document.addEventListener('runReview', (event) => {
             const detail = event.detail || {};
             if (detail.task === 'mechanics') runMechanics(detail.mechanics);
+            else if (detail.task === 'overuse') runOveruse(detail.overuse);
             else if (detail.task === 'spelling') runSpelling();
             else if (detail.task === 'edits') runScan();
             else if (detail.task === 'critique') runCritique(detail.lens);
         });
+        /*
+         * Ctrl+Shift+F, on `document` and inside the same guard.
+         *
+         * Bound here rather than in the CodeMirror keymap because the writer is
+         * often not in the editor when they want it — the caret may be in the
+         * search box itself, refining a query. A keymap entry only fires when
+         * the surface has focus, which is exactly when you least need it.
+         */
+        document.addEventListener('keydown', (event) => {
+            if (!document.getElementById('editorOutput')) return;   // not on this section
+
+            if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
+                event.preventDefault();
+                openSearch();
+                return;
+            }
+
+            // Escape clears the marks without shutting the drawer, so the
+            // results stay readable while the page goes quiet again.
+            if (event.key === 'Escape' && surface) surface.clearHighlight();
+        });
+
         reviewWired = true;
     }
     document.dispatchEvent(new CustomEvent('editorReady'));
@@ -147,6 +170,8 @@ export async function initEditor(container) {
 
     els.saveBtn.addEventListener('click', () => save());
     els.panelClose?.addEventListener('click', () => closeDrawer());
+    document.getElementById('editorSearchBtn')?.addEventListener('click', () => openSearch());
+    wireFormatBar();
 
     // Chosen from the Story or Chapter menu in the studio rail. A story with
     // no chapter named means "open this story at its first chapter", which is
@@ -640,8 +665,29 @@ function drawPageRules() {
  * narrating the paragraph they are still changing. Pressing it re-renders only
  * the paragraphs whose text has actually changed.
  */
+/*
+ * Bound once for the life of the page, not once per visit.
+ *
+ * The transport moved into the studio rail on 2026-08-13, and the rail is built
+ * once and never torn down — unlike the editor section, which is re-injected on
+ * every navigation. While these buttons lived in editor.html each visit got
+ * fresh elements and therefore fresh listeners; now the elements persist, so
+ * binding again on the second visit would leave the first visit's listener
+ * attached and Next would skip TWO paragraphs, then three.
+ *
+ * Exactly the bug `reviewWired` exists to prevent, one floor down.
+ */
+let narratorWired = false;
+
 function setUpNarrator() {
     if (!els.playBtn) return;
+    if (narratorWired) {
+        // Still refresh what depends on the open chapter; only the listeners
+        // are once-only.
+        showAudioState();
+        return;
+    }
+    narratorWired = true;
 
     initPlayer({
         onState: (state) => {
@@ -919,6 +965,50 @@ function setNarratorStatus(line, paragraph, working = false) {
         : `${escapeHtml(line)}${dots}`;
 }
 
+/* ---------- formatting ---------- */
+
+/**
+ * The formatting bar. Each button maps to a Markdown edit on the surface.
+ *
+ * One listener on the bar rather than one per button, and mousedown rather
+ * than click: a click steals focus from the editor first, which collapses the
+ * selection the writer just made, so Bold would arrive with nothing to wrap.
+ * preventDefault on mousedown keeps the caret and the selection exactly where
+ * they were.
+ */
+const FORMATS = {
+    bold: (s) => s.toggleWrap('**'),
+    italic: (s) => s.toggleWrap('*'),
+    strike: (s) => s.toggleWrap('~~'),
+    heading: (s) => s.toggleLinePrefix('## '),
+    quote: (s) => s.toggleLinePrefix('> '),
+    // Three asterisks is the convention a typesetter and a Markdown parser
+    // both understand, which a row of hyphens or four blank lines is not.
+    scene: (s) => s.insertBlock('***'),
+    // U+2014. On a laptop there is no numeric keypad, so the Alt+0151 Windows
+    // documents cannot be pressed at all - and this is the punctuation mark
+    // fiction uses most after the comma.
+    emdash: (s) => s.insertText('—')
+};
+
+function wireFormatBar() {
+    const bar = document.querySelector('.editor__format');
+    if (!bar) return;
+
+    bar.addEventListener('mousedown', (event) => {
+        const btn = event.target.closest('[data-format]');
+        if (!btn) return;
+
+        event.preventDefault();     // keep the selection; see above
+        const apply = FORMATS[btn.dataset.format];
+        if (!apply) return;
+
+        apply(surface);
+        markDirty();
+        updateCounts();
+    });
+}
+
 /* ---------- checking ---------- */
 
 /**
@@ -937,6 +1027,10 @@ function openDrawer(title) {
 
 function closeDrawer() {
     if (els.panel) els.panel.hidden = true;
+    // Shutting the drawer means the writer is reading again, and a page still
+    // wearing forty marks is harder to read than a clean one. The search itself
+    // is remembered, so reopening puts the results and the marks straight back.
+    surface?.clearHighlight();
 }
 
 /** Tell the rail what was found, so its badge can carry the number. */
@@ -977,6 +1071,296 @@ async function runMechanics(options) {
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
         renderMechanics(data);
+    } catch (err) {
+        failed(err);
+    }
+}
+
+/* ---------- manuscript-wide search ---------- */
+
+/**
+ * Search across every chapter of the story.
+ *
+ * Ctrl+F is CodeMirror's, and stays: it searches the chapter you are in, which
+ * is the common case and instant because the text is already in memory.
+ * Ctrl+Shift+F is this - the whole book - matching the convention every editor
+ * with more than one file uses.
+ *
+ * It reads FILES, so what is in the buffer has to be on disk first or the
+ * chapter you are looking at is the one set of results that is wrong.
+ */
+const search = {
+    query: '',
+    caseSensitive: false,
+    // Defaulted ON. Searching a character name is the commonest reason a
+    // novelist searches at all, and "Rin" matching during/bring/wringing makes
+    // the results useless for exactly that.
+    wholeWord: true,
+    results: null,
+    running: false
+};
+
+function openSearch() {
+    openDrawer('Search');
+    drawSearch();
+    const box = els.output.querySelector('#editorSearchInput');
+    if (box) {
+        box.focus();
+        box.select();
+    }
+}
+
+/**
+ * The form, and the results under it.
+ *
+ * The form is redrawn with the results rather than kept separate, so there is
+ * one render path and no way for the two to disagree about what was searched.
+ * Focus and caret position are restored afterwards, because this redraws on
+ * every result and the writer is often still typing.
+ */
+function drawSearch(message = '') {
+    const results = search.results;
+    const box = els.output.querySelector('#editorSearchInput');
+    const hadFocus = document.activeElement === box;
+    const caret = box ? box.selectionStart : null;
+
+    /*
+     * The button is a real submit, so Enter and the click are the same code
+     * path rather than two that can drift.
+     *
+     * It exists because Enter alone is an invisible affordance - the same
+     * mistake as shipping this whole panel on a shortcut nobody was told
+     * about. A box with a button beside it is what every search on this
+     * operating system looks like, and looking familiar is most of being
+     * usable.
+     */
+    const form = `
+        <form class="editor__search" id="editorSearchForm">
+            <div class="editor__search-row">
+                <input type="search" id="editorSearchInput" class="editor__search-input"
+                    placeholder="Search this story" autocomplete="off" spellcheck="false"
+                    value="${escapeHtml(search.query)}">
+                <button type="submit" id="editorSearchGo" title="Search"
+                    aria-label="Search"
+                    class="glass glass-btn glass-btn--primary editor__search-go">
+                    <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+                </button>
+            </div>
+            <div class="editor__search-opts">
+                <label><input type="checkbox" id="editorSearchWhole"
+                    ${search.wholeWord ? 'checked' : ''}> Whole word</label>
+                <label><input type="checkbox" id="editorSearchCase"
+                    ${search.caseSensitive ? 'checked' : ''}> Match case</label>
+            </div>
+        </form>`;
+
+    let body = '';
+    if (message) {
+        body = `<p class="text-muted">${escapeHtml(message)}</p>`;
+    } else if (results) {
+        body = results.total
+            ? renderSearchResults(results)
+            : `<p class="text-muted">No matches for “${escapeHtml(results.query)}” in ${results.searched} chapter(s).</p>`;
+    }
+
+    els.output.innerHTML = form + body;
+    wireSearch();
+
+    const next = els.output.querySelector('#editorSearchInput');
+    if (next && hadFocus) {
+        next.focus();
+        if (caret !== null) next.setSelectionRange(caret, caret);
+    }
+}
+
+function renderSearchResults(results) {
+    const head = `${results.total} match${results.total === 1 ? '' : 'es'} in
+        ${results.chapters.length} of ${results.searched} chapter(s)`;
+
+    const groups = results.chapters.map((group, gi) => {
+        const hits = group.hits.map((hit, hi) => `
+            <li>
+                <button class="editor__search-hit" data-group="${gi}" data-hit="${hi}">
+                    <span class="editor__search-line">${hit.line}</span>
+                    <span class="editor__search-text">${escapeHtml(hit.before)}<mark>${escapeHtml(hit.match)}</mark>${escapeHtml(hit.after)}</span>
+                </button>
+            </li>`).join('');
+
+        // The per-chapter count answers "which chapter is this in" at a glance,
+        // which is most of why a novelist searches their own book.
+        return `
+            <div class="editor__search-group">
+                <h5>${escapeHtml(group.chapter)} <span class="text-muted">${group.count}</span></h5>
+                <ul class="editor__search-hits">${hits}</ul>
+            </div>`;
+    }).join('');
+
+    const capped = results.truncated
+        ? `<p class="text-muted">Some chapters have more matches than are listed.</p>`
+        : '';
+
+    return `<p class="text-muted">${head}</p>${capped}${groups}`;
+}
+
+function wireSearch() {
+    const form = els.output.querySelector('#editorSearchForm');
+    if (!form) return;
+
+    const input = form.querySelector('#editorSearchInput');
+    const whole = form.querySelector('#editorSearchWhole');
+    const matchCase = form.querySelector('#editorSearchCase');
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        search.query = input.value;
+        runSearch();
+    });
+
+    // Enter searches; the toggles re-search immediately, because changing one
+    // with results on screen and nothing happening reads as a broken control.
+    [whole, matchCase].forEach((toggle) => {
+        toggle.addEventListener('change', () => {
+            search.wholeWord = whole.checked;
+            search.caseSensitive = matchCase.checked;
+            search.query = input.value;
+            if (search.query.trim()) runSearch();
+        });
+    });
+
+    els.output.querySelectorAll('.editor__search-hit').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const group = search.results.chapters[Number(btn.dataset.group)];
+            jumpToHit(group.chapter, group.hits[Number(btn.dataset.hit)]);
+        });
+    });
+}
+
+/**
+ * The button's busy state, set directly rather than by redrawing.
+ *
+ * drawSearch rebuilds the whole form, which would take the caret out of the box
+ * mid-keystroke; every path out of runSearch redraws anyway, so the button only
+ * ever needs putting INTO the busy state, never out of it.
+ */
+function setSearchBusy(busy) {
+    const btn = els.output.querySelector('#editorSearchGo');
+    if (!btn) return;
+
+    btn.disabled = busy;
+    // Icon-only, so the busy state has to be carried by the icon rather than by
+    // a label. aria-label moves with it: "Search" on a button that is mid-search
+    // and cannot be pressed is the wrong thing to read out.
+    btn.querySelector('ion-icon')?.setAttribute('name', busy ? 'hourglass-outline' : 'search-outline');
+    btn.setAttribute('aria-label', busy ? 'Searching' : 'Search');
+    btn.setAttribute('aria-busy', String(busy));
+}
+
+async function runSearch() {
+    if (!doc.story) {
+        drawSearch('Open a story first.');
+        return;
+    }
+    if (!search.query.trim()) {
+        search.results = null;
+        drawSearch();
+        return;
+    }
+    if (search.running) return;
+
+    // Reads files, so the open chapter has to be on disk or its own results are
+    // the one set that is stale.
+    if (dirty) await save();
+
+    search.running = true;
+    // A whole-manuscript search reads every chapter off disk, so on a long
+    // novel there is a real pause. Say so on the button the writer just
+    // pressed, rather than leaving it looking like the click missed.
+    setSearchBusy(true);
+    try {
+        const res = await fetch('/api/manuscript/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                story: doc.story,
+                query: search.query,
+                caseSensitive: search.caseSensitive,
+                wholeWord: search.wholeWord
+            })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+
+        search.results = data;
+        drawSearch();
+        announce(data.total, 0);
+
+        // Mark the hits in whatever chapter is already on screen.
+        surface.setHighlight(search.query, {
+            caseSensitive: search.caseSensitive,
+            wholeWord: search.wholeWord
+        });
+    } catch (err) {
+        search.results = null;
+        drawSearch(err.message);
+    } finally {
+        search.running = false;
+    }
+}
+
+/**
+ * Open the chapter a hit is in and put the caret on it.
+ *
+ * The highlight is re-applied AFTER the chapter loads, not before: loading a
+ * chapter rebuilds the editor state from scratch to drop the old undo history,
+ * and that takes the highlight field's value with it. Setting it first would
+ * look like it worked and mark nothing.
+ */
+async function jumpToHit(chapter, hit) {
+    if (chapter !== doc.chapter) await openChapter(chapter);
+
+    // openChapter refuses when the buffer is dirty and the writer keeps their
+    // changes. An offset is valid in any chapter, so without this the jump
+    // would silently land on the wrong sentence in the chapter still open.
+    if (chapter !== doc.chapter) return;
+
+    surface.setHighlight(search.query, {
+        caseSensitive: search.caseSensitive,
+        wholeWord: search.wholeWord
+    });
+    surface.setSelection(hit.offset, hit.offset + hit.length);
+    surface.focus();
+}
+
+/**
+ * Overused words, across the whole story.
+ *
+ * The only check that does not read the surface. It scans the FILES, which
+ * means it reports on what is saved rather than what is on screen - so it is
+ * saved first when there is anything pending, otherwise a writer who has just
+ * cut forty "just"s would be shown the forty they have already fixed.
+ */
+async function runOveruse(options = {}) {
+    if (!doc.story) {
+        working('Overused words', 'Open a story first.');
+        return;
+    }
+
+    if (dirty) await save();
+
+    working('Overused words', options.judge ? 'Counting, then asking Gemini...' : 'Counting across the story...');
+    try {
+        const res = await fetch('/api/proofing/overuse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                story: doc.story,
+                options: { disabled: options.disabled || [] },
+                judge: !!options.judge
+            })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+        renderOveruse(data);
     } catch (err) {
         failed(err);
     }
@@ -1138,6 +1522,107 @@ function renderMechanics(payload, { append = false } = {}) {
         const finding = sorted[Number(btn.dataset.mech)];
         btn.addEventListener('click', () => {
             surface.setSelection(finding.offset, finding.offset + finding.length);
+            surface.focus();
+        });
+    });
+}
+
+/**
+ * The overused-word report.
+ *
+ * Ordered by RATE, not by raw count. "the" would win any count, and in a
+ * 120,000-word novel so would half this list; per 10,000 words is the number
+ * that answers "is this a lot", which is the only question the writer is
+ * actually asking.
+ *
+ * Every row shows the narration/dialogue split rather than one total. A
+ * character who talks in absolutes is characterised, not sloppy, so a writer
+ * with a lot of dialogue would otherwise be told they have a problem they do
+ * not have.
+ */
+function renderOveruse(payload) {
+    const { words, stats, counts, judgement } = payload;
+
+    openDrawer('Overused words');
+    announce(counts.total, 0);
+
+    if (!words.length) {
+        els.output.innerHTML = `<h4>Overused words</h4>
+            <p class="text-muted">Nothing counted across ${stats.words.toLocaleString()} words.</p>`;
+        return;
+    }
+
+    const verdicts = new Map((judgement?.verdicts || []).map(v => [v.word, v]));
+
+    const rows = [...words]
+        .sort((a, b) => b.per10k - a.per10k || b.total - a.total)
+        .map((row, index) => {
+            const verdict = verdicts.get(row.word);
+            const tag = verdict
+                ? `<span class="editor__verdict editor__verdict--${escapeHtml(verdict.verdict)}">${escapeHtml(verdict.verdict)}</span>`
+                : '';
+
+            // The split is the honest number. Narration first, because that is
+            // the half the writer controls as a stylist rather than as a
+            // ventriloquist.
+            const split = row.dialogue
+                ? `${row.narration} narration &middot; ${row.dialogue} dialogue`
+                : `${row.narration} in narration`;
+
+            const samples = (row.occurrences || []).slice(0, 3).map((occ, i) => `
+                <li>
+                    <blockquote>${escapeHtml(occ.context)}</blockquote>
+                    <button class="editor__jump" data-overuse="${index}" data-occ="${i}"
+                        title="${escapeHtml(occ.chapter)}">${escapeHtml(occ.chapter)}, line ${occ.line}</button>
+                </li>`).join('');
+
+            return `<li class="editor__finding">
+                <div class="editor__finding-head">
+                    <strong>${escapeHtml(row.word)}</strong>
+                    <span class="text-muted">${row.total} &middot; ${row.per10k}/10k</span>
+                    ${tag}
+                </div>
+                <p class="text-muted">${split} &middot; ${row.chapters.length} chapter(s)</p>
+                ${verdict ? `<p>${escapeHtml(verdict.comment)}</p>` : `<p class="text-muted">${escapeHtml(row.note)}</p>`}
+                <ul class="editor__samples">${samples}</ul>
+            </li>`;
+        }).join('');
+
+    const head = `${counts.total.toLocaleString()} use(s) of ${stats.distinct} word(s) &middot;
+        ${counts.per10k}/10k &middot; ${stats.words.toLocaleString()} words, ${stats.chapters} chapter(s)`;
+
+    // A failed judgement is a note, never a replacement for the numbers: the
+    // counts are the part the writer can act on and they are already correct.
+    const opinion = judgement?.error
+        ? `<p class="text-danger">Counts are exact. Gemini could not be reached: ${escapeHtml(judgement.error)}</p>`
+        : (judgement?.summary ? `<p class="editor__summary">${escapeHtml(judgement.summary)}</p>` : '');
+
+    els.output.innerHTML = `<h4>Overused words</h4><p class="text-muted">${head}</p>
+        ${opinion}<ul class="editor__list">${rows}</ul>`;
+
+    /*
+     * Jumping is cross-chapter, which no other check in this panel is.
+     *
+     * The offsets belong to the file the hit was found in, so applying one to
+     * whatever happens to be open would land in the wrong place in the wrong
+     * chapter - silently, since an offset is always valid somewhere. The
+     * chapter is opened first and the selection made only once it is loaded.
+     */
+    const sorted = [...words].sort((a, b) => b.per10k - a.per10k || b.total - a.total);
+    els.output.querySelectorAll('.editor__jump[data-overuse]').forEach((btn) => {
+        const row = sorted[Number(btn.dataset.overuse)];
+        const occ = row.occurrences[Number(btn.dataset.occ)];
+        btn.addEventListener('click', async () => {
+            if (occ.chapter !== doc.chapter) await openChapter(occ.chapter);
+
+            // openChapter refuses when the buffer is dirty and the writer keeps
+            // their changes, and it returns either way. Without this the
+            // selection would then be applied to the chapter still on screen -
+            // at an offset that is valid there too, so it would look like a
+            // working jump to the wrong sentence.
+            if (occ.chapter !== doc.chapter) return;
+
+            surface.setSelection(occ.offset, occ.offset + occ.quote.length);
             surface.focus();
         });
     });

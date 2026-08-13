@@ -194,6 +194,8 @@ router.post('/manuscript/story',    isAuth, ManuscriptController.createStory);
 router.get('/manuscript/chapters',  isAuth, ManuscriptController.listChapters);
 router.post('/manuscript/chapter',  isAuth, ManuscriptController.createChapter);
 router.get('/manuscript/read',      isAuth, ManuscriptController.readChapter);
+// Read only. There is deliberately no replace beside it - see SearchService.
+router.post('/manuscript/search',   isAuth, ManuscriptController.searchStory);
 router.post('/manuscript/save',     isAuth, ManuscriptController.saveChapter);
 
 // --- PROOFING (spelling + local edit suggestions) ---
@@ -206,6 +208,12 @@ router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
 // than a model, so this one answers in milliseconds and costs nothing to run.
 router.get('/proofing/mechanics/rules', isAuth, ProofingController.getMechanicsRules);
 router.post('/proofing/mechanics', isAuth, ProofingController.checkMechanics);
+
+// Overused words, across a whole story rather than the open chapter. The count
+// is local and exact; the verdicts are Gemini's and are only asked for when the
+// writer ticks the box, so this endpoint works with the AI switched off.
+router.get('/proofing/overuse/words', isAuth, ProofingController.getOveruseWords);
+router.post('/proofing/overuse', isAuth, ProofingController.checkOveruse);
 
 // --- MANUSCRIPT BACKUP (GitHub) ---
 // isModerator rather than isAuth: this writes to the writer's GitHub account

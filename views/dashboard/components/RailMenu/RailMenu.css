@@ -352,3 +352,104 @@
     background: #e5484d;
     color: #fff;
 }
+/*
+   THE NARRATOR TRANSPORT, IN THE MENU.
+
+   It floated over the manuscript, then was a footer of the editor card, and
+   arrived here on 2026-08-13. The layout rule it carries with it is the one
+   that matters and it is unchanged by the move:
+
+       controls sit on edges that cannot move;
+       all variation is absorbed by the middle.
+
+   The floating player was sized to its contents with the status line BELOW the
+   buttons, so a longer line resized the box and — anchored bottom right — it
+   grew LEFT and UP, walking the buttons out from under a cursor that was
+   pressing Next. Here the block is a fixed width, playback is pinned left,
+   render pinned right, and the status has a reserved height. Nothing the
+   narrator says can move a button.
+*/
+/*
+   A STANDARD SIZE. Both axes, fixed, not floors.
+
+   This is the third attempt at this bug and the first one that is structural.
+   The earlier fixes pinned the WIDTH and gave the status a min-height, which is
+   a floor rather than a ceiling — so the progress bar appearing during a render
+   still grew the block, and so would anything else ever added inside it.
+
+   With an explicit height nothing in here can change the player's size. Not a
+   longer status, not a wrapped line, not the progress bar, not a control added
+   in two years by someone who never reads this comment. The status region takes
+   whatever is left and clips.
+
+   That is the whole point: a control you press repeatedly must not move, and
+   the only way to guarantee that is to stop the box being able to resize at
+   all rather than to keep finding the things that resize it.
+*/
+.rail-menu__transport {
+    width: 300px;
+    height: 108px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 10px;
+    overflow: hidden;
+}
+
+.rail-menu__transport .editor__transport-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Playback and render both refuse to flex; the gap between them takes the
+   slack, which is what keeps both groups on their own edge. */
+.rail-menu__transport .editor__transport-row > .glass-btn {
+    flex: 0 0 auto;
+}
+
+.rail-menu__transport-gap {
+    flex: 1 1 auto;
+    min-width: 8px;
+}
+
+/* Narrator.css gives Listen flex: 1 for the old narrow panel. A FIXED width,
+   not a min-width: the label swaps Listen/Pause, and at min-width the natural
+   width of the longer label won, so the button shrank on the swap and moved
+   Next by 1.66px — measured. */
+.rail-menu__transport #narratorPlayBtn {
+    flex: 0 0 auto;
+    width: 10ch;
+    justify-content: center;
+}
+
+/*
+   Takes whatever the fixed height leaves and clips. It does not get to have an
+   opinion about the size of the block — that is what makes the buttons above it
+   immovable. min-height: 0 is required or a flex item refuses to shrink below
+   its content and pushes the height back out.
+*/
+.rail-menu__transport-status {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.rail-menu__transport .narrator__status {
+    font-size: 0.75rem;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+/* Deliberately not display:none when empty — see the reserved height above. */
+.rail-menu__transport .narrator__status:empty {
+    display: block;
+}
+
+.rail-menu__transport .narrator__progress {
+    margin-top: 4px;
+}

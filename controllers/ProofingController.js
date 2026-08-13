@@ -1,6 +1,9 @@
 const SpellService = require('../services/proofing/SpellService');
 const SuggestionService = require('../services/proofing/SuggestionService');
 const MechanicsService = require('../services/proofing/MechanicsService');
+const OveruseService = require('../services/proofing/OveruseService');
+const GeminiOveruseService = require('../services/gemini/GeminiOveruseService');
+const ManuscriptService = require('../services/manuscript/ManuscriptService');
 
 /**
  * ProofingController
@@ -57,6 +60,86 @@ exports.checkMechanics = (req, res) => {
         res.json({ ok: true, ...result });
     } catch (err) {
         console.error('[ProofingController] Mechanics scan failed:', err.message);
+        res.status(500).json({ ok: false, message: err.message });
+    }
+};
+
+/** The word and group list, so the rail can build its toggles. */
+exports.getOveruseWords = (req, res) => {
+    res.json({ ok: true, ...OveruseService.describe() });
+};
+
+/**
+ * Overused words across a WHOLE story, not a chapter.
+ *
+ * The scope is the point. A writer cannot see their own tics chapter by
+ * chapter, because they never read the book the way a reader does - three
+ * "absolutely"s in a chapter is nothing and sixty across a novel is a habit.
+ *
+ * Two halves, and they fail independently. The count is local, exact and
+ * always runs; the verdicts need the AI and are asked for only when the writer
+ * ticked the box. A failure in the second half must not cost the writer the
+ * first - the numbers are the part they can act on, so a dead API key returns
+ * the tally with a note attached rather than an error page.
+ *
+ * Reading a whole manuscript is disk work, not model work, so unlike
+ * scanOnComplete this answers in the response. A long novel is a few hundred
+ * milliseconds of file reads; there is nothing here worth a socket.
+ */
+exports.checkOveruse = async (req, res) => {
+    const { story, options, judge } = req.body || {};
+    if (typeof story !== 'string' || !story.trim()) {
+        return res.status(400).json({ ok: false, message: "Provide a 'story' to scan." });
+    }
+
+    try {
+        const list = await ManuscriptService.listChapters(story);
+        if (!list.length) {
+            /*
+             * "No chapters" and "no such story" are different answers and only
+             * one of them is good news.
+             *
+             * resolveStory builds a path without checking that anything is
+             * there, and a missing folder lists as zero files - so a renamed or
+             * deleted story would report "nothing counted", which a writer
+             * reads as "my prose is clean". Worth one extra directory read on
+             * the empty path to tell them the truth instead.
+             */
+            const stories = await ManuscriptService.listStories();
+            const known = stories.some(entry => (entry.name || entry) === story);
+            if (!known) {
+                return res.status(404).json({ ok: false, message: `There is no story called "${story}".` });
+            }
+
+            return res.json({
+                ok: true,
+                words: [], chapters: [],
+                stats: { words: 0, chapters: 0, distinct: 0 },
+                counts: { total: 0, narration: 0, dialogue: 0, per10k: 0 }
+            });
+        }
+
+        const chapters = [];
+        for (const entry of list) {
+            const { text } = await ManuscriptService.read(story, entry.name);
+            chapters.push({ chapter: entry.name, text });
+        }
+
+        const report = OveruseService.scan(chapters, options || {});
+        console.log(`[ProofingController] Overuse: ${report.counts.total} use(s) of ${report.stats.distinct} word(s) across ${report.stats.chapters} chapter(s), ${report.stats.words} words.`);
+
+        if (!judge) return res.json({ ok: true, ...report });
+
+        try {
+            const verdict = await GeminiOveruseService.judge(report);
+            return res.json({ ok: true, ...report, judgement: verdict });
+        } catch (err) {
+            // The counts survive. Say why the opinion did not.
+            console.error('[ProofingController] Overuse judgement failed:', err.message);
+            return res.json({ ok: true, ...report, judgement: { error: err.message } });
+        }
+    } catch (err) {
+        console.error('[ProofingController] Overuse scan failed:', err.message);
         res.status(500).json({ ok: false, message: err.message });
     }
 };

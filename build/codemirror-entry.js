@@ -15,8 +15,13 @@
  * and code folding that a manuscript has no use for.
  */
 
-export { EditorView, keymap, lineNumbers, placeholder, drawSelection, highlightActiveLine } from '@codemirror/view';
-export { EditorState, Compartment } from '@codemirror/state';
+// Decoration, ViewPlugin and RangeSetBuilder are here for the manuscript-wide
+// search highlight. CodeMirror's own search already highlights, but driving it
+// would style prose the way it styles code - a solid block per hit - and a
+// manuscript page wearing forty of those is measurably harder to READ, which is
+// what that surface is for. Owning the decoration is what buys the softer mark.
+export { EditorView, keymap, lineNumbers, placeholder, drawSelection, highlightActiveLine, Decoration, ViewPlugin } from '@codemirror/view';
+export { EditorState, Compartment, StateField, StateEffect, RangeSetBuilder } from '@codemirror/state';
 export { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 // No @codemirror/language-data. It exists to syntax-highlight fenced code
 // blocks by language and costs well over a megabyte to do it. A manuscript

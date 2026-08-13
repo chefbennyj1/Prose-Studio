@@ -40,6 +40,23 @@ export function initRailMenus() {
     const menus = [...document.querySelectorAll('.rail-menu')];
     menus.forEach(wire);
 
+    /*
+     * The transport block keeps the menu OPEN.
+     *
+     * Every other row in these menus is a choice — pick a voice, start a check —
+     * and closing afterwards is right, because there is nothing left to do.
+     * Playback is the opposite: skipping forward four paragraphs is four
+     * presses, and a menu that shut after the first would cost two clicks for
+     * every one of them.
+     *
+     * That cost is the whole reason the transport was kept OUT of the rail
+     * until 2026-08-13. It lives here now, and this line is what makes that
+     * decision survivable. If it is ever removed, move the player back out.
+     */
+    document.querySelectorAll('.rail-menu__transport').forEach((block) => {
+        block.addEventListener('click', event => event.stopPropagation());
+    });
+
     // One listener for all of them: clicking anywhere that is not inside an
     // open menu closes it. Handlers inside stopPropagation to opt out.
     document.addEventListener('click', () => menus.forEach(closeMenu));

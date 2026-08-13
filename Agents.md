@@ -1,14 +1,359 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — GitHub manuscript backup built, uncommitted. **The network
-half is untested**: no token here, so `validate`/`createRepo`/`listRepos` and
-the push itself have never spoken to github.com. Everything local is verified.
+**CLAUDE:** idle — formatting bar, em dash, overused-words scan,
+manuscript-wide search + highlight, and the rail player all built and
+committed 2026-08-13. **Two things have never touched the network they need**:
+the GitHub push has not spoken to github.com from here (no token), and the
+Gemini overuse judge has never run (no key). Everything local is verified.
 
 > **MANUSCRIPT REPOSITORIES ARE ALWAYS PRIVATE.** `private: true` in
 > `GitHubService.createRepo` is the only value it will send and there is no
 > parameter to change it. Do not add one. Publishing an unfinished novel is the
 > worst thing this feature could do and it must not be one checkbox away.
+
+## The player lives in the rail, 2026-08-13
+
+**Uncommitted.** 7/7 against the REAL rail markup: height and width fixed at
+108x300 through every status state including the progress bar toggling, and
+`0.00px` movement on all four controls.
+
+It is the first block in the Narrator menu, above the settings, because it is
+the only part anyone opens that menu repeatedly for.
+
+### Three homes in one day, and why the last one is right
+
+Floating bottom-right -> a footer of the editor card -> the rail. Ben's call,
+overruling the note that said a transport must not live in a dropdown. That
+objection was real — pausing is something you do WHILE listening, and a menu
+that closes on click costs two clicks every time — and it is paid for by one
+line in `RailMenu.js` that stops a click inside `.rail-menu__transport` from
+reaching the document handler. **If that line goes, this is the wrong home.**
+
+### THE BUG, AND THE FIX THAT FINALLY WORKED
+
+The player resized as its status text changed, and the buttons moved out from
+under the cursor mid-skip. Pressing Next four times moved the control four
+times and put Render where Next had been.
+
+It took three attempts, and only the third is structural:
+
+1. Pin the width. Fixed the horizontal, left the vertical.
+2. Pin the width, give the status a `min-height`. **A floor, not a ceiling** —
+   the progress bar appearing during a render still grew the block.
+3. **Ben's: give the player a standard height.** `height: 108px` on the block,
+   `flex: 1 1 auto; min-height: 0; overflow: hidden` on the status. Now nothing
+   inside can change its size: not a longer line, not a wrapped one, not the
+   progress bar, not a control someone adds in two years.
+
+> The lesson generalises. Do not keep finding the things that resize a box a
+> user clicks repeatedly — **stop the box being able to resize.** Every fix that
+> enumerates causes leaves the next cause unhandled.
+
+Within that fixed box the same layout rule still applies: playback pinned left,
+Render pinned right, `.rail-menu__transport-gap` taking the slack between them.
+Render is far from the skip buttons because it is work, not listening, and a
+mis-click while scrubbing must not start minutes of synthesis.
+
+`#narratorPlayBtn` is a fixed `width: 10ch`, not a `min-width`: the label swaps
+Listen/Pause and at `min-width` the longer label won, so the button shrank by
+**1.66px** on the swap and moved Next. Measured, not guessed.
+
+### The trap this move created
+
+`setUpNarrator()` binds its click listeners on every `initEditor`. That was safe
+while the buttons lived in `editor.html`, which is re-injected on every
+navigation — fresh elements, fresh listeners. **The rail is built once and never
+torn down**, so the second visit to the editor would have left the first visit's
+listener attached and Next would skip two paragraphs, then three. Guarded by
+`narratorWired`, exactly as `reviewWired` guards `runReview`.
+
+### Verifying it
+
+`Editor.css` no longer styles the transport at all; it is `RailMenu.css`. A
+harness must load `dashboard.html` and add `rail-menu--open`, not
+`editor.html`.
+
+> **A BROWSER HARNESS CANNOT CATCH UNBALANCED HTML. CHECK THE TAGS.**
+>
+> Moving the player out of `.editor__body` left it with no closing `</div>` —
+> one tag too many removed while splicing. In the app the card's flex chain
+> collapsed and the player did not appear at all.
+>
+> Every Puppeteer harness passed anyway, before AND after the fix, with
+> identical numbers at five viewport heights. Browsers repair broken markup and
+> `innerHTML` repairs it the same way, so the harness silently rebuilt a working
+> tree from source that was wrong — the one arrangement where "verify paint"
+> proves nothing, because the paint is of a DOM the browser invented.
+>
+> A twenty-line tag-balance walk over the SOURCE found it immediately. Any time
+> markup is spliced programmatically, check balance before trusting a rendered
+> result.
+
+Two more, cheaper:
+
+- The transport ships `disabled`. Chrome gives a disabled button no pointer
+  events, so `elementFromPoint` returns its PARENT and a paint check fails on a
+  button that is fine. Enable them in a layout harness.
+- Waiting a fixed 350ms for ionicons made a suite flaky at roughly one run in
+  three. Poll for `shadowRoot.childElementCount > 0` instead. A flaky layout
+  test is worse than none — it teaches you to re-run until green.
+
+## Manuscript-wide search, 2026-08-13
+
+**Uncommitted.** 21/21 on the pattern builder, 7/7 on highlight paint in a real
+browser, and 4/4 on client-vs-server agreement. **The panel itself has not been
+driven in the running app** — the route needs a server restart, and nothing has
+been clicked by hand.
+
+`Ctrl+Shift+F`. CodeMirror's own `Ctrl+F` stays and is unrelated: that searches
+the open chapter from memory, this searches every file in the story.
+
+### Whole word is lookarounds, not a trailing space
+
+Ben's first instinct was to append a space to the term. It fails twice, and the
+test suite keeps both failures pinned because they are not obvious:
+
+- It leaves the FRONT of the word unguarded — `"Rin "` still matches inside
+  `"Mandarin "`.
+- It loses hits followed by punctuation, which in dialogue is nearly all of
+  them. On the test fixture a trailing space finds **zero of six**: a name at
+  the end of a line is followed by `.` `,` `?` `!` or `\n`, never a space.
+
+`\b` is also wrong here — it is defined on `[A-Za-z0-9_]`, and a manuscript is
+full of invented names with accents. The pattern uses
+`(?<![\p{L}\p{N}_])term(?![\p{L}\p{N}_])` with the `u` flag, which gets
+`Renée` right (matches `Renée`, not `Renéed`).
+
+**The query is plain text, always escaped.** A novelist should not have to
+escape a full stop to search for `in.`.
+
+### The highlight is computed live, and that is deliberate
+
+`Surface.js` recomputes marks from the document rather than using the offsets
+the server returned. Server offsets would agree with the panel for free — but
+they describe the file as it was READ, so the moment the writer fixes one hit
+the highlight would keep marking a word that is no longer there. A highlight
+that lies about the text under it is worse than none.
+
+The cost is a second copy of the pattern builder in the browser.
+`Surface.searchPattern` **must mirror `SearchService.buildPattern`**; the
+harness compares the two on identical text and fails if they ever drift.
+
+- Only `view.visibleRanges` are decorated — this reruns on every keystroke
+  while a highlight is live.
+- Marks are **softer than a code editor's**: a wash plus an underline, not a
+  solid block. Forty solid blocks down a page of prose measurably slow reading,
+  which is what that surface is for.
+- Cleared by Escape and by closing the drawer. The query is remembered, so
+  reopening puts both results and marks back.
+- **Re-applied AFTER `openChapter`, never before.** Loading a chapter rebuilds
+  the editor state to drop the old undo history, which takes the highlight
+  field's value with it.
+
+### Traps
+
+- `Ctrl+Shift+F` is on `document`, not in the CodeMirror keymap: the writer is
+  usually IN the search box when they want it, and a keymap entry only fires
+  when the surface has focus.
+- Same cross-chapter jump trap as the overuse panel — an offset is valid in any
+  chapter, so `jumpToHit` re-checks `doc.chapter` after `openChapter`, which
+  refuses and returns when the buffer is dirty.
+- Search reads FILES, so it saves first. Otherwise the open chapter is the one
+  set of results that is stale.
+
+### There is no replace, on purpose
+
+A cross-chapter replace has no undo, writes to files that are not on screen,
+and one careless term quietly corrupts a book — replacing `Rin` turns `during`
+into `duMinag` in a chapter nobody is looking at. If it is ever wanted it needs
+preview-every-hit-and-confirm, not a function added beside `search()`.
+
+### esbuild moved to `dependencies` (2026-08-13)
+
+`libs/codemirror/` is gitignored and `postinstall` builds it, so with esbuild as
+a devDependency **any production install broke the editor entirely**:
+`npm ci --omit=dev`, `--production`, or just `NODE_ENV=production` skips it,
+postinstall fails, the bundle is never written, `Surface.js`'s import 404s and
+the writing surface never appears. Do not move it back.
+
+---
+
+## Polish list — before shipping (Ben, 2026-08-13)
+
+Small, agreed, not yet done. Kept here so they are not rediscovered later.
+
+- **The "Library" button is still in the header and must go.** A leftover from
+  the comic server; there is no library in the Prose Engine.
+- `npm test` exits 1. Every verification written so far lives in gitignored
+  scratchpad scripts and will evaporate — they should become the regression
+  suite. Biggest single gap before shipping.
+- The GitHub push has still never spoken to github.com from here, and the
+  Gemini overuse judge has never run.
+- Piper voice licences vary per voice on Hugging Face; check before shipping one.
+- Most of this file below the handoff still describes the comic server.
+
+---
+
+## Overused words — intensifiers and absolutes, 2026-08-12
+
+**Uncommitted.** 25/25 on hand-counted unit tests, plus end to end through the
+controller against `NO OVERFLOW`: 88 uses of 22 words across 8 chapters /
+9,854 words, **88/88 offsets landing on the reported word**. Routes answer 401
+unauthenticated, same as the existing proofing routes. The Gemini half has
+**never been run** — no key here — so `judge()` is unverified against the API.
+
+### The split, which is the whole design
+
+Ben asked whether the cloud AI could read the manuscript and list overused
+words. It can, and it would be **wrong**, quietly: asked "how many times does
+'very' appear" across a novel, a model estimates. It misses instances in long
+text and invents counts it never saw, and nothing in the panel reveals which.
+
+So counting and judging are separate services and fail independently:
+
+- `OveruseService` counts. Regex over the real text, exhaustive by
+  construction, instant, free, offline. Runs with the AI switched off.
+- `GeminiOveruseService` judges, and is **never given the manuscript** — only
+  the tally plus a few sample sentences. It answers the question counting
+  cannot: of these 34, which are doing work? A wrong verdict is an opinion the
+  writer can argue with, next to a number that is still correct.
+
+`checkOveruse` catches a judgement failure and returns the tally with a note.
+The counts are the part the writer acts on; a dead key must not cost them.
+
+### Decisions with reasons (do not silently reverse)
+
+- **Whole story, not the open chapter.** This is the one check that cannot work
+  per-chapter — three "absolutely"s in a chapter is nothing and sixty across a
+  novel is a habit, and the writer cannot see it because they never read the
+  book the way a reader does.
+- **Dialogue is counted but reported separately.** A character who talks in
+  absolutes is characterised, not sloppy. One combined number tells a writer
+  with a lot of dialogue they have a problem they do not have. Gemini is told
+  the split and told to weigh dialogue leniently.
+- **Ranked by rate, not count.** 34 is alarming in a short story and
+  unremarkable in a 120,000-word novel, so everything carries `per10k`.
+- **Nothing here is an error.** Every word in the lexicon is one a good writer
+  uses deliberately. The scanner reports a rate and lets the writer look;
+  "never use 'very'" is advice for undergraduates.
+- **`so` and `too` are gated on the following word.** Both are conjunctions or
+  "also" more often than intensifiers, and counting every one buries the real
+  hits and makes the total untrustworthy — the one thing a counter must not be.
+  See `CONTEXTUAL` / `NOT_INTENSIFIED` in `OveruseLexicon.js`.
+- **Judging is off by default** and is the only control in the Review menu that
+  sends anything off the machine. A check that quietly starts uploading because
+  it was convenient is what the opt-in exists to prevent.
+
+### Traps
+
+- **Jumping is cross-chapter, which no other check in the panel is.** An offset
+  is valid in *any* chapter, so applying one to whatever is open looks like a
+  working jump to the wrong sentence. `renderOveruse` opens the chapter first
+  and re-checks `doc.chapter` before selecting, because `openChapter` refuses
+  when the buffer is dirty and returns either way.
+- **`resolveStory` does not check the folder exists.** A renamed or deleted
+  story lists zero chapters, which would have reported "nothing counted" — read
+  as "my prose is clean". The controller now separates that from a genuinely
+  empty story and 404s.
+- **Occurrences are capped at 40 per word; counts are not.** Do not read
+  `occurrences.length` as a count.
+
+### Layout
+
+```
+services/proofing/OveruseLexicon.js   the word list, grouped, with the so/too gate
+services/proofing/OveruseService.js   counting, offsets, rates, dialogue split
+services/gemini/GeminiOveruseService.js  verdicts only - never sees the manuscript
+controllers/ProofingController.js     checkOveruse, getOveruseWords
+GET  /api/proofing/overuse/words      word and group list for the rail
+POST /api/proofing/overuse            { story, options: { disabled }, judge }
+```
+
+### Left undone
+
+- **The Gemini half is untested against the real API.** Verify `judge()` before
+  trusting it, and check the verdict chip renders.
+- The panel has not been seen in a browser at all — server path only.
+- No way to add your own word to the list. That is the obvious next ask, and it
+  belongs in the story dictionary rather than a new store.
+
+---
+
+## Editor formatting bar, 2026-08-12
+
+**Uncommitted.** 31/31 in a Puppeteer harness driven against the running
+server, so the stylesheets, the section markup and `Surface.js` are the real
+files. Paint hit-tested with `elementFromPoint` on all six buttons.
+
+Semantic Markdown only — bold, italic, strike, heading, quote, scene break —
+plus the em dash, which is the one exception and earns it (below).
+No font, size, colour or alignment, and that is a decision: the file on disk is
+Markdown, which is what Git diffs, what `MechanicsService` anchors findings into
+by character offset, and what the narrator reads. How the page LOOKS while
+writing belongs in an appearance setting that changes the view and never the
+file. The bar exists because nobody knows Markdown — a novelist wanting italics
+will not guess `*like this*`.
+
+### The traps
+
+- **`mousedown`, not `click`.** A click steals focus from CodeMirror first,
+  which collapses the selection, so Bold arrives with nothing to wrap.
+  `preventDefault` on mousedown keeps the caret where it was.
+- **Italic must not eat bold.** Italic's marker is one asterisk and bold's is
+  two, so a naive match strips one from each side and silently demotes
+  `**bold**` to `*italic*` — a formatting change the writer never asked for.
+  `toggleWrap` checks whether the marker is part of a longer run.
+- **A scene break needs a blank line on BOTH sides.** The first version wrote
+  `\n***\n\n`, giving no blank line above it — and `***` on the line straight
+  after a paragraph is not a scene break to any Markdown parser, it is more of
+  that paragraph. The break vanished from anything that rendered the file.
+  Both blanks are now added only where they are not already there, or the gap
+  grows every time the button is used.
+
+### The em dash is not a formatting button (Ben, 2026-08-13)
+
+It is in the bar for a different reason from everything beside it, and the
+distinction is worth keeping straight if the set is ever revisited. The other
+six exist because nobody knows Markdown. This one exists because of **hardware**:
+a laptop has no numeric keypad, so the `Alt+0151` Windows documents for U+2014
+cannot be pressed at all. The alternative is two hyphens and a
+search-and-replace at the end of the book.
+
+It uses `insertText`, not the toggle helpers - there is no "un-em-dash", it is
+a character, and Undo already removes characters. It replaces the selection,
+because that is what typing a character does.
+
+The glyph is its own icon. No icon set draws an em dash better than the
+character does, and showing the real mark is also showing exactly what will
+land in the file. `--dash` sets it larger and nudges it up a pixel, because at
+the letters' size a horizontal rule of a glyph reads as a stray mark.
+
+**En dash and ellipsis are the same problem** (`Alt+0150`, `Alt+0133`) and were
+deliberately not added unasked. If they ever are, they belong beside this one
+in the same group, not scattered.
+
+### Two things the harness got wrong before the code did
+
+Worth knowing, because both would fool the next harness too:
+
+- **`.editor__page` is `margin: 0 auto` in a flex column**, so auto margins
+  suppress the stretch and the width is shrink-to-fit. A short test string
+  collapsed the page to 188px and produced a bogus alignment failure. Test
+  text must be chapter-shaped or every horizontal measurement is a lie.
+- **Box-to-box alignment tests cancel out.** `.cm-content`'s border edge is
+  32px left of its first letter and the B button's is 7px left of its B, so
+  comparing boxes passes within 8px whether the letters line up or not. Measure
+  glyph to glyph. The bar's `padding-left` is `46 + 32 - 7 = 71px` for exactly
+  this reason.
+
+### Left undone
+
+- Ben reported the top padding looking wrong in the real app. The bar now
+  carries `16px` above and `4px` below (the prose already has `.cm-content`'s
+  40px), which reads correctly in the harness — **not yet confirmed against
+  the running app in a browser.**
+- No `Mod-b`/`Mod-i` equivalent for strike, heading, quote or scene break.
 
 ### Backup, 2026-08-09/10
 
@@ -141,14 +486,11 @@ Every control left the editor's right panel: lens, engine, Spelling, Scan,
 Critique are now the Review menu (`components/RailMenu/ReviewMenu.js`), which
 dispatches `runReview`; the panel is an output-only drawer that opens on a
 result and closes to give the width back. Narrator *settings* were already in
-the rail; the *transport* is deliberately not — it is `position: fixed` at
-34px/34px, bottom right, because pausing is something you do while listening
-and a control inside a dropdown costs two clicks every time.
-
-- **Do not re-add measured positioning to the player.** An earlier version set
-  its offsets from the card geometry on resize; a flat viewport inset is
-  correct and Ben verified it. It was `position: absolute` before that and got
-  clipped by `#main-content`'s `overflow: hidden`.
+the rail, and **the transport joined them on 2026-08-13** — see "The player
+lives in the rail" below. This section used to say the transport was
+deliberately NOT in the rail, because a control inside a dropdown costs two
+clicks; Ben overruled that. The cost is paid by `.rail-menu__transport` not
+letting a click close the menu.
 - `runReview` is bound to `document` and survives section teardown, so it is
   guarded by `reviewWired` — without that it ran every check twice on the
   second visit to the editor.

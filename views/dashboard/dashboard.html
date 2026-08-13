@@ -154,7 +154,12 @@
             <button type="button" id="reviewMenuBtn"
                 class="studio-rail__btn rail-menu__trigger"
                 title="Review" aria-label="Review" aria-haspopup="menu">
-                <ion-icon name="search-outline"></ion-icon>
+                <!-- NOT a magnifying glass. That icon now belongs to search,
+                     which is a different act entirely: search finds a word you
+                     already have in mind, Review runs checks and tells you
+                     something you did not. Two things wearing one icon in the
+                     same window is how a writer learns to distrust both. -->
+                <ion-icon name="checkmark-done-outline"></ion-icon>
                 <span class="studio-rail__badge hidden" id="reviewBadge"></span>
             </button>
             <div class="glass-dropdown-menu glass glass--frosted" role="menu">
@@ -173,6 +178,23 @@
                     <ion-icon name="text-outline" aria-hidden="true"></ion-icon>
                     <span class="rail-menu__label">Spelling</span>
                     <span class="rail-menu__hint">instant</span>
+                </button>
+                <!--
+                    The whole story, not the open chapter, and that is the
+                    feature rather than a setting on it. A writer cannot see
+                    their own tics chapter by chapter because they never read
+                    the book the way a reader does: three "absolutely"s in a
+                    chapter is nothing, and sixty across a novel is a habit.
+
+                    NOT marked data-needs-ai. The counting is local, exact and
+                    always available; only the verdicts need Gemini, and that is
+                    a tick box inside the submenu below.
+                -->
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="overuse" role="menuitem">
+                    <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Overused words</span>
+                    <span class="rail-menu__hint">whole story</span>
                 </button>
                 <!--
                     These two are the AI, and data-needs-ai is what hides them.
@@ -233,6 +255,21 @@
                     <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
                         id="reviewRulesFlyout" role="menu"></div>
                 </div>
+
+                <!-- Which families of word the overuse scan counts, plus the
+                     one row in it that reaches the network. A voice built on
+                     flat absolute statement is a real voice, so switching a
+                     family off has to be possible. -->
+                <div class="rail-menu__submenu" data-review-menu="overuse">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Overuse words</span>
+                        <span class="rail-menu__value" id="reviewOveruseValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
+                        id="reviewOveruseFlyout" role="menu"></div>
+                </div>
             </div>
         </div>
 
@@ -256,6 +293,76 @@
                 <ion-icon name="headset-outline"></ion-icon>
             </button>
             <div class="glass-dropdown-menu glass glass--frosted" role="menu">
+                <!--
+                    THE TRANSPORT.
+
+                    It floated bottom-right over the manuscript, then was docked
+                    as a footer of the editor card, and is here from 2026-08-13
+                    at Ben's call: the rail is where it is findable, and it stops
+                    the player fighting the editor's layout for space.
+
+                    THE OBJECTION, RECORDED, BECAUSE IT WAS DELIBERATE BEFORE:
+                    the transport was kept out of the rail precisely because
+                    pausing is something you do WHILE listening, and a control
+                    inside a dropdown that closes when you touch it costs two
+                    clicks every single time. That cost is real and it is paid
+                    for by one thing only - this block does not let a click
+                    close the menu (see NarratorMenu.js). Sit with the menu open
+                    and press Next as often as you like. If that ever regresses,
+                    this is a worse home than the footer was.
+
+                    First in the menu, above the settings, because it is the
+                    only part anyone opens this menu repeatedly for.
+
+                    Playback left, Render right, status between them: the
+                    controls are on edges that cannot move and all the variation
+                    is absorbed by the middle. That is not decoration - the
+                    floating player resized with its status text and walked the
+                    buttons out from under the cursor mid-skip.
+                -->
+                <div class="rail-menu__transport" data-narrator="transport">
+                    <div class="editor__transport-row narrator__transport">
+                        <button type="button" id="narratorPrevBtn" class="glass glass-btn glass-btn--icon"
+                            title="Previous paragraph" aria-label="Previous paragraph" disabled>
+                            <ion-icon name="play-skip-back"></ion-icon>
+                        </button>
+                        <button type="button" id="narratorPlayBtn" class="glass glass-btn glass-btn--primary"
+                            disabled>
+                            <ion-icon name="play" id="narratorPlayIcon"></ion-icon>
+                            <span id="narratorPlayLabel">Listen</span>
+                        </button>
+                        <button type="button" id="narratorNextBtn" class="glass glass-btn glass-btn--icon"
+                            title="Next paragraph" aria-label="Next paragraph" disabled>
+                            <ion-icon name="play-skip-forward"></ion-icon>
+                        </button>
+
+                        <div class="rail-menu__transport-gap"></div>
+
+                        <!-- Render is work, not listening. Kept away from the
+                             skip buttons so a mis-click while scrubbing cannot
+                             start minutes of synthesis. -->
+                        <button type="button" id="narratorRenderBtn"
+                            class="glass glass-btn glass-btn--sm">Render</button>
+                        <button type="button" id="narratorRerenderBtn"
+                            class="glass glass-btn glass-btn--icon"
+                            title="Rebuild every paragraph" aria-label="Re-render whole chapter">
+                            <ion-icon name="refresh"></ion-icon>
+                        </button>
+                    </div>
+
+                    <!-- Height reserved whether or not there is anything to
+                         say, so the menu does not change size mid-playback and
+                         move the buttons under the pointer. -->
+                    <div class="rail-menu__transport-status">
+                        <div id="narratorStatus" class="narrator__status"></div>
+                        <div class="narrator__progress hidden" id="narratorProgress">
+                            <div class="narrator__progress-bar" id="narratorProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rail-menu__divider" role="separator"></div>
+
                 <!-- Piper, on this machine. One voice: it reads a paragraph
                      back and it renders the finished chapter, because local
                      synthesis costs nothing to run twice. -->

@@ -30,10 +30,19 @@ let critic = null;      // { lenses, defaultLens, ai: { ok, reason } }
 let ruleset = null;     // { groups, rules, defaults }
 let els = {};
 
+let overuse = null;     // { groups, words }
+
 // `engine` used to live here too, when a local Gemma and Gemini both answered.
 let choice = {
     lens: null,
-    disabled: []
+    disabled: [],
+    // Word families the overuse scan skips, and whether to ask Gemini to judge
+    // what it counted. Judging is off by default and stays that way until the
+    // writer asks: counting is free and local, and a check that quietly starts
+    // sending the manuscript off the machine because it was convenient is
+    // exactly the thing the opt-in exists to prevent.
+    overuseOff: [],
+    judge: false
 };
 
 export function initReviewMenu() {
@@ -42,7 +51,9 @@ export function initReviewMenu() {
         lensValue: document.getElementById('reviewLensValue'),
         lensFlyout: document.getElementById('reviewLensFlyout'),
         rulesValue: document.getElementById('reviewRulesValue'),
-        rulesFlyout: document.getElementById('reviewRulesFlyout')
+        rulesFlyout: document.getElementById('reviewRulesFlyout'),
+        overuseValue: document.getElementById('reviewOveruseValue'),
+        overuseFlyout: document.getElementById('reviewOveruseFlyout')
     };
     if (!els.lensFlyout) return;
 
@@ -56,9 +67,11 @@ export function initReviewMenu() {
 
     els.lensFlyout.addEventListener('click', onLensClick);
     els.rulesFlyout.addEventListener('click', onRuleClick);
+    els.overuseFlyout?.addEventListener('click', onOveruseClick);
 
     submenu('lens')?.addEventListener('flyoutOpened', drawLensList);
     submenu('rules')?.addEventListener('flyoutOpened', drawRuleList);
+    submenu('overuse')?.addEventListener('flyoutOpened', drawOveruseList);
 
     // Switching the AI on in Settings should put its rows in the menu without
     // a reload; that page dispatches this once the key is saved.
@@ -69,6 +82,7 @@ export function initReviewMenu() {
 
     loadCritic();
     loadRules();
+    loadOveruse();
 }
 
 function submenu(name) {
@@ -91,7 +105,8 @@ function start(task) {
         detail: {
             task,
             lens: choice.lens,
-            mechanics: getMechanicsOptions()
+            mechanics: getMechanicsOptions(),
+            overuse: getOveruseOptions()
         }
     }));
 
@@ -116,6 +131,11 @@ export function getMechanicsOptions() {
     return { disabled: [...choice.disabled] };
 }
 
+/** The scan options, in the shape OveruseService.scan expects, plus `judge`. */
+export function getOveruseOptions() {
+    return { disabled: [...choice.overuseOff], judge: !!choice.judge };
+}
+
 /* ---------- persistence ---------- */
 
 function restore() {
@@ -123,6 +143,8 @@ function restore() {
         const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
         choice.lens = saved.lens || null;
         choice.disabled = Array.isArray(saved.disabled) ? saved.disabled : [];
+        choice.overuseOff = Array.isArray(saved.overuseOff) ? saved.overuseOff : [];
+        choice.judge = !!saved.judge;
     } catch {
         // A corrupt entry is not worth a broken menu; the defaults are fine.
     }
@@ -273,6 +295,96 @@ function onRuleClick(event) {
     toggle.setAttribute('aria-checked', String(off));
     remember();
     drawRulesValue();
+}
+
+/* ---------- overused words ---------- */
+
+async function loadOveruse() {
+    if (!els.overuseFlyout) return;
+    try {
+        const data = await (await fetch('/api/proofing/overuse/words')).json();
+        if (!data.ok) return;
+        overuse = data;
+        drawOveruseValue();
+    } catch (err) {
+        console.error('[ReviewMenu] Could not load overuse words', err);
+    }
+}
+
+function drawOveruseValue() {
+    if (!els.overuseValue || !overuse) return;
+    const on = overuse.groups.length - choice.overuseOff.length;
+    els.overuseValue.textContent = choice.overuseOff.length
+        ? `${on} of ${overuse.groups.length}`
+        : 'all on';
+}
+
+/**
+ * The word families, and the one row here that sends anything anywhere.
+ *
+ * The AI row is last and separated, because everything above it is local. It
+ * is also the only control in this menu that changes where the manuscript
+ * goes rather than what is counted, and it says so on its face.
+ */
+function drawOveruseList() {
+    if (!overuse) {
+        els.overuseFlyout.innerHTML = note('Loading...');
+        return;
+    }
+
+    const groups = overuse.groups.map((group) => {
+        const words = overuse.words.filter(word => word.group === group.id);
+        const off = choice.overuseOff.includes(group.id);
+        return `
+            <button type="button" class="rail-menu__item rail-menu__toggle" role="menuitemcheckbox"
+                aria-checked="${!off}" data-overuse-group="${escapeHtml(group.id)}"
+                title="${escapeHtml(words.slice(0, 8).map(w => w.word).join(', '))}">
+                <span class="rail-menu__label">${escapeHtml(group.label)}</span>
+                <span class="rail-menu__count">${words.length}</span>
+                <span class="rail-menu__switch" aria-hidden="true"></span>
+            </button>`;
+    }).join('');
+
+    // Hidden with the AI off, for the same reason Critique is: offering it and
+    // then failing is worse than not offering it, and the counting above works
+    // regardless.
+    const judge = `
+        <div class="rail-menu__divider" role="separator"></div>
+        <button type="button" class="rail-menu__item rail-menu__toggle${aiOff() ? ' hidden' : ''}"
+            role="menuitemcheckbox" aria-checked="${!!choice.judge}" data-overuse-judge
+            data-needs-ai title="Sends the counts and a few sample sentences to Gemini - not the manuscript.">
+            <span class="rail-menu__label">Ask Gemini which are tics</span>
+            <span class="rail-menu__switch" aria-hidden="true"></span>
+        </button>`;
+
+    els.overuseFlyout.innerHTML = groups + judge;
+}
+
+function aiOff() {
+    return !!(critic?.ai && critic.ai.ok === false);
+}
+
+function onOveruseClick(event) {
+    const judge = event.target.closest('[data-overuse-judge]');
+    if (judge) {
+        choice.judge = !choice.judge;
+        judge.setAttribute('aria-checked', String(choice.judge));
+        remember();
+        return;
+    }
+
+    const toggle = event.target.closest('[data-overuse-group]');
+    if (!toggle) return;
+
+    const id = toggle.dataset.overuseGroup;
+    const off = choice.overuseOff.includes(id);
+    choice.overuseOff = off
+        ? choice.overuseOff.filter(entry => entry !== id)
+        : [...choice.overuseOff, id];
+
+    toggle.setAttribute('aria-checked', String(off));
+    remember();
+    drawOveruseValue();
 }
 
 /* ---------- the badge ---------- */
