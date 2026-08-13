@@ -147,11 +147,28 @@ async function run() {
         const data = await res.json();
         if (!data.ok) throw new Error(data.message);
 
+        /*
+         * Name the branch, but ONLY when it is not the one this app would have
+         * made. "No branches" is right for a novelist and stays the default:
+         * a repository Prose Studio created is on `main` and never mentions it.
+         *
+         * A repository that predates this feature, or was made by hand, is very
+         * often on `master` - and the backup pushes there deliberately, so as
+         * not to fork a second branch beside the writer's real history. If
+         * GitHub's default for that repository is `main`, the web UI then opens
+         * on a branch the manuscript is not on and the chapters look missing.
+         * The push worked; the page was the wrong page. Saying where it went is
+         * the difference between that costing a minute and costing an evening.
+         */
+        const onBranch = data.branch && data.branch !== 'main'
+            ? ` on branch "${data.branch}"`
+            : '';
+
         if (data.committed) {
             toast('success', 'Backed up',
-                `${data.committed.files} file${data.committed.files === 1 ? '' : 's'} pushed to GitHub.`);
+                `${data.committed.files} file${data.committed.files === 1 ? '' : 's'} pushed to GitHub${onBranch}.`);
         } else {
-            toast('info', 'Already up to date', 'Nothing had changed since the last backup.');
+            toast('info', 'Already up to date', `Nothing had changed since the last backup${onBranch}.`);
         }
     } catch (err) {
         // Written for a writer, not for someone who uses git — see
