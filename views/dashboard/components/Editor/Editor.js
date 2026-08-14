@@ -282,9 +282,19 @@ function promptForSettings(headline) {
 
 /** The panel's resting state, restored once a warning stops being true. */
 function resetOutputHint() {
+    /*
+     * Says where the work happens, because that is the honest distinction now.
+     *
+     * The old copy divided these by SPEED — "give them a minute" — which was
+     * true of a local Gemma 3 4B and is not true of Gemini. What has not
+     * changed, and matters more, is that spelling and mechanics never leave the
+     * machine while line edits and critique are sent to Google. That is the
+     * whole basis of the AI being opt-in, so the panel should say it rather
+     * than talk about waiting.
+     */
     els.output.innerHTML =
-        '<p class="text-muted italic">Spelling is instant. A page scan and a critique both ' +
-        'run the local model, so give them a minute.</p>';
+        '<p class="text-muted italic">Spelling and mechanics run on this machine and are instant. ' +
+        'Line edits and critique send the chapter to Gemini.</p>';
 }
 
 function reportNoRoot() {
@@ -1401,7 +1411,11 @@ async function runScan() {
         return;
     }
 
-    working('Line edits', 'Waking the local model. Edits arrive when it finishes, which usually takes a few minutes.');
+    // "Waking the local model ... a few minutes" was Gemma 3 4B, which had a
+    // ~60s cold load. Gemini has no cold start and answers in seconds, so the
+    // old copy told the writer to go and do something else for no reason. What
+    // it should say instead is where the chapter is going.
+    working('Line edits', 'Sending this chapter to Gemini. Edits arrive when it answers.');
     try {
         const res = await fetch('/api/proofing/scan', {
             method: 'POST',
@@ -1422,7 +1436,7 @@ async function runScan() {
             announce(0);
         } else {
             els.output.innerHTML =
-                '<p class="text-muted italic" id="editorPending">Waiting on the local model for edit suggestions...</p>';
+                '<p class="text-muted italic" id="editorPending">Waiting on Gemini for edit suggestions...</p>';
         }
     } catch (err) {
         failed(err);
