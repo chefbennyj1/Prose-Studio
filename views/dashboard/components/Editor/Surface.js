@@ -313,6 +313,44 @@ const highlightPlugin = ViewPlugin.fromClass(class {
     }
 }, { decorations: instance => instance.decorations });
 
+/**
+ * Run something that moves the caret, and put every scroll position OUTSIDE
+ * the editor back where it was.
+ *
+ * Jumping to a search hit or an overuse finding does two things that scroll
+ * ancestors, not just the editor: `scrollIntoView` walks up through every
+ * scrollable parent, and focusing the contenteditable makes the browser reveal
+ * it by the same route. `#main-content` is `overflow: hidden`, which hides a
+ * scrollbar but does NOT stop it being scrolled programmatically — so the card
+ * slid up and took the editor's own bar with it, off the top of the window.
+ *
+ * Starting from scrollDOM's PARENT leaves CodeMirror's own scroller alone, so
+ * the line still comes into view inside the editor. Everything above it is
+ * pinned.
+ *
+ * Restored twice: once now, and once on the next frame, because focus can
+ * scroll after the call returns.
+ */
+function keepingOuterScroll(view, run) {
+    const saved = [];
+    for (let el = view.scrollDOM.parentElement; el; el = el.parentElement) {
+        saved.push([el, el.scrollTop, el.scrollLeft]);
+    }
+    const root = document.scrollingElement || document.documentElement;
+    saved.push([root, root.scrollTop, root.scrollLeft]);
+
+    run();
+
+    const restore = () => {
+        for (const [el, top, left] of saved) {
+            if (el.scrollTop !== top) el.scrollTop = top;
+            if (el.scrollLeft !== left) el.scrollLeft = left;
+        }
+    };
+    restore();
+    requestAnimationFrame(restore);
+}
+
 export function createSurface(host, options = {}) {
     const { onChange, onSave, text = '', placeholder = 'Start writing.' } = options;
 
@@ -409,25 +447,25 @@ export function createSurface(host, options = {}) {
          */
         toggleWrap(marker) {
             toggleWrap(view, marker);
-            view.focus();
+            keepingOuterScroll(view, () => view.focus());
         },
 
         /** Turn the current line into a block, or back to plain. See toggleLinePrefix. */
         toggleLinePrefix(prefix) {
             toggleLinePrefix(view, prefix);
-            view.focus();
+            keepingOuterScroll(view, () => view.focus());
         },
 
         /** Drop a block of its own on the line below. See insertBlock. */
         insertBlock(text) {
             insertBlock(view, text);
-            view.focus();
+            keepingOuterScroll(view, () => view.focus());
         },
 
         /** Type a character at the caret, replacing the selection. See insertText. */
         insertText(text) {
             insertText(view, text);
-            view.focus();
+            keepingOuterScroll(view, () => view.focus());
         },
 
         /**
@@ -526,7 +564,11 @@ export function createSurface(host, options = {}) {
             const max = view.state.doc.length;
             const anchor = Math.min(Math.max(0, from), max);
             const head = Math.min(Math.max(0, to), max);
-            view.dispatch({ selection: { anchor, head }, scrollIntoView: true });
+            // scrollIntoView is what brings the line into the editor; the lock
+            // stops it dragging the card and the editor's bar up with it.
+            keepingOuterScroll(view, () => {
+                view.dispatch({ selection: { anchor, head }, scrollIntoView: true });
+            });
         },
 
         get length() {
@@ -534,7 +576,10 @@ export function createSurface(host, options = {}) {
         },
 
         focus() {
-            view.focus();
+            // Focusing a contenteditable makes the browser scroll every
+            // ancestor to reveal it. Inside the editor that is wanted; outside
+            // it slides the card up under the top of the window.
+            keepingOuterScroll(view, () => view.focus());
         },
 
         /** Force a geometry re-read, for callers that know it just appeared. */
