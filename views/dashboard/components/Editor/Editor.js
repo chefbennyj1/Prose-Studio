@@ -1499,8 +1499,23 @@ function renderMechanics(payload, { append = false } = {}) {
                 <p class="text-muted">${escapeHtml(finding.message)}</p>
                 ${finding.replacement === null ? '' :
                 `<div class="editor__replacement">${escapeHtml(finding.replacement)}</div>`}
+                <!--
+                    "go to", not "jump". This selects the finding in the
+                    manuscript and does nothing else — it changes no text.
+                    Sitting beside "fix", which does, the old label read as if
+                    it were the other half of a pair and therefore as if it
+                    dismissed the finding. Ben read it as "ignore". A control
+                    that is guessed wrong is worse than a longer one.
+
+                    There IS no per-finding ignore. The only way to silence a
+                    rule is its toggle in the Review menu, which switches it off
+                    everywhere — deliberately, because fiction breaks grammar on
+                    purpose and a writer whose voice lives in fragments wants
+                    the rule gone, not dismissed 200 times.
+                -->
                 <div class="editor__finding-actions">
-                    ${fix}<button class="editor__jump" data-mech="${index}">jump</button>
+                    ${fix}<button class="editor__jump" data-mech="${index}"
+                        title="Select this in the manuscript">go to</button>
                 </div>
             </li>`;
     }).join('');
