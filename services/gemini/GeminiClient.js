@@ -102,6 +102,57 @@ class GeminiClient {
 
         return { model, modelName };
     }
+
+    /**
+     * Turn a Gemini SDK error into a sentence a novelist can act on.
+     *
+     * The same job BackupService.explainPushError does for git, and for the
+     * same reason. Ben watched a raw SDK error for hours - a URL, a bracketed
+     * status and a paragraph of Google's prose - and reasonably concluded the
+     * service was down. It was not: the free tier allows 20 requests a day per
+     * model, and he had spent them. Nothing on screen said so, and "try again
+     * later" is actively misleading for a quota that resets tomorrow.
+     *
+     * The distinction that matters to the writer is only ever: is this me, is
+     * it my key, or is it Google - and is waiting going to help.
+     */
+    explain(err) {
+        const text = String(err?.message || err || '');
+        const status = (/\[(\d{3})\s/.exec(text) || [])[1];
+
+        // A daily cap is not a spike, and must not be described as one.
+        if (/PerDay/i.test(text) || /quota/i.test(text) && /free_tier/i.test(text)) {
+            const limit = (/limit:\s*(\d+)/.exec(text) || [])[1];
+            const model = (/model:\s*([\w.-]+)/.exec(text) || [])[1];
+            return `Today's free Gemini allowance is used up${limit ? ` (${limit} requests a day` : ''}`
+                + `${limit && model ? ` for ${model}` : ''}${limit ? ')' : ''}. `
+                + 'It resets tomorrow. To keep going now, add billing to the Google project this key belongs to. '
+                + 'Everything local — spelling, mechanics and the overuse count — still works.';
+        }
+
+        if (status === '429') {
+            const wait = (/retry in ([\d.]+)s/i.exec(text) || [])[1];
+            return `Gemini is rate-limiting this key${wait ? `; it asked to wait ${Math.ceil(Number(wait))} seconds` : ''}. Try again shortly.`;
+        }
+
+        if (status === '503' || /high demand|overloaded/i.test(text)) {
+            return 'Gemini is busy and turned this request away. That is usually brief — try again in a minute.';
+        }
+
+        if (status === '400' && /API key not valid/i.test(text)) {
+            return 'That Gemini API key was rejected. Check it in Settings.';
+        }
+
+        if (status === '404') {
+            return `Gemini has no model called "${text.match(/models\/([\w.-]+)/)?.[1] || 'that'}" for this key. Pick another in Settings.`;
+        }
+
+        if (/fetch failed|ENOTFOUND|ECONNRESET|ETIMEDOUT/i.test(text)) {
+            return 'Could not reach Gemini. Check the connection and try again.';
+        }
+
+        return text;
+    }
 }
 
 module.exports = new GeminiClient();

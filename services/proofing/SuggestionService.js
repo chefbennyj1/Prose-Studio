@@ -146,7 +146,16 @@ class SuggestionService {
 
         console.log(`[SuggestionService] Asking ${modelName} for edits across ${body.length} characters...`);
 
-        const result = await model.generateContent(`${INSTRUCTIONS}\n\nPASSAGE:\n\n${body}`);
+        let result;
+        try {
+            result = await model.generateContent(`${INSTRUCTIONS}\n\nPASSAGE:\n\n${body}`);
+        } catch (err) {
+            // A quota or an outage is not a fault in the writer's prose. Say
+            // which it is, in a sentence they can act on — see
+            // GeminiClient.explain. Ben watched a raw SDK error for hours and
+            // reasonably concluded the service was down; it was a daily cap.
+            throw new Error(GeminiClient.explain(err));
+        }
         const response = await result.response;
 
         let raw;

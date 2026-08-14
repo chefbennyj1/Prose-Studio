@@ -110,7 +110,14 @@ class GeminiOveruseService {
 
         console.log(`[GeminiOveruseService] Asking ${modelName} to judge ${words.length} word(s)...`);
 
-        const result = await model.generateContent(`${INSTRUCTIONS}\n\nDATA:\n\n${brief}`);
+        let result;
+        try {
+            result = await model.generateContent(`${INSTRUCTIONS}\n\nDATA:\n\n${brief}`);
+        } catch (err) {
+            // A quota or an outage is not a fault in the manuscript. Say which
+            // it is, in a sentence the writer can act on - see GeminiClient.explain.
+            throw new Error(GeminiClient.explain(err));
+        }
         const response = await result.response;
 
         let parsed;

@@ -49,7 +49,9 @@ class GeminiCriticService {
             return `# ${lens.label} — ${modelName}\n\n_${lens.blurb}_\n\n${response.text()}`;
         } catch (err) {
             console.error(`[GeminiCritic] Analysis Error:`, err.message);
-            throw err;
+            // Rethrow as something the writer can act on rather than a URL and
+            // a bracketed status code — see GeminiClient.explain.
+            throw new Error(GeminiClient.explain(err));
         }
     }
 }
