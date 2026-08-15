@@ -1,7 +1,8 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — formatting bar, em dash, overused-words scan,
+**CLAUDE:** idle — the editor bar sliding up under the card frame is fixed and
+reproduced both ways in a real browser (see below). Also: formatting bar, em dash, overused-words scan,
 manuscript-wide search + highlight, and the rail player all built and
 committed 2026-08-13. **Two things have never touched the network they need**:
 the GitHub push has not spoken to github.com from here (no token), and the
@@ -11,6 +12,73 @@ Gemini overuse judge has never run (no key). Everything local is verified.
 > `GitHubService.createRepo` is the only value it will send and there is no
 > parameter to change it. Do not add one. Publishing an unfinished novel is the
 > worst thing this feature could do and it must not be one checkbox away.
+
+## The editor was never a full-height section, 2026-08-14
+
+**The bar slid up under the top of the card when the caret reached the last
+line.** Reported by Ben, and this time reproduced: at 1366x768 the bar moves up
+20px, at 1280x720 it moves 34px, and `#main-content.scrollTop` is left holding
+exactly that number. At 1920x1080 it does not happen at all, which is why it
+reads as intermittent — the taller the window, the longer it hides.
+
+### One missing selector
+
+`layout.css` has a list of sections that get the full-height treatment when
+active: `display: flex`, `margin: 0`, `height: 100%`, `padding: 0`. **The editor
+was not in it.** Studio, Scene Editor, Layout Editor, Page Builder, Style Lab,
+Story Critic, Exporter, Characters and Settings all were.
+
+So the editor alone kept `.dashboard-section`'s defaults and
+`.dashboard-section.is-active { display: block !important }`. That `!important`
+beat `.editor { display: flex; flex-direction: column }` in `Editor.css`, and
+everything downstream followed:
+
+- `.editor__body { flex: 1 }` means nothing inside a block parent, so the body
+  was sized by its CONTENT rather than by what was left under the bar.
+- The content came out taller than the card — measured at every viewport, the
+  writing page's bottom edge sat 9px to 85px BELOW the card's.
+- That excess escapes into `#main-content`, which is `overflow: hidden` and so
+  shows no scrollbar but can still be scrolled programmatically.
+- The browser revealing the caret on the last line scrolled it, and there is no
+  scrollbar anywhere to pull it back.
+
+### Why the earlier fix did not cover this
+
+`keepingOuterScroll` in `Surface.js` (2026-08-13) pins outer scroll positions
+around the jumps the editor initiates — Apply, a search hit, an overuse finding.
+An arrow-key press is not one of those. The caret reveal on a keystroke is the
+browser's, inside CodeMirror, and never passes through our API. **That fix is
+still right for what it covers; it was treating a symptom of this.** With the
+column restored there is nothing above `.cm-scroller` left to scroll, which is
+the structural version of the same protection.
+
+### The 65vh cap is gone
+
+`.editor__page` carried `max-height: 65vh`. It was a splint: with no flex column
+the box had no height to inherit and would have grown to the length of the
+chapter. It also meant `.cm-editor { height: 100% }` could not resolve, so the
+PAGE scrolled and `.cm-scroller` never did — the opposite of what the comment
+above it describes. Both are right now.
+
+### What it changes visually
+
+The card is full-bleed: no 4% margin, no 40px padding, the bar's border running
+edge to edge like a header. That is how every other studio section already
+looks.
+
+> **The lesson, and it is the same one the rail player taught.** Do not chase
+> the thing doing the scrolling — take away the ability to scroll. Ancestors
+> cannot slide a bar out of view if none of them has anything to overflow.
+
+### Verifying it
+
+Real CodeMirror, real CSS, real key presses, four viewports: click into the
+prose, 40x ArrowDown, Ctrl+End, 10 more. Assert the bar's `top` has not moved
+and no ancestor of `.cm-scroller` has a non-zero `scrollTop`. **Run it against
+the CSS with the fix stashed as well** — the earlier attempt at this bug shipped
+on a harness that could not have failed. This one fails 2 of 4 without the fix
+and passes 4 of 4 with it. Serve the project over HTTP; `Surface.js` imports
+`/libs/codemirror/codemirror.js` and a `file://` page cannot resolve it.
 
 ## The player lives in the rail, 2026-08-13
 

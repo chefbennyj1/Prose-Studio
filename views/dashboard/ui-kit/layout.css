@@ -159,7 +159,25 @@ body {
     display: block !important;
 }
 
-/* Ensure Studio Hub, Scene Editor, Layout Editor, Page Builder, Style Lab, Story Critic, Exporter, Characters, and Settings use flex when active */
+/* Ensure the Editor, Studio Hub, Scene Editor, Layout Editor, Page Builder, Style Lab, Story Critic, Exporter, Characters, and Settings use flex when active */
+/*
+   THE EDITOR MUST BE IN THIS LIST.
+
+   It was the only section left out, and being left out cost it three things
+   that the rule above hands every other section: display: block instead of the
+   flex column Editor.css asks for, a 4% margin, and 40px of padding. The flex
+   column is the load-bearing one. Without it `.editor__body { flex: 1 }` means
+   nothing, so the body is sized by its CONTENT rather than by what is left
+   under the bar — and the content (format bar + page) comes out taller than the
+   card. The excess escapes into #main-content, which is overflow: hidden and so
+   shows no scrollbar but can still be scrolled programmatically. The browser
+   revealing the caret on the last line then scrolls it, and the editor's own
+   bar slides up out of the card with nothing to pull it back.
+
+   In the column the bar is a fixed row, .editor__body takes the rest with
+   min-height: 0, and nothing above .cm-scroller has anything to overflow.
+*/
+.editor.dashboard-section.is-active,
 .studio.dashboard-section.is-active,
 .scene-editor.dashboard-section.is-active,
 .layout-editor.dashboard-section.is-active,
@@ -201,6 +219,12 @@ body {
     padding: 20px !important;
 }
 
+/* The editor keeps the padding: 0 from the block above rather than taking the
+   20px the rule above this one gives the others: its bar is a header with a
+   border along the bottom, and 20px of card padding leaves that border floating
+   short of both edges. The writing page is centred by its own max-width, so it
+   needs no help from the card. */
+.editor.dashboard-section.is-active,
 .page-builder.dashboard-section.is-active,
 .style-lab.dashboard-section.is-active,
 .story-critic.dashboard-section.is-active,

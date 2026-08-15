@@ -269,7 +269,18 @@
        no reason to connect the two. Stated, it cannot be lost that way.
     */
     min-height: 0;
-    max-height: 65vh;
+    /*
+       No max-height. There was a 65vh cap here, and it was a splint on a broken
+       leg: the card was not a flex column at the time (the editor was missing
+       from the full-height list in layout.css), so this box had no height to
+       inherit and would otherwise have grown to the length of the chapter. The
+       cap stopped that, at the price of a writing area that ended two thirds of
+       the way down the card and a `height: 100%` on .cm-editor below that could
+       not resolve — which is why the PAGE scrolled rather than .cm-scroller.
+
+       With the column restored this box gets a real height from flex: 1, so the
+       cap would now do nothing but leave dead space under the last line.
+    */
     max-width: calc(6.5in + var(--gutter-width, 46px));
     margin: 0 auto;
     overflow-x: auto;
