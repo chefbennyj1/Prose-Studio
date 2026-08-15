@@ -1,8 +1,9 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — the editor bar sliding up under the card frame is fixed and
-reproduced both ways in a real browser (see below). Also: formatting bar, em dash, overused-words scan,
+**CLAUDE:** idle — splash screen and the PROSE ENGINE wordmark are in, rendered
+and screenshotted. The editor bar sliding up under the card frame is fixed and
+reproduced both ways in a real browser. Also: formatting bar, em dash, overused-words scan,
 manuscript-wide search + highlight, and the rail player all built and
 committed 2026-08-13. **Two things have never touched the network they need**:
 the GitHub push has not spoken to github.com from here (no token), and the
@@ -12,6 +13,61 @@ Gemini overuse judge has never run (no key). Everything local is verified.
 > `GitHubService.createRepo` is the only value it will send and there is no
 > parameter to change it. Do not add one. Publishing an unfinished novel is the
 > worst thing this feature could do and it must not be one checkbox away.
+
+## The splash, and the name on the door, 2026-08-15
+
+Ben's logo is in `resources/logo.jpg` (2816x1536, 1.6MB). What ships is
+`views/public/images/prose-engine-logo.webp` — trimmed to the artwork, resized
+to 900px, **31KB**. The splash is the first paint on a refresh, so the asset it
+waits for has to be small; the full JPEG is fifty times the weight for a picture
+displayed at 440px. `resources/` keeps the master. Regenerate with `sharp`:
+`.trim({threshold:10}).resize({width:900}).webp({quality:88})`.
+
+No cutout was needed. The wordmark is drawn on white, and `index.ejs` forces
+`data-theme="light"` on boot, so the splash is white. **If the dashboard ever
+gets a dark theme, this needs a logo with a transparent field** — not a dark
+background behind a white rectangle.
+
+### Why it is inline in index.ejs and not in loader.css
+
+`loader.css` has a `#loading-page` block that looks like it is for exactly this.
+It is unused, and it cannot do the job: `dashboard.css` (which imports it) is
+fetched by `loadCSS()` during boot, so anything styled from there paints AFTER
+the wait it is meant to cover. Its `z-index: 99` also sits under the topbar's
+1000. The splash's CSS is inline in the head via `extraStyles`, which is
+synchronous. A comment in `loader.css` now says so.
+
+### Three rules for taking it down
+
+1. **Not before 600ms.** On a warm cache the boot beats the eye, and a logo that
+   appears and vanishes reads as a fault.
+2. **Whatever happens.** It comes down in a `finally`, so a boot that throws
+   leaves a usable page and an error in the console, not a white screen.
+3. **Even if nothing happens.** A hung await never reaches the `finally`, so a
+   12s timer removes it independently. *A splash is a cover for a wait; it must
+   not become the thing being waited on.*
+
+`transitionend` does not fire under `prefers-reduced-motion`, where the
+transition is `none` — so the 700ms timer IS the removal there, not a backstop.
+
+Verified by rendering the real EJS and serving it with no backend at all: boot
+fails outright and the splash still clears.
+
+### PROSE ENGINE, in two weights
+
+`SEQUENTIAL` in the topbar is now `Prose` + `<span class="logo__thin">Engine</span>`,
+matching the wordmark under the logo: 700 against 300, which is enough contrast
+to read as one name rather than two words. `.logo` already sets 700, uppercase
+and 2px tracking, and both halves share them.
+
+> **Two words wrap where one could not.** As a flex item beside the tabs the
+> logo shrank to its longest word and broke the name over two lines. `SEQUENTIAL`
+> had no space in it, so nothing in `.topbar .logo` ever had to say
+> `white-space: nowrap` — the rule was missing all along and only a rename could
+> expose it. Caught in a screenshot, not in a measurement; the numbers all said
+> 700/300/2px and were all correct.
+
+The `<title>` fallback in `head.ejs` was `Sequential` and is now `Prose Engine`.
 
 ## The editor was never a full-height section, 2026-08-14
 

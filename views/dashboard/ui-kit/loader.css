@@ -1,4 +1,12 @@
-/* LOADING SCREEEN */
+/*
+   LOADING SCREEEN — unused, and NOT what the dashboard shows on refresh.
+
+   The splash lives inline in views/dashboard/index.ejs, because this file is
+   fetched by loadCSS() during boot: anything styled from here paints after the
+   wait it is meant to cover. Its z-index of 99 also sits under the topbar
+   (1000). Left in place for the setup and auth pages, which load their CSS
+   synchronously and could still use it.
+*/
 #loading-page {
   position: fixed;
   top: 0;

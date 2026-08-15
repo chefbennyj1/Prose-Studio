@@ -520,6 +520,20 @@
     letter-spacing: 2px;
 }
 
+/*
+   PROSE ENGINE, in the two weights the wordmark under the logo uses: PROSE
+   carries the weight, ENGINE is the quiet half. The contrast is what makes it
+   read as one name rather than two words, so it wants a real gap between the
+   weights — 700 against 300, not 700 against 500.
+
+   .logo already sets 700, so only the thin half has to say anything. The
+   uppercase and the 2px tracking come from .logo and are shared, which is what
+   keeps the two halves looking like one word.
+*/
+.logo__thin {
+    font-weight: 300;
+}
+
 /* User profile base styling without the heavy background box */
 .user-profile {
     display: flex;

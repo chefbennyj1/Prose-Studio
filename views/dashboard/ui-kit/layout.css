@@ -78,6 +78,11 @@ body {
     margin-bottom: 0;
     padding-right: 0;
     font-size: 1.2rem;
+    /* Two words now, where SEQUENTIAL was one. As a flex item beside the tabs
+       it shrinks to its longest word and breaks the name over two lines — the
+       old wordmark could not wrap, so nothing here ever had to say this. */
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* User Profile in Topbar */

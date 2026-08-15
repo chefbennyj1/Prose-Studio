@@ -11,7 +11,10 @@
 <!-- TOPBAR NAVIGATION -->
 <header class="topbar glass glass--frosted">
     <div class="topbar-left" style="gap: 40px;">
-        <div class="logo">SEQUENTIAL</div>
+        <!-- Two weights, matching the wordmark under the logo: PROSE carries
+             the weight, ENGINE is the quiet half. One element would need a
+             font-weight span anyway, so the split is explicit. -->
+        <div class="logo">Prose <span class="logo__thin">Engine</span></div>
         <div class="glass-tabs">
             <nav class="glass-tab-list" id="main-navigation" role="tablist" aria-label="Main navigation">
                 <button class="glass-tab" role="tab" aria-selected="true" data-page="studio" tabindex="0">Studio</button>

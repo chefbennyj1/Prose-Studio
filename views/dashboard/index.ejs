@@ -1,8 +1,106 @@
-<%- include('../shared/main', { 
-    title: 'Dashboard', 
+<%- include('../shared/main', {
+    title: 'Prose Engine',
     bodyClass: 'dashboard-shell',
     hideHeader: true,
+    extraStyles: `
+        <!--
+            THE SPLASH.
+
+            Inline, in the head, and deliberately NOT in loader.css. The
+            dashboard's stylesheets are fetched by loadCSS() further down this
+            file, one await at a time, and the splash has to be painted before
+            the first of them arrives — that is the whole window it exists to
+            cover. A splash that waits for a stylesheet shows the writer an
+            unstyled logo on a white page, which is worse than no splash.
+
+            White because the wordmark is drawn on white and the dashboard
+            forces data-theme="light" a few lines below. If either of those ever
+            changes, this needs a logo with a transparent field, not a darker
+            background behind a white rectangle.
+        -->
+        <style>
+            #app-splash {
+                position: fixed;
+                inset: 0;
+                /* Over the topbar (1000), under the saving overlay (9999). */
+                z-index: 9998;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 34px;
+                background: #ffffff;
+                opacity: 1;
+                transition: opacity 0.45s ease;
+            }
+
+            #app-splash[hidden] { display: none; }
+
+            #app-splash.is-gone {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            /* width/height are on the element too, so the box is reserved
+               before the image decodes and the bar below it does not jump. */
+            #app-splash img {
+                width: min(440px, 62vw);
+                height: auto;
+                /* The asset is trimmed to the artwork, so its own margin is
+                   gone and this is the only spacing that applies. */
+                margin: 0;
+            }
+
+            /*
+                Indeterminate on purpose. Boot is a chain of awaits with no
+                measurable total, and a bar that claims 60% while it waits on
+                whichever CSS is slowest would be inventing the number.
+            */
+            #app-splash .splash__bar {
+                position: relative;
+                width: min(200px, 40vw);
+                height: 2px;
+                border-radius: 2px;
+                background: rgba(18, 48, 95, 0.10);
+                overflow: hidden;
+            }
+
+            #app-splash .splash__bar::after {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 40%;
+                height: 100%;
+                border-radius: 2px;
+                /* The logo's own two colours: deep navy into the cyan the
+                   pixels scatter into. */
+                background: linear-gradient(90deg, #12305f, #35c6f4);
+                animation: splash-sweep 1.15s ease-in-out infinite;
+            }
+
+            @keyframes splash-sweep {
+                0%   { transform: translateX(-100%); }
+                100% { transform: translateX(350%); }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                #app-splash { transition: none; }
+                #app-splash .splash__bar::after {
+                    animation: none;
+                    width: 100%;
+                    opacity: 0.5;
+                }
+            }
+        </style>
+    `,
     body: `
+        <div id="app-splash" role="status" aria-live="polite" aria-label="Loading Prose Engine">
+            <img src="/views/public/images/prose-engine-logo.webp"
+                 alt="Prose Engine" width="900" height="549" decoding="sync">
+            <div class="splash__bar" aria-hidden="true"></div>
+        </div>
+
         <section id="dashboard" class="dashboard active"></section>
     `,
     extraScripts: `
@@ -11,35 +109,72 @@
             import { loadCSS } from "/libs/Utility.js";
             import { init as initDashboard } from '/views/dashboard/dashboard.js?v=2.1';
 
+            /*
+                Taking the splash down.
+
+                Three rules, and the last two matter more than the first:
+
+                1. Not before 600ms. On a warm cache the whole boot is quicker
+                   than the eye, and a logo that appears and vanishes reads as a
+                   flicker or a fault rather than a splash.
+                2. Whatever happens. It comes down in a finally, so a boot that
+                   throws leaves the writer looking at an error in the console
+                   and a usable page, not a white screen with a logo on it.
+                3. Even if nothing happens. A hung await never reaches the
+                   finally at all, so a timer takes it down independently. A
+                   splash is a cover for a wait, and it must not become the
+                   thing being waited on.
+            */
+            const splash = document.getElementById('app-splash');
+            const splashShown = Date.now();
+
+            const dismissSplash = async () => {
+                if (!splash || !splash.isConnected) return;
+                const remaining = 600 - (Date.now() - splashShown);
+                if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+                splash.classList.add('is-gone');
+                // transitionend does not fire under prefers-reduced-motion,
+                // where the transition is none — so the timer is the removal,
+                // not a backstop for it.
+                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+                setTimeout(() => splash.remove(), 700);
+            };
+
+            setTimeout(dismissSplash, 12000);
+
             (async () => {
-                // Set theme to light by default
-                document.documentElement.setAttribute('data-theme', 'light');
-                localStorage.setItem('glass-theme', 'light');
+                try {
+                    // Set theme to light by default
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('glass-theme', 'light');
 
-                // 1. Load Liquid Glass Design System (The Foundation)
-                await loadCSS('/views/dashboard/ui-kit/glass-system/glass_components.css');
-                
-                await loadSection('dashboard', '/views/dashboard/dashboard.html', false);
-                
-                await loadCSS('/views/dashboard/dashboard.css');
-                // Studio specific styles
-                await loadCSS('/views/dashboard/studio/studio-common.css');
-                
-                await loadCSS('/views/dashboard/components/CardBuilder/CardBuilder.css');
-                await loadCSS('/views/dashboard/components/Editor/Editor.css');
-                await loadCSS('/views/dashboard/components/Narrator/Narrator.css');
-                await loadCSS('/views/dashboard/components/RailMenu/RailMenu.css');
-                await loadCSS('/views/dashboard/components/CharacterLab/CharacterLab.css');
-                await loadCSS('/views/dashboard/components/ScheduledTasks/ScheduledTasks.css');
-                
-                // 3. Load Glass System Script
-                const glassScript = document.createElement('script');
-                glassScript.src = '/views/dashboard/ui-kit/glass-system/glass_component.js';
-                document.body.appendChild(glassScript);
+                    // 1. Load Liquid Glass Design System (The Foundation)
+                    await loadCSS('/views/dashboard/ui-kit/glass-system/glass_components.css');
 
-                const dashboardContainer = document.getElementById('dashboard');
-                if (dashboardContainer) {
-                    await initDashboard(dashboardContainer);
+                    await loadSection('dashboard', '/views/dashboard/dashboard.html', false);
+
+                    await loadCSS('/views/dashboard/dashboard.css');
+                    // Studio specific styles
+                    await loadCSS('/views/dashboard/studio/studio-common.css');
+
+                    await loadCSS('/views/dashboard/components/CardBuilder/CardBuilder.css');
+                    await loadCSS('/views/dashboard/components/Editor/Editor.css');
+                    await loadCSS('/views/dashboard/components/Narrator/Narrator.css');
+                    await loadCSS('/views/dashboard/components/RailMenu/RailMenu.css');
+                    await loadCSS('/views/dashboard/components/CharacterLab/CharacterLab.css');
+                    await loadCSS('/views/dashboard/components/ScheduledTasks/ScheduledTasks.css');
+
+                    // 3. Load Glass System Script
+                    const glassScript = document.createElement('script');
+                    glassScript.src = '/views/dashboard/ui-kit/glass-system/glass_component.js';
+                    document.body.appendChild(glassScript);
+
+                    const dashboardContainer = document.getElementById('dashboard');
+                    if (dashboardContainer) {
+                        await initDashboard(dashboardContainer);
+                    }
+                } finally {
+                    dismissSplash();
                 }
             })();
         </script>
