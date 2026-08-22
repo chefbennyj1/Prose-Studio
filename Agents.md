@@ -1,18 +1,461 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — splash screen and the PROSE ENGINE wordmark are in, rendered
-and screenshotted. The editor bar sliding up under the card frame is fixed and
-reproduced both ways in a real browser. Also: formatting bar, em dash, overused-words scan,
-manuscript-wide search + highlight, and the rail player all built and
-committed 2026-08-13. **Two things have never touched the network they need**:
-the GitHub push has not spoken to github.com from here (no token), and the
-Gemini overuse judge has never run (no key). Everything local is verified.
+**CLAUDE:** idle — Review menu toggles now actually draw (they never did, see
+below), splash screen and the PROSE ENGINE wordmark are in. The editor bar
+sliding up under the card frame is fixed and reproduced both ways in a real
+browser. Also: formatting bar, em dash, overused-words scan, manuscript-wide
+search + highlight, and the rail player all built and committed 2026-08-13.
+
+**The GitHub push has now spoken to github.com** — `editor-search-and-player`
+pushed to `chefbennyj1/Prose-Studio` on 2026-08-15. That note is settled.
+
+**The Gemini overuse judge is still unconfirmed, but the old note was wrong
+about why.** It said "no key". The judge row is hidden whenever `critic.ai.ok`
+is false, and Ben can see the row — so a key IS configured. What is unknown is
+whether the judge has ever actually run, because it needs the toggle ON and
+then a scan, and until 2026-08-16 the toggle drew no state at all. Nobody could
+have known whether they had switched it on.
 
 > **MANUSCRIPT REPOSITORIES ARE ALWAYS PRIVATE.** `private: true` in
 > `GitHubService.createRepo` is the only value it will send and there is no
 > parameter to change it. Do not add one. Publishing an unfinished novel is the
 > worst thing this feature could do and it must not be one checkbox away.
+
+## A thesaurus that is not a thesaurus, 2026-08-21
+
+Datamuse. **No key, no account, no model** - the same class of tool as spelling
+and the mechanics scan, and it works with the AI switched off. Review menu, or
+`Ctrl+Shift+T` with the caret in a word.
+
+Ben started at "similes", which would have to be AI, and the objection that
+turned it round is his own from the overuse thread: **the worst thing a writer
+can do is open a thesaurus and start picking impressive words.** A panel that
+returns forty synonyms IS that machine. So the design is mostly refusals:
+
+- **The sentence is shown above the list**, with the word marked in it. The
+  question is "what belongs in THIS line", not "what else means this".
+- **Twelve results, as chips, not a list.** A vertical list of twelve invites
+  reading all twelve and picking the most impressive.
+- **Rare words are shown but dimmed and dashed**, sorted last. A reader WILL
+  notice "coruscate" and the writer should know that before choosing it.
+
+### Four fixes, each from a real failure in the output
+
+- **Three queries, not one.** `rel_syn` is precise but LEMMA-BASED: "walked"
+  and "stuttered" return nothing at all, and "said" returns the ADJECTIVE sense
+  (aforementioned, aforesaid). `ml` handles inflections but is noisy - it
+  offered "base on balls" for "walked", the baseball sense. So `rel_syn(stem)`
+  is used as a **quality filter over `ml`**: a word in both is a real synonym
+  AND already in the right tense.
+- **Inflections collapsed, keeping the writer's tense.** Datamuse returns
+  stammer / stammered / stammering / stammeringly as four answers. They are one
+  suggestion, and "stuttered" should offer **stammered** so it drops into the
+  sentence without the tense needing fixing afterwards.
+- **Function words dropped by FREQUENCY, not by a list.** "said" was answered
+  with was, were, had. Anything above 500-per-million is grammar, not a word
+  anyone chooses.
+- **Stemmer guard.** "said" -> "sai" and "pass" -> "pas" were poisoning every
+  lookup silently. A stem under four letters is damage, not a stem.
+
+Still weak on "walked" - WordNet's synset for it is genuinely thin, and
+irregulars (said -> say) are out of reach for a naive stemmer. No ranking fixes
+a poor source.
+
+### Offsets are captured at lookup and VERIFIED before replacing
+
+`applySynonym` re-reads the span and refuses if the text has changed since the
+lookup. Without it, looking a word up, typing elsewhere, then clicking a
+synonym replaces whatever now occupies those offsets - silently, in the wrong
+place. Same rule `applySuggestion` keeps for the model's edits.
+
+Case is the writer's, not the dictionary's: a word that opened a sentence still
+opens it after the swap.
+
+### The context menu that was not built
+
+Right-click "Thesaurus > ..." was the obvious shape, and it was dropped for one
+reason: **overriding `contextmenu` costs Chrome's spellcheck menu.** The editor
+sets `spellcheck: 'true'` deliberately - the browser's checker is the free first
+tier - and JavaScript cannot read those suggestions, so a custom menu cannot
+offer them either. Mimicking search costs nothing and loses nothing.
+
+> **TWO BUGS BEHIND ONE ERROR, AND A CHECK THAT PROVED NOTHING.**
+>
+> The handler was written in NarratorController's shape and pasted into
+> ProofingController, which has no `fail()` - it repeats those three lines
+> inline six times. `ReferenceError: fail is not defined` reached the browser as
+> an HTML error page, which reads exactly like a missing route.
+>
+> Behind it sat a second: the `require` for ThesaurusService had never been
+> added. **I had "verified" it with `includes('ThesaurusService')`, which was
+> true because the pasted handler body mentions it.** A check that cannot fail
+> is worse than no check - it converts an unknown into a false certainty.
+>
+> Driving the handler directly - a fake `res` object, no server, no browser -
+> found both in one run. Do that before touching the UI.
+
+`ProofingController` now has a `fail()` of its own and the six repetitions are
+five calls to it. Three catch blocks deliberately keep their own shape: the
+overuse judgement returns `ok: true` with the counts intact, the mechanics pass
+inside spell only logs, and the suggestion scan answers over `deliver`.
+
+## A second narrator, for the finished take, 2026-08-17
+
+Piper writes; Gemini performs. **Piper does not move** — it is local, free,
+instant and unlimited, which is what listening to a chapter you are still
+rewriting needs. It is also unavoidably flat. The Gemini TTS models take
+DIRECTION in plain English, which is the thing Ben actually needed:
+
+> "Read aloud in a warm tone. book narrator. dramatic. noir, cyberpunk,
+> English accent, not drawn out."
+
+Voice: **Zephyr**. That prompt is his and it is doing real work — "not drawn
+out" is what stops the noir register sliding into audiobook parody.
+
+### Cloud TTS is not reachable from this app. At all.
+
+The obvious-looking door — `console.cloud.google.com/.../media/speech`,
+`texttospeech.googleapis.com` — returns:
+
+```
+401: API keys are not supported by this API.
+     Expected OAuth2 access token or other authentication credentials.
+```
+
+That is not a restriction to loosen or an API to enable; Cloud TTS wants a
+service account. **Do not spend another hour on it.** It is also the product
+that bills a card rather than throwing, so being locked out of it is the safe
+side of the door to be on.
+
+What works is the Generative Language API — the same endpoint and the same key
+as Critique — where six audio-capable models were visible to Ben's key:
+`gemini-3.1-flash-tts-preview` (used, also offers `batchGenerateContent`),
+`gemini-2.5-pro-preview-tts`, `gemini-2.5-flash-preview-tts`, and three
+native-audio bidi models.
+
+**Every one is a PREVIEW model.** The model id is configuration, not a
+constant, so a withdrawal is a settings change rather than a code change.
+
+### Measured, not estimated
+
+338 characters -> 26.4s of audio, 939 tokens. About **2,800 tokens per 1,000
+characters**; a 500k-character novel is ~1.4M tokens and ~10.8 hours of audio.
+
+The models return **headerless PCM** (`audio/l16; rate=24000; channels=1`).
+Nothing plays it until 44 bytes of WAV header go on the front. Int16 is divided
+by **32768, not 32767** — the negative extreme is -32768 and 32767 puts it past
+-1.0, which the wav writer clamps and a listener hears as a tick.
+
+### The real constraint is requests per day, not money
+
+Free tier meters *requests*, and a chapter is 200-odd paragraphs. So a full
+chapter render WILL stop partway — and that is designed for rather than treated
+as a failure. `ExportService` stops politely on a 429, keeps every rendered
+paragraph, writes what it has, and reports how many are left with the reset
+message. Tomorrow's run skips the done ones by hash. **A chapter over three
+days, free, instead of a bill.**
+
+### Why export/ is a separate folder from .audio/
+
+`ChapterAudioService.#sweep` deletes any file its current manifest does not
+reference. Two engines in one folder would therefore delete each other's work
+on every render. Two products, two folders, no collision — and Piper's player
+is untouched.
+
+```
+<story>/export/chapter_01/
+    chapter.wav      the whole chapter, gaps included
+    timestamps.txt   YouTube chapter markers, free from the manifest
+    manifest.json    engine, model, voice, style, tokens
+    parts/           one wav per paragraph, hash-named
+```
+
+`export/` is NOT hidden, unlike `.audio` — it is the thing being made and has
+to be findable in Explorer. Folders are zero-padded: a file manager sorts
+`chapter_10` before `chapter_2`.
+
+**The style prompt is in the segment hash.** It changes the performance
+completely while leaving the words alone, so a hash without it would serve
+yesterday's reading of a paragraph just re-directed, with nothing on screen
+saying why. Same failure shape as the flags config being dropped by `setValue`.
+
+Gaps are inserted at STITCH time, not baked into the parts, so re-pacing a
+chapter costs seconds instead of money.
+
+### The button
+
+**Narrator menu → Export narration**, below the transport, `data-needs-ai` so
+it is absent entirely with the AI off. Routes:
+`GET /api/narrator/export/plan`, `POST /api/narrator/export/render`.
+
+It is the only control in the app that spends money, so it behaves unlike every
+other button in the rail:
+
+- **It asks first, with a real number**, and the number counts only what is not
+  already rendered. Re-exporting after a typo fix quotes one paragraph, not the
+  whole chapter — quoting the chapter again would frighten a writer off a
+  render that costs nothing.
+- **The confirmation names the folder.** "Where did it go" is the next
+  question, and the answer is not beside the chapter.
+- **Quota is reported as progress, not failure**: what is kept, how many are
+  left, and press again tomorrow. Calling it an error would be a lie that costs
+  the writer their nerve.
+
+The row's hint carries the cost at rest (`8 para, ~6k chars`), rounded to the
+nearest thousand characters, because a precise figure there reads as a bill.
+
+Progress arrives on `export:progress` over the socket rather than the response,
+which only settles at the end. The writer can close the menu.
+
+> **`chapterOpened` does not exist.** I wired the button to it from memory and
+> checked before testing; the editor dispatches **`manuscriptOpened`**, which
+> is what `BackupButton`, `RailMenu` and the dictionary all listen for. Had it
+> shipped, the button would have sat there permanently disabled with no story
+> and no error — the flags bug again, in a different costume.
+
+### Still not done
+
+The style prompt has no editor. It lives in localStorage under
+`prose-engine-export-style`, defaulting to Ben's noir line, and
+`setExportStyle()` is exported and unused. It belongs in a submenu beside the
+voice picker, since it is the direction the performance is acted to and it is
+part of the segment hash.
+
+`batchGenerateContent` is untested. If the batch quota is more generous than
+the interactive one, a chapter could go as one job instead of 200 requests —
+worth probing before building any UI around the trickle assumption.
+
+`scratchpad/export-test.js` — 20 assertions, all passing, including two real
+Gemini renders, the zero-cost second pass, and a stubbed quota stop.
+
+## Writing flags: live underlines, no model, 2026-08-16
+
+Ben supplied a TypeScript word list (the Matt Might "shell scripts to improve
+your writing" lineage plus an AI-tells corpus). It is now
+`resources/writing-flags.json`, 85KB, and the editor underlines what it finds
+as the chapter is written.
+
+`resources/` rather than `dictionaries/` for one reason only: the browser has
+to fetch it, and `dictionaries/` is not a mounted static path. The converter
+lives in the scratchpad — it transforms and EXECUTES the TypeScript rather than
+retyping it, so the JSON cannot drift from the source. All 12 regexes are
+compile-checked on the way out.
+
+### The list contains two things that must never be highlighted
+
+- **`irregularVerbs` is not a word list.** It is the second half of a
+  passive-voice pattern: an auxiliary, then optionally an adverb, then a past
+  participle. On its own it is said, thought, made, found, held, left, put,
+  run, read, set, told, kept, heard — **most of the verbs a novel is built
+  from.** Highlighting the list alone would underline half of every page. It is
+  stored as `match: "composed"` with the auxiliaries beside it, and there is a
+  test whose only job is to fail if this regresses.
+- **`abbreviations` is sentence-boundary support**, not a flag list — the full
+  stops that do not end a sentence. Stored under `support`, `highlight: false`.
+
+The JSON is self-describing (`match`, `highlight`) precisely so the next person
+cannot make either mistake by reading the data alone.
+
+### One alternation per category, not nine hundred regexes
+
+~900 literal terms over a 100,000-character chapter, on every change, is
+90 million comparisons and a janky editor. One alternation per category is
+eight passes, and the matching happens in the engine rather than a JS loop.
+Measured: **4.3ms for a 5,500-word chapter, 16.8ms for 22,000 words.**
+
+Terms are sorted LONGEST FIRST inside each alternation — JS alternation is
+first-match-wins, not longest-wins, so "realm" ahead of "in the realm of" would
+match the fragment and lose the phrase. Overlaps ACROSS categories are then
+resolved the same way: one span, one flag.
+
+Word boundaries are the Unicode lookarounds, not `\b`, for the same reason the
+manuscript search uses them. Phrase whitespace becomes `\s+` so a phrase broken
+across a line still matches, and apostrophes match both straight and curly
+because the editor turns one into the other as you type.
+
+### Where the scanning happens
+
+In a CodeMirror view plugin, over `view.visibleRanges` only — built exactly
+like the search highlight and for the same reason. **Nothing has to call it as
+the writer types.** Offsets pushed in from Editor.js would need remapping
+through every edit and would be wrong for as long as it took to recompute.
+
+### Not every family is on by default, and that is the design
+
+Everything switched on flags roughly **one word in nine** of ordinary prose. A
+page with that many underlines is one a writer stops reading: the marks stop
+meaning "look here" and start meaning "ignore me", which is worse than nothing,
+because the real ones are camouflaged too.
+
+On: `weasel`, `hedging`, `passiveVoice`, `aiPhrases`, `aiPatterns`.
+Off, switchable: `fillerAdverbs` (139 adverbs, several of them ordinary
+narrative words), `nominalizations` (written for technical prose — a novel
+contains almost no "utilization"), `aiVocabulary` (contains "landscape",
+"profound", "stark", "poignant" — words a novelist may have chosen on purpose).
+
+The rail's **Review → Writing flags** submenu owns this. The master switch
+("Underline as I write") is the FIRST row, above the families and separated
+from them: unlike every other row in the Review menu this is not a check you
+run, it is already running on every keystroke, so "make it stop" has to be one
+click rather than eight. Off means all families off; on restores the DEFAULTS
+rather than the last set used — someone switching this back on a week later
+wants the thing that works, not a selection they no longer remember making.
+
+The menu announces `writingFlagsChanged` and Editor.js listens, for the same
+reason `runReview` is an event: the rail is permanent and the editor section is
+rebuilt on navigation, so the menu cannot hold a reference to the editor.
+
+The families are named in `ReviewMenu.js` rather than read from the JSON,
+because the menu must draw before — and regardless of whether — that 85KB file
+loads. A writer hunting for the off switch during a slow load still finds it.
+
+### Known overlap, not yet resolved
+
+**22 of the 95 weasel words are already in `OveruseLexicon`** — very, just,
+really, quite, actually, literally, simply, almost, certainly, definitely and
+others. Today they do not collide visually (one is a live underline, the other
+an on-demand report), but two features now have opinions about the same word.
+
+### Underlines, not washes
+
+The search highlight can afford a background because it is asked for and turned
+off again. These are on while the prose is being written. Wavy, like a
+spellchecker, because that is the one convention every writer already knows.
+Colour AND dash pattern differ per family — colour alone is no use to a
+colour-blind writer, and there are eight families.
+
+`unit_tests/test_writing_flags.mjs` — 10 assertions, all passing.
+
+### setValue threw the configuration away, and the harness could not see it
+
+Shipped, screenshotted, and **completely dead in the real app.** Ben opened it
+and no text was highlighted anywhere.
+
+`Surface.setValue()` without `keepHistory` calls `view.setState()`, which builds
+a whole new state — so **every StateField goes back to its `create()` value**.
+The writing-flags configuration lives in one of those fields. The editor loads
+every chapter through `setValue`, so the config was wiped before there was any
+prose to mark, every single time. `setValue` now carries it across explicitly.
+
+> **The harness passed the text in at construction. The app never does.**
+>
+> `createSurface(host, { text })` and then `setWritingFlags(...)` is not the
+> order the editor runs in — it creates an empty surface and loads chapters
+> through `setValue` afterwards. My harness tested a sequence the application
+> cannot perform, so it proved the scanner, the decorations and the CSS all
+> worked while the feature was 100% broken end to end.
+>
+> This is the third time in this file that a harness has agreed with a broken
+> build (see the unbalanced-HTML note, and the scroll lock that could not fail).
+> **A harness must reproduce the caller's ORDER OF OPERATIONS, not just its
+> inputs.** When the setup line differs from the app's, that difference is the
+> bug you are not testing for.
+
+`highlightState` has the identical exposure — a search highlight is also lost on
+chapter load. That one is masked because `jumpToHit` re-applies the highlight
+after opening a chapter, so it looks deliberate. Left alone rather than
+"fixed" silently, since changing it changes search behaviour.
+
+## An API key was acting as consent, 2026-08-16
+
+`GeminiClient.availability()` read:
+
+```js
+if (!enabled && !process.env.GEMINI_API_KEY) return { ok: false, ... }
+```
+
+`enabled` is the Settings checkbox. `||` semantics mean **a key in the
+environment satisfied the gate on its own** — so on any machine with
+`GEMINI_API_KEY` set, which includes Ben's, switching the AI OFF in Settings did
+not switch it off. The checkbox was decorative and the class header described a
+promise the code did not keep.
+
+**A key is not consent.** Supplying one says "here is how to reach Gemini if I
+ask you to". Only the checkbox says "send my novel". `availability()` now reads
+the checkbox and nothing else; `getApiKey()` still falls back to the
+environment, because WHERE the key comes from is a different question from
+WHETHER to use it.
+
+It now fails CLOSED when settings cannot be read, which is the opposite of what
+`ReviewMenu.drawAiRows` does on a failed request — deliberately, and the comment
+in each says so. In the menu an unreachable server would hide half the Review
+menu with nothing to explain it, so it fails open and lets the feature report
+its own error. Here the question is whether the writer agreed to send their
+manuscript to Google, and an unreadable answer to that is not a yes.
+
+The whole UI chain follows from this one function: `data-needs-ai` rows (Line
+edits, Critique, the lens submenu, the overuse judge) are hidden by
+`drawAiRows` off `critic.ai.ok`, which comes from here.
+
+> **Consequence for anyone running this: ticking the box in Settings is now
+> required.** An env key alone will leave the AI rows hidden, correctly.
+
+### What the disclosure says, and why it is per-feature
+
+Settings now carries a "What gets sent to Google" block ABOVE the checkbox — a
+disclosure underneath the control it qualifies is read after the decision. It
+is specific per feature because the honest answer is not the same for all
+three:
+
+- **Critique** — the whole chapter (`GeminiCriticService.analyze`).
+- **Line edits** — the whole chapter (`SuggestionService.suggest`; it is hunting
+  cross-paragraph repetition, which a chapter cut into pieces cannot show).
+- **Overused words** — counts plus at most six example sentences per word. Not
+  the manuscript.
+
+Rolling that into "some data may be shared" would be true and useless.
+
+### Verifying it
+
+`gate-test.js` stubs `models/GlobalSettings` through the require cache, so it
+needs no Mongo, and runs **every case with `GEMINI_API_KEY` set** — that is the
+only way to tell whether the checkbox is read at all. Five cases plus a check
+that `getModel()` itself refuses. Against the old code: **4 of 6 fail.** Against
+the new: all pass.
+
+## Every toggle in the Review menu was invisible, 2026-08-16
+
+`.rail-menu__switch` is emitted by three row builders in `ReviewMenu.js` — the
+mechanics rules, the overuse word families, and the Gemini row — and **was
+styled nowhere**. An empty inline span with no width. The rows toggled, the
+`aria-checked` was maintained correctly for screen readers, and on screen there
+was no difference between on and off in any of them.
+
+So every setting in that menu has been operated blind since it shipped. Ben
+found it by asking whether they were checkboxes.
+
+> **This is what an invisible dependency between a builder and a stylesheet
+> looks like.** The markup was right, the state was right, the accessibility was
+> right, and the feature was unusable. Nothing in a DOM assertion would have
+> caught it — `aria-checked` was always correct. It needed a rendered pixel or a
+> person.
+
+Now a checkbox: 16px, `var(--accent)` fill and a drawn tick when checked, glass
+border and translucent fill when not. State selector is
+`.rail-menu__toggle[aria-checked="true"]`, so the tick cannot disagree with what
+is announced — one source of truth, not two.
+
+**A checkbox rather than a sliding switch, and that answers the "all on"
+question.** These rows say whether a family is included in the scan, and a
+column of ticks reads as a set at a glance. All-on is now something you can SEE,
+so the menu does not need an "All" button to get back to it. A switch would read
+as a row of independent settings and have to be counted.
+
+The tick is two borders of a rotated box rather than an `ion-icon`, because the
+flyout is built and shown in one frame and an icon that resolves afterwards
+would pop in under the cursor.
+
+### "Ask Gemini which are tics" was the verdict value wearing a label
+
+`tic` / `watch` / `fine` are `GeminiOveruseService`'s internal verdicts. Putting
+`tic` on the button leaked that, and it pointed at the wrong thing: beside a
+manuscript full of characters, a "tic" reads as something a CHARACTER does. What
+the judge actually asks is whether the AUTHOR is reaching for a word by reflex.
+
+Ben read it the character way, and he wrote the app. Now: **"Ask Gemini which
+ones are worth fixing"** — what the AI adds to a list of counts the writer can
+already see is an opinion on which ones deserve their time.
 
 ## The splash, and the name on the door, 2026-08-15
 

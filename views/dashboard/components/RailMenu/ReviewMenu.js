@@ -53,7 +53,9 @@ export function initReviewMenu() {
         rulesValue: document.getElementById('reviewRulesValue'),
         rulesFlyout: document.getElementById('reviewRulesFlyout'),
         overuseValue: document.getElementById('reviewOveruseValue'),
-        overuseFlyout: document.getElementById('reviewOveruseFlyout')
+        overuseFlyout: document.getElementById('reviewOveruseFlyout'),
+        flagsValue: document.getElementById('reviewFlagsValue'),
+        flagsFlyout: document.getElementById('reviewFlagsFlyout')
     };
     if (!els.lensFlyout) return;
 
@@ -68,10 +70,12 @@ export function initReviewMenu() {
     els.lensFlyout.addEventListener('click', onLensClick);
     els.rulesFlyout.addEventListener('click', onRuleClick);
     els.overuseFlyout?.addEventListener('click', onOveruseClick);
+    els.flagsFlyout?.addEventListener('click', onFlagsClick);
 
     submenu('lens')?.addEventListener('flyoutOpened', drawLensList);
     submenu('rules')?.addEventListener('flyoutOpened', drawRuleList);
     submenu('overuse')?.addEventListener('flyoutOpened', drawOveruseList);
+    submenu('flags')?.addEventListener('flyoutOpened', drawFlagsList);
 
     // Switching the AI on in Settings should put its rows in the menu without
     // a reload; that page dispatches this once the key is saved.
@@ -83,6 +87,9 @@ export function initReviewMenu() {
     loadCritic();
     loadRules();
     loadOveruse();
+    // No fetch behind this one - the families are known here, so the summary
+    // is correct before anything loads.
+    drawFlagsValue();
 }
 
 function submenu(name) {
@@ -353,7 +360,18 @@ function drawOveruseList() {
         <button type="button" class="rail-menu__item rail-menu__toggle${aiOff() ? ' hidden' : ''}"
             role="menuitemcheckbox" aria-checked="${!!choice.judge}" data-overuse-judge
             data-needs-ai title="Sends the counts and a few sample sentences to Gemini - not the manuscript.">
-            <span class="rail-menu__label">Ask Gemini which are tics</span>
+            <!--
+                "Tics" was the internal verdict value wearing a label. It also
+                pointed at the wrong thing: beside a manuscript full of
+                characters, a "tic" reads as something a CHARACTER does, when
+                what this judges is the author reaching for a word by reflex.
+                Ben read it that way, and he wrote the app.
+
+                What a new writer needs to know is what the AI adds to a list of
+                counts they can already see: an opinion on which of them are
+                worth their time.
+            -->
+            <span class="rail-menu__label">Ask Gemini which ones are worth fixing</span>
             <span class="rail-menu__switch" aria-hidden="true"></span>
         </button>`;
 
@@ -385,6 +403,129 @@ function onOveruseClick(event) {
     toggle.setAttribute('aria-checked', String(off));
     remember();
     drawOveruseValue();
+}
+
+/* ---------- writing flags ---------- */
+
+/*
+   The families, in the order they appear in the flyout, with the defaults that
+   Editor.js also holds. Named here rather than fetched from the JSON because
+   the menu has to draw before - and regardless of whether - that 85KB file
+   loads: a writer looking for the off switch during a slow load must still
+   find it.
+
+   Kept deliberately short. `blurb` is what the family costs you, not what it
+   is; the label already says what it is.
+*/
+const FLAG_FAMILIES = [
+    { id: 'weasel', label: 'Weasel words', on: true, blurb: 'very, just, really, clearly' },
+    { id: 'hedging', label: 'Hedging phrases', on: true, blurb: 'I think, to some extent' },
+    { id: 'passiveVoice', label: 'Passive voice', on: true, blurb: 'was broken, had been mended' },
+    { id: 'aiPhrases', label: 'AI phrases', on: true, blurb: 'a testament to, rich tapestry' },
+    { id: 'aiPatterns', label: 'AI sentence patterns', on: true, blurb: 'not just X, it is Y' },
+    { id: 'fillerAdverbs', label: 'Filler adverbs', on: false, blurb: '139 of them; noisy while drafting' },
+    { id: 'nominalizations', label: 'Nominalizations', on: false, blurb: 'written for technical prose' },
+    { id: 'aiVocabulary', label: 'AI vocabulary', on: false, blurb: 'includes words you may have meant' }
+];
+
+const FLAGS_STORE_KEY = 'prose-engine-writing-flags';
+
+/** The writer's choice if they have made one, the defaults if not. */
+function chosenFlags() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(FLAGS_STORE_KEY) || 'null');
+        if (Array.isArray(saved)) return new Set(saved);
+    } catch {
+        // A corrupt entry is not worth losing the menu over.
+    }
+    return new Set(FLAG_FAMILIES.filter(f => f.on).map(f => f.id));
+}
+
+/*
+   Announced rather than called. The editor section is injected on navigation
+   and the rail is not, so this menu cannot hold a reference to the editor -
+   the same reason `runReview` is an event. Editor.js listens and re-arms the
+   surface; with no editor on screen nobody listens, and the choice is still
+   saved for when one appears.
+*/
+function publishFlags(chosen) {
+    try {
+        localStorage.setItem(FLAGS_STORE_KEY, JSON.stringify([...chosen]));
+    } catch {
+        // Private browsing. The choice still applies for this session.
+    }
+    document.dispatchEvent(new CustomEvent('writingFlagsChanged', {
+        detail: { categories: [...chosen] }
+    }));
+    drawFlagsValue();
+}
+
+function drawFlagsValue() {
+    if (!els.flagsValue) return;
+    const on = chosenFlags().size;
+    els.flagsValue.textContent = on ? `${on} of ${FLAG_FAMILIES.length}` : 'off';
+}
+
+function drawFlagsList() {
+    const chosen = chosenFlags();
+
+    /*
+       The master switch, first and separated. It is the row a writer comes to
+       this menu for - the underlines are already on the page and they want
+       them gone - so it must not be eight clicks at the bottom of a list.
+
+       It reads as ON if anything at all is ticked, because that matches what
+       is on the page rather than what is in the config.
+    */
+    const anyOn = chosen.size > 0;
+    const master = `
+        <button type="button" class="rail-menu__item rail-menu__toggle" role="menuitemcheckbox"
+            aria-checked="${anyOn}" data-flags-master
+            title="Underline weak or machine-sounding phrasing as you write. Local: no AI, nothing sent anywhere.">
+            <span class="rail-menu__label">Underline as I write</span>
+            <span class="rail-menu__switch" aria-hidden="true"></span>
+        </button>
+        <div class="rail-menu__divider" role="separator"></div>`;
+
+    const rows = FLAG_FAMILIES.map(family => `
+        <button type="button" class="rail-menu__item rail-menu__toggle" role="menuitemcheckbox"
+            aria-checked="${chosen.has(family.id)}" data-flag="${escapeHtml(family.id)}"
+            title="${escapeHtml(family.blurb)}">
+            <span class="rail-menu__label">${escapeHtml(family.label)}</span>
+            <span class="rail-menu__switch" aria-hidden="true"></span>
+        </button>`).join('');
+
+    els.flagsFlyout.innerHTML = master + rows;
+}
+
+function onFlagsClick(event) {
+    const master = event.target.closest('[data-flags-master]');
+    if (master) {
+        /*
+           Off means off: everything unticked. On restores the family defaults
+           rather than "whatever was on last time" - the writer who switched
+           this off in frustration and back on a week later wants the thing
+           that works, not a set they no longer remember choosing.
+        */
+        const goingOff = chosenFlags().size > 0;
+        publishFlags(goingOff ? new Set() : new Set(FLAG_FAMILIES.filter(f => f.on).map(f => f.id)));
+        drawFlagsList();
+        return;
+    }
+
+    const toggle = event.target.closest('[data-flag]');
+    if (!toggle) return;
+
+    const id = toggle.dataset.flag;
+    const chosen = chosenFlags();
+    if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
+
+    publishFlags(chosen);
+    toggle.setAttribute('aria-checked', String(chosen.has(id)));
+    // The master switch reflects the page, so it has to follow the last family
+    // being switched off.
+    els.flagsFlyout.querySelector('[data-flags-master]')
+        ?.setAttribute('aria-checked', String(chosen.size > 0));
 }
 
 /* ---------- the badge ---------- */

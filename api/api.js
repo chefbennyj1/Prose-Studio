@@ -200,6 +200,8 @@ router.post('/manuscript/save',     isAuth, ManuscriptController.saveChapter);
 
 // --- PROOFING (spelling + local edit suggestions) ---
 const ProofingController = require('../controllers/ProofingController.js');
+// Datamuse. No key, no AI, works with everything switched off.
+router.get('/proofing/thesaurus', isAuth, ProofingController.getThesaurus);
 router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);
@@ -256,6 +258,14 @@ router.get('/narrator/audio/plan', isAuth, NarratorController.getPlan);
 router.post('/narrator/audio/render', isAuth, NarratorController.render);
 router.get('/narrator/audio/manifest', isAuth, NarratorController.getManifest);
 router.get('/narrator/audio/segment/:file', isAuth, NarratorController.getSegment);
+
+// The performed take, rendered to <story>/export/chapter_NN/. Gemini rather
+// than Piper, and metered - see ExportService.
+router.get('/narrator/export/plan', isAuth, NarratorController.getExportPlan);
+router.post('/narrator/export/render', isAuth, NarratorController.renderExport);
+// Whatever is rendered so far, stitched in memory - chapter.wav only exists
+// once the chapter is complete, and this is for hearing it before then.
+router.get('/narrator/export/preview', isAuth, NarratorController.getExportPreview);
 router.post('/narrator/audio/clear', isAuth, NarratorController.clear);
 router.get('/narrator/music', isAuth, NarratorController.getMusic);
 router.get('/narrator/music/:file', isAuth, NarratorController.playMusic);

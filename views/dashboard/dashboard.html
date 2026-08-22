@@ -226,6 +226,27 @@
                     <span class="rail-menu__hint">Gemini</span>
                 </button>
 
+                <!--
+                    THESAURUS.
+
+                    NOT marked data-needs-ai, and that is the point of it:
+                    Datamuse needs no key, no account and no model, so this
+                    works with the AI switched off, like spelling and the
+                    mechanics scan.
+
+                    It is an action rather than a scan - it answers about the
+                    word you have highlighted rather than sweeping the chapter -
+                    but it lives here because Review is where everything that
+                    inspects the prose already lives, and a tool nobody can
+                    find is a tool nobody has.
+                -->
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="thesaurus" role="menuitem">
+                    <ion-icon name="book-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Thesaurus</span>
+                    <span class="rail-menu__hint">Ctrl+Shift+T</span>
+                </button>
+
                 <div class="rail-menu__divider" role="separator"></div>
 
                 <!-- No data-list on any of these: their contents belong to
@@ -276,6 +297,29 @@
                     </button>
                     <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
                         id="reviewOveruseFlyout" role="menu"></div>
+                </div>
+
+                <!--
+                    The live underlines, and the switch that turns them off.
+
+                    Unlike everything above it this is not a check you RUN - it
+                    is already running, on every keystroke, which is exactly why
+                    it needs a way out that is easier to find than the others.
+                    The master toggle is the first row inside, above the
+                    families, so "make it stop" is one click rather than eight.
+
+                    Local: regex against a word list on this machine. No AI, no
+                    network, nothing to opt into.
+                -->
+                <div class="rail-menu__submenu" data-review-menu="flags">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Writing flags</span>
+                        <span class="rail-menu__value" id="reviewFlagsValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
+                        id="reviewFlagsFlyout" role="menu"></div>
                 </div>
             </div>
         </div>
@@ -366,6 +410,67 @@
                             <div class="narrator__progress-bar" id="narratorProgressBar"></div>
                         </div>
                     </div>
+                </div>
+
+                <div class="rail-menu__divider" role="separator"></div>
+
+                <!--
+                    THE PERFORMED TAKE.
+
+                    Everything else in this menu is Piper: local, free, and
+                    what you listen to while the chapter is still moving. This
+                    one is Gemini, it acts the line rather than reading it, and
+                    it is METERED - which is why it is a separate row with its
+                    own confirmation rather than a second voice in the picker
+                    above. Pressing Render should never be the thing that
+                    spends money.
+
+                    data-needs-ai: with the AI switched off in Settings this
+                    row is not in the menu at all, the same as Critique and
+                    Line edits. The hint carries the cost once it is known.
+
+                    ============================================================
+                    PAUSED, 2026-08-18, at Ben's request. Two chapters came to
+                    $1.18 - more than expected, because a changed style prompt
+                    re-renders everything - and until that is accounted for, a
+                    stray click on this row spends real money.
+
+                    TO RESTORE: put `data-needs-ai` back on the button below,
+                    and delete the early return at the top of
+                    initExportButton() in ExportButton.js. Nothing else was
+                    removed - the routes, the service and the rendered audio
+                    are all untouched, and the parts already on disk are still
+                    cached, so nothing will be paid for twice.
+
+                    The button keeps its `hidden` class and no longer carries
+                    data-needs-ai, which is the only thing that would have
+                    removed it: ReviewMenu.drawAiRows() only un-hides rows
+                    marked with that attribute, so this row now stays hidden
+                    whatever the AI settings say.
+                    ============================================================
+                -->
+                <button type="button" class="rail-menu__item rail-menu__action hidden"
+                    id="narratorExportBtn" role="menuitem" data-export-paused
+                    title="Render this chapter to export/chapter_NN/ with the Gemini voice">
+                    <ion-icon name="film-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Export narration</span>
+                    <span class="rail-menu__hint" id="narratorExportHint">Gemini</span>
+                </button>
+                <div class="rail-menu__note hidden" id="narratorExportStatus"></div>
+
+                <!--
+                    Hear what has been rendered, before the chapter is finished.
+
+                    Native controls rather than a bespoke transport: this is a
+                    single long file that wants a seek bar, which the browser
+                    already draws better than the paragraph-playlist transport
+                    above could be made to. The two are separate players and
+                    nothing stops both playing at once - the native controls
+                    make that obvious enough to fix by pressing pause.
+                -->
+                <div class="rail-menu__preview hidden" id="narratorExportPreview">
+                    <audio id="narratorExportAudio" controls preload="none"></audio>
+                    <div class="rail-menu__note" id="narratorExportPreviewNote"></div>
                 </div>
 
                 <div class="rail-menu__divider" role="separator"></div>

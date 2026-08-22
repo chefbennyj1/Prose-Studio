@@ -764,6 +764,75 @@
 }
 
 /*
+   WRITING FLAGS.
+
+   Underlines, NOT washes. The search highlight above can afford a background
+   because a search is a thing the writer asked for and turns off again; these
+   are on while the prose is being written, and a page with forty coloured
+   blocks on it is a page nobody can read. An underline sits below the
+   baseline, leaves the letterforms alone, and is ignorable — which is the
+   point, because most flags are suggestions rather than errors.
+
+   Wavy, like a spellchecker, because that is the one editing convention every
+   writer already knows: something down there is worth a look, and nothing has
+   been changed.
+
+   Colour AND dash pattern differ per family. Colour alone would leave the
+   categories indistinguishable to a colour-blind writer, and there are eight
+   of them.
+*/
+.cm-proseFlag {
+    text-decoration: underline wavy currentColor;
+    text-decoration-thickness: 1px;
+    /* Keeps the wave off descenders, so a "g" or a "y" stays readable. */
+    text-decoration-skip-ink: auto;
+    text-underline-offset: 3px;
+}
+
+/* Vagueness: the writer reaching for emphasis. Amber, the "look again" colour. */
+.cm-proseFlag--weasel,
+.cm-proseFlag--fillerAdverbs {
+    text-decoration-color: color-mix(in srgb, #d97706 70%, transparent);
+}
+
+/* Hedging: not wrong, just quiet. Dotted and violet, the softest of the set. */
+.cm-proseFlag--hedging {
+    text-decoration: underline dotted color-mix(in srgb, #7c3aed 65%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+/* A verb wearing a noun's coat. Teal, and dashed because there IS a concrete
+   fix — the JSON carries the verb it wants to be. */
+.cm-proseFlag--nominalizations {
+    text-decoration: underline dashed color-mix(in srgb, #0d9488 70%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+/* Passive voice. Blue, and the most likely of all of these to be correct as
+   written — English needs the passive, and a novel more than most. */
+.cm-proseFlag--passiveVoice {
+    text-decoration-color: color-mix(in srgb, #2563eb 60%, transparent);
+}
+
+/* The AI tells, all three kinds, in one colour. To a writer they are one
+   question — "does this sound like a machine wrote it" — and splitting them
+   into three underlines would be a taxonomy nobody asked for. */
+.cm-proseFlag--aiVocabulary,
+.cm-proseFlag--aiPhrases,
+.cm-proseFlag--aiPatterns {
+    text-decoration-color: color-mix(in srgb, #db2777 70%, transparent);
+}
+
+/* A flag under a search hit is two different answers about the same words, and
+   the search is the one the writer just asked for. */
+.cm-proseMatch .cm-proseFlag,
+.cm-proseFlag.cm-proseMatch {
+    text-decoration: none;
+}
+
+/*
    OVERUSED WORDS.
 
    The samples are nested inside a finding that already has a bottom rule, so
@@ -907,4 +976,77 @@
         border-left: 0;
         border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
     }
+}
+/*
+   THESAURUS.
+
+   The sentence first, the words second, and the ordering on the page is the
+   argument: you are choosing a word for THIS line, not shopping from a list.
+   That was Ben's own warning about thesauruses, and it is the whole reason
+   this panel shows context at all.
+*/
+.thesaurus__line {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-left: 2px solid var(--glass-border, rgba(0, 0, 0, 0.15));
+    background: var(--glass-white-sm, rgba(0, 0, 0, 0.03));
+    border-radius: 0 var(--radius-sm, 5px) var(--radius-sm, 5px) 0;
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+/* The word under consideration, marked in its own sentence. */
+.thesaurus__line mark {
+    padding: 0 2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent, #00ccff) 26%, transparent);
+    color: inherit;
+    font-weight: 600;
+}
+
+.thesaurus__words {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+/*
+   Chips rather than a list. A vertical list of twelve words invites reading
+   all twelve and picking the most impressive; a wrapped row reads as a set of
+   options and is done with in a glance.
+*/
+.thesaurus__word {
+    padding: 5px 10px;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.14));
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text, inherit);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background var(--dur-fast, 0.15s), border-color var(--dur-fast, 0.15s);
+}
+
+.thesaurus__word:hover {
+    border-color: var(--accent, #00ccff);
+    background: color-mix(in srgb, var(--accent, #00ccff) 12%, transparent);
+}
+
+/*
+   Uncommon words are shown but visibly quieter - a reader WILL notice
+   "coruscate", and the writer should know that before choosing it rather than
+   after a reviewer points it out.
+*/
+.thesaurus__word--rare {
+    opacity: 0.6;
+    border-style: dashed;
+}
+
+/* Base form: the tense may need fixing after the swap. */
+.thesaurus__flag {
+    margin-left: 3px;
+    opacity: 0.5;
+    font-size: 0.9em;
 }

@@ -41,6 +41,7 @@ import {
     isPlaying
 } from '../Narrator/Player.js';
 import { createSurface } from './Surface.js';
+import { compile as compileFlags } from './WritingFlags.js';
 
 const AUTOSAVE_MS = 4000;
 
@@ -118,6 +119,8 @@ export async function initEditor(container) {
         }
     });
 
+    loadWritingFlags();
+
     // Which check to run, and how, is the rail's decision - see ReviewMenu.js.
     // The editor only knows how to run them and where to put the answer.
     //
@@ -139,6 +142,7 @@ export async function initEditor(container) {
             else if (detail.task === 'spelling') runSpelling();
             else if (detail.task === 'edits') runScan();
             else if (detail.task === 'critique') runCritique(detail.lens);
+            else if (detail.task === 'thesaurus') runThesaurus();
         });
         /*
          * Ctrl+Shift+F, on `document` and inside the same guard.
@@ -154,6 +158,15 @@ export async function initEditor(container) {
             if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
                 event.preventDefault();
                 openSearch();
+                return;
+            }
+
+            // Ctrl+Shift+T, beside Ctrl+Shift+F. Bound here for the same
+            // reason: the caret is not always in the surface when a writer
+            // wants this, and a keymap entry only fires when it is.
+            if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 't') {
+                event.preventDefault();
+                runThesaurus();
                 return;
             }
 
@@ -302,6 +315,102 @@ function reportNoRoot() {
     setState('no story folder');
     promptForSettings('No story folder is set.');
 }
+
+/* ---------- writing flags ---------- */
+
+/**
+ * WHICH FAMILIES ARE ON BY DEFAULT.
+ *
+ * Not all of them, and this is the whole design decision. Everything switched
+ * on flags roughly one word in nine of ordinary prose, and a page with that
+ * many underlines is a page a writer stops reading — the marks stop meaning
+ * "look here" and start meaning "ignore me", which is worse than not having
+ * them, because now the real ones are camouflaged too.
+ *
+ * On: the four families that are dense with signal in FICTION and quiet
+ * otherwise. Off by default, and switchable on:
+ *
+ *   fillerAdverbs   139 adverbs, several of which ("immediately", "suddenly",
+ *                   "quietly") are ordinary narrative verbs of motion. Useful
+ *                   during a deliberate adverb pass; noise while drafting.
+ *   nominalizations Written for technical prose. "utilization",
+ *                   "deployment", "configuration" — a novel contains almost
+ *                   none of these, so it is 245 terms earning nothing.
+ *   aiVocabulary    The riskiest list. It contains "landscape", "profound",
+ *                   "stark", "poignant", "enduring" — all of which are simply
+ *                   words, and all of which a novelist may have chosen on
+ *                   purpose. High value when hunting pasted AI text, high
+ *                   false-positive rate the rest of the time.
+ */
+const FLAGS_ON_BY_DEFAULT = ['weasel', 'hedging', 'passiveVoice', 'aiPhrases', 'aiPatterns'];
+const FLAGS_STORE_KEY = 'prose-engine-writing-flags';
+
+// Compiled once for the life of the page. The JSON is 85KB and compiling it
+// builds eight regexes; a section that is re-injected on every navigation must
+// not redo either.
+let compiledFlags = null;
+
+/**
+ * Fetch the word lists, compile them, and hand them to the surface.
+ *
+ * Called once, and never again as the writer types: the surface's view plugin
+ * re-scans on every document change by itself. See Surface.setWritingFlags.
+ *
+ * Failure is silent by design. These are underlines under words the writer can
+ * see perfectly well; a missing JSON is not worth a toast in front of someone
+ * mid-sentence, and everything else in the editor works without it.
+ */
+async function loadWritingFlags() {
+    try {
+        if (!compiledFlags) {
+            const response = await fetch('/resources/writing-flags.json');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            compiledFlags = compileFlags(await response.json());
+        }
+        surface?.setWritingFlags(compiledFlags, new Set(chosenFlagCategories()));
+    } catch (err) {
+        console.error('[Editor] Writing flags are off:', err.message);
+    }
+}
+
+/** The writer's choice if they have made one, the defaults if not. */
+function chosenFlagCategories() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(FLAGS_STORE_KEY) || 'null');
+        if (Array.isArray(saved)) return saved;
+    } catch {
+        // A corrupt entry is not worth losing the feature over.
+    }
+    return FLAGS_ON_BY_DEFAULT;
+}
+
+/**
+ * Turn families on or off.
+ *
+ * The rail's Writing flags submenu owns this choice and announces it; the
+ * editor only re-arms the surface. It writes localStorage too, so a choice
+ * made before the editor was ever opened still applies when it is.
+ *
+ * @param {string[]} categories  category ids from writing-flags.json
+ */
+export function setWritingFlagCategories(categories) {
+    const chosen = Array.isArray(categories) ? categories : FLAGS_ON_BY_DEFAULT;
+    try {
+        localStorage.setItem(FLAGS_STORE_KEY, JSON.stringify(chosen));
+    } catch {
+        // Private browsing. The choice still applies for this session.
+    }
+    surface?.setWritingFlags(compiledFlags, new Set(chosen));
+}
+
+/*
+   Bound on the document, once for the life of the page, for the same reason
+   `runReview` is: the rail is permanent and this section is rebuilt on every
+   navigation, so the menu cannot hold a reference to the editor.
+*/
+document.addEventListener('writingFlagsChanged', (event) => {
+    setWritingFlagCategories(event.detail?.categories);
+});
 
 /**
  * Fires on the keystroke that turns an empty surface into a non-empty one.
@@ -1872,4 +1981,191 @@ function applySuggestion(s, btn) {
     btn.disabled = true;
     updateCounts();
     markDirty();
+}
+
+/**
+ * Put the open chapter on disk before something reads it from there.
+ *
+ * `runSearch` and `runOveruse` have done `if (dirty) await save()` inline
+ * since they were written, for one reason: every scan in this app reads the
+ * FILE, not the buffer, so a scan of an unsaved chapter measures a version of
+ * the prose the writer can see is out of date on screen.
+ *
+ * The narration export needs the same guarantee and cannot reach `save()` -
+ * it lives in the rail, which is built once and never torn down, while this
+ * section is rebuilt on navigation. Exported rather than duplicated, because
+ * a second implementation of "save if dirty" is a second thing to get wrong.
+ *
+ * It matters more here than for a search. A stale search wastes a moment; a
+ * stale export spends the daily allowance rendering a paragraph the writer
+ * has already fixed, and the result sounds correct while being wrong.
+ */
+export async function saveIfDirty() {
+    if (dirty) await save();
+    return !dirty;
+}
+
+/* ---------- thesaurus ---------- */
+
+/**
+ * A plain line in the drawer.
+ *
+ * ReviewMenu has a note() of its own for its flyouts; this file writes into
+ * els.output and had no equivalent, so the four messages below would otherwise
+ * each have invented their own markup.
+ *
+ * Takes HTML rather than text, because every caller wants a word emphasised
+ * inside the sentence. Callers escape what came from the manuscript.
+ */
+function drawerNote(html) {
+    return `<p class="text-muted">${html}</p>`;
+}
+
+/*
+   Datamuse, through the server. No key, no model, and it works with the AI
+   switched off - the same class of tool as spelling and the mechanics scan.
+
+   The word being looked up and WHERE IT WAS are captured together and held
+   here, because a replacement applied to a stale offset lands in the wrong
+   place silently. See applySynonym.
+*/
+let lookup = null;   // { word, from, to, sentence, results }
+
+/**
+ * The word under the selection, or under the caret if nothing is selected.
+ *
+ * Expanding from a bare caret matters more than it looks: a writer reaches for
+ * this mid-sentence with the caret sitting in the word they are unhappy with,
+ * and demanding they double-click first is a step that teaches them the
+ * feature is fussy.
+ */
+function wordAtSelection() {
+    if (!surface) return null;
+
+    const text = surface.getValue();
+    const range = surface.getSelection();
+    let { from, to } = range;
+
+    const isWord = (ch) => ch && /[\p{L}\p{N}'’-]/u.test(ch);
+
+    if (from === to) {
+        while (from > 0 && isWord(text[from - 1])) from -= 1;
+        while (to < text.length && isWord(text[to])) to += 1;
+    } else {
+        // A selection that grabbed trailing space or punctuation is still a
+        // word lookup; trim rather than refuse.
+        while (from < to && !isWord(text[from])) from += 1;
+        while (to > from && !isWord(text[to - 1])) to -= 1;
+    }
+
+    const word = text.slice(from, to);
+    if (!word || /[\s]/.test(word)) return null;
+
+    /*
+     * The sentence it sits in, shown above the list. Choosing a word for a
+     * LINE rather than off a list is the whole difference between this and the
+     * thesaurus-diving that produces ridiculous prose.
+     */
+    let start = from;
+    while (start > 0 && !/[.!?\n]/.test(text[start - 1])) start -= 1;
+    let end = to;
+    while (end < text.length && !/[.!?\n]/.test(text[end])) end += 1;
+
+    return {
+        word, from, to,
+        sentence: text.slice(start, Math.min(end + 1, text.length)).trim(),
+        offsetInSentence: from - start
+    };
+}
+
+async function runThesaurus() {
+    if (!surface) return;
+
+    const found = wordAtSelection();
+    if (!found) {
+        openDrawer('Thesaurus');
+        els.output.innerHTML = drawerNote('Put the caret in a word, or highlight one, and try again.');
+        return;
+    }
+
+    lookup = { ...found, results: null };
+    openDrawer('Thesaurus');
+    els.output.innerHTML = drawerNote(`Looking up <strong>${escapeHtml(found.word)}</strong>...`);
+
+    try {
+        const query = new URLSearchParams({ word: found.word });
+        const data = await (await fetch(`/api/proofing/thesaurus?${query}`)).json();
+        if (!data.ok) throw new Error(data.message || 'The thesaurus did not answer.');
+
+        lookup.results = data.results;
+        drawThesaurus();
+    } catch (err) {
+        els.output.innerHTML = drawerNote(escapeHtml(err.message));
+    }
+}
+
+function drawThesaurus() {
+    if (!lookup || !els.output) return;
+
+    if (!lookup.results.length) {
+        els.output.innerHTML = drawerNote(`No synonyms for <strong>${escapeHtml(lookup.word)}</strong>.`);
+        return;
+    }
+
+    /*
+     * The sentence, with the word marked in it. This is the context that stops
+     * the list being a shopping trip: the question is not "what else means
+     * this" but "what belongs in THIS line".
+     */
+    const before = escapeHtml(lookup.sentence.slice(0, lookup.offsetInSentence));
+    const word = escapeHtml(lookup.sentence.substr(lookup.offsetInSentence, lookup.word.length));
+    const after = escapeHtml(lookup.sentence.slice(lookup.offsetInSentence + lookup.word.length));
+
+    const context = `<p class="thesaurus__line">${before}<mark>${word}</mark>${after}</p>`;
+
+    const rows = lookup.results.map((entry, index) => `
+        <button type="button" class="thesaurus__word${entry.rare ? ' thesaurus__word--rare' : ''}"
+            data-synonym="${index}"
+            title="${entry.rare ? 'Uncommon — a reader will notice this word' : ''}${entry.baseForm ? ' Base form; the tense may need fixing.' : ''}">
+            ${escapeHtml(entry.word)}${entry.baseForm ? '<span class="thesaurus__flag">~</span>' : ''}
+        </button>`).join('');
+
+    els.output.innerHTML = context
+        + `<div class="thesaurus__words">${rows}</div>`
+        + drawerNote('Common words first. Click one to replace.');
+
+    els.output.querySelectorAll('[data-synonym]').forEach((button) => {
+        button.addEventListener('click', () => applySynonym(Number(button.dataset.synonym)));
+    });
+}
+
+/**
+ * Swap the word, having first checked it is still there.
+ *
+ * The offsets were taken when the lookup ran, and the writer may have typed
+ * anywhere in the chapter since. Applying them blind would replace whatever
+ * now occupies that span - silently, in the wrong place, and in a way nothing
+ * on screen would reveal. Verified against the text, exactly as
+ * applySuggestion does for the model's edits.
+ */
+function applySynonym(index) {
+    const entry = lookup?.results?.[index];
+    if (!entry || !surface) return;
+
+    const current = surface.getValue().slice(lookup.from, lookup.to);
+    if (current !== lookup.word) {
+        els.output.innerHTML = drawerNote(
+            `That line has changed since this was looked up, so nothing was replaced. `
+            + `Highlight <strong>${escapeHtml(lookup.word)}</strong> again.`);
+        return;
+    }
+
+    // Case is the writer's, not the dictionary's: a word that opened a
+    // sentence must still open it after the swap.
+    const replacement = /^[A-Z]/.test(lookup.word)
+        ? entry.word.charAt(0).toUpperCase() + entry.word.slice(1)
+        : entry.word;
+
+    surface.replaceRange(lookup.from, lookup.to, replacement);
+    closeDrawer();
 }
