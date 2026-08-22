@@ -82,6 +82,44 @@ function ensureContext() {
  * uncorrelated signals at 0.5 sum to about 0.7 of full, so a linear fade
  * leaves a hole in the middle of the crossfade.
  */
+/**
+ * The same fade, arriving at a chosen level instead of at 1.
+ *
+ * RISE and FALL are normalised 0..1, so scheduling RISE on the master gain
+ * ramped it to FULL gain and then relied on a setValueAtTime at the end of the
+ * curve to snap it back down to the writer's volume - audible as a blip on
+ * every resume, and the snap was also what threw:
+ *
+ *   NotSupportedError: setValueAtTime(0.12, 558.4625) overlaps
+ *   setValueCurveAtTime(..., 558.0654, 0.4)
+ *
+ * Scaling the curve removes both problems at once. The fade ends where it
+ * should, so nothing has to be scheduled at the join.
+ */
+function atPeak(curve, peak) {
+    const out = new Float32Array(curve.length);
+    for (let i = 0; i < curve.length; i++) out[i] = curve[i] * peak;
+    return out;
+}
+
+/**
+ * Clear the schedule, including a fade already in flight.
+ *
+ * cancelScheduledValues() only removes events at or after the given time - a
+ * setValueCurveAtTime that has ALREADY STARTED stays registered, and anything
+ * scheduled inside its window then throws. That is why the error only appeared
+ * after a suspend and a resume close together, and why a page refresh made it
+ * go away: a fresh AudioContext has nothing left over.
+ *
+ * cancelAndHoldAtTime truncates the running curve and holds its current value,
+ * which is exactly what a fade being interrupted should do. Not in every
+ * engine, so it falls back.
+ */
+function clearSchedule(param, now) {
+    if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(now);
+    else param.cancelScheduledValues(now);
+}
+
 function fadeCurve(rising, steps = 64) {
     const curve = new Float32Array(steps);
     for (let i = 0; i < steps; i++) {
@@ -253,9 +291,11 @@ export async function suspend() {
     running = false;
     // Ramp the master down first so the suspend is not heard as a cut.
     const now = context.currentTime;
-    master.gain.cancelScheduledValues(now);
+    // Falls from the level it is actually at. Unscaled, FALL starts at 1, so a
+    // bed playing quietly would JUMP UP to full gain before fading out.
+    clearSchedule(master.gain, now);
     master.gain.setValueAtTime(master.gain.value, now);
-    master.gain.setValueCurveAtTime(FALL, now, 0.4);
+    master.gain.setValueCurveAtTime(atPeak(FALL, master.gain.value || volume), now, 0.4);
     setTimeout(() => { if (!running && context) context.suspend(); }, 450);
 }
 
@@ -268,10 +308,11 @@ export async function resume() {
     if (context.state === 'suspended') await context.resume();
 
     const now = context.currentTime;
-    master.gain.cancelScheduledValues(now);
-    master.gain.setValueAtTime(0, now);
-    master.gain.setValueCurveAtTime(RISE, now, 0.4);
-    master.gain.setValueAtTime(volume, now + 0.4);
+    // Rises from wherever it actually is to the writer's volume, and stops
+    // there - no event at the join, so nothing can overlap the curve.
+    clearSchedule(master.gain, now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.setValueCurveAtTime(atPeak(RISE, volume), now, 0.4);
 
     if (!layer) await swapTo(track);
 }
