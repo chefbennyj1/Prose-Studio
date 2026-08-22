@@ -10,7 +10,8 @@ const { decrypt } = require("../../utils/encryption");
  *
  * THE AI IS OPT-IN AND THIS IS THE GATE. Nothing in the Prose Engine talks to
  * Google unless `critic.enabled` has been switched on in Settings and a key has
- * been supplied. That replaced an older arrangement where a local model was the
+ * been supplied. The checkbox is the only thing that grants it: a key in the
+ * environment supplies the key and grants nothing. That replaced an older arrangement where a local model was the
  * default and the cloud was the deliberate exception; the local models are gone
  * now, so the opt-in moved from "which engine answers" to "is there an AI at
  * all". The features that depend on it — Critique and Line edits — are hidden
@@ -50,16 +51,40 @@ class GeminiClient {
      * @returns {Promise<{ok: boolean, reason: string|null}>}
      */
     async availability() {
-        let enabled = false;
+        /*
+         * CONSENT LIVES IN SETTINGS AND NOWHERE ELSE.
+         *
+         * This used to read `if (!enabled && !process.env.GEMINI_API_KEY)`,
+         * which meant a key in the environment satisfied the gate on its own:
+         * with GEMINI_API_KEY set, switching the AI OFF in Settings did not
+         * switch it off. The checkbox was decorative on any machine with an
+         * env key, and the header above this class described a promise the
+         * code did not keep.
+         *
+         * A key is not consent. Supplying one says "here is how to reach
+         * Gemini if I ask you to", not "send my novel". Only the checkbox says
+         * the second thing, so only the checkbox is read here. getApiKey()
+         * still falls back to the environment, because WHERE the key comes
+         * from is a different question from WHETHER to use it.
+         */
+        let settings;
         try {
-            const settings = await GlobalSettings.findOne({ key: "main" });
-            enabled = !!settings?.critic?.enabled;
+            settings = await GlobalSettings.findOne({ key: "main" });
         } catch (err) {
-            // No database yet, during setup. An env key still counts.
-            enabled = !!process.env.GEMINI_API_KEY;
+            /*
+             * Fail CLOSED, and note that this is the opposite of what
+             * ReviewMenu.drawAiRows does on a failed request - deliberately.
+             * There, an unreachable server hides half the Review menu with no
+             * explanation, so it fails open and lets the feature report its
+             * own error. Here the question is whether the writer agreed to
+             * send their manuscript to Google, and an unreadable answer to
+             * that is not a yes.
+             */
+            console.error('[Gemini] Could not read the AI settings:', err.message);
+            return { ok: false, reason: 'Your AI settings could not be read, so the AI is off until they can be. Nothing has been sent.' };
         }
 
-        if (!enabled && !process.env.GEMINI_API_KEY) {
+        if (!settings?.critic?.enabled) {
             return { ok: false, reason: 'AI features are switched off. Turn them on in Settings to use Critique and Line edits.' };
         }
 

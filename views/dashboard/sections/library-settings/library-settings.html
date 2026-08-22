@@ -27,11 +27,56 @@
              local model was always available and never sent text anywhere,
              which stopped being true. -->
         <p class="text-muted margin-b-20">
-            Gemini powers Critique and Line edits, and those are the only two things
-            in the editor that send your writing anywhere. They stay hidden until you
-            switch this on. Spelling, the mechanics scan and the narrator run on this
+            Gemini powers Critique, Line edits and the opinion on overused words.
+            They stay hidden from the rail until you switch this on. Spelling, the
+            mechanics scan, the overused-word counting and the narrator run on this
             machine, free, whether this is on or off.
         </p>
+
+        <!--
+            WHAT LEAVES THE MACHINE.
+
+            Said in full, per feature, and in the writer's terms rather than the
+            API's. A novelist deciding whether to switch this on is deciding
+            whether to send an unpublished manuscript to Google, and the honest
+            answer is not the same for all three features - one sends a whole
+            chapter, one sends a handful of sentences, and the rest send nothing
+            at all. Rolling that into "some data may be shared" would be true
+            and useless.
+
+            This sits ABOVE the checkbox on purpose. A disclosure underneath the
+            control it qualifies is read after the decision.
+        -->
+        <div class="glass glass--dark glass-card margin-b-20 padding-20">
+            <h4 class="margin-0 margin-b-10">What gets sent to Google</h4>
+            <p class="font-size-07 text-muted margin-b-10">
+                This is the price of the extra help. Switch it on and, when you run
+                one of these, your writing goes to Google's servers to be read by
+                their model:
+            </p>
+            <ul class="font-size-07 text-muted">
+                <li>
+                    <strong>Critique</strong> — sends the <strong>whole chapter</strong> you
+                    have open. The critic needs the shape of the thing to say anything
+                    useful about it, so there is no smaller version of this.
+                </li>
+                <li class="margin-t-5">
+                    <strong>Line edits</strong> — sends the <strong>whole chapter</strong> as
+                    well. It is looking for repetition across paragraphs, which cannot be
+                    found in a chapter cut into pieces.
+                </li>
+                <li class="margin-t-5">
+                    <strong>Overused words</strong> — sends <strong>counts and a few example
+                    sentences</strong>, at most six per word. Not the manuscript. The
+                    counting itself is done here and never leaves.
+                </li>
+            </ul>
+            <p class="font-size-07 text-muted margin-t-10 margin-b-0">
+                Everything else in the editor stays on this machine. With this
+                switched off, nothing in the Prose Engine talks to Google at all —
+                an API key on its own does not enable it.
+            </p>
+        </div>
 
         <div id="global-settings-form-container" class="glass glass--dark glass-card">
             <form id="global-settings-form">
@@ -41,7 +86,9 @@
                         <span>Enable Gemini as a critic</span>
                     </label>
                     <p class="font-size-07 text-muted margin-t-5">
-                        Adds Critique and Line edits to the Review menu in the rail.
+                        Adds Critique, Line edits and the overused-word opinion to the
+                        Review menu in the rail. Switching it off removes them again and
+                        stops anything being sent.
                     </p>
                 </div>
 
