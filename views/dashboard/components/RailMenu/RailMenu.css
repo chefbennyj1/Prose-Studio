@@ -285,6 +285,84 @@
     opacity: 0.8;
 }
 
+/*
+   THE CHECKBOX.
+
+   Every toggle in this menu — the mechanics rules, the overuse word families,
+   and the Gemini row — ships a `.rail-menu__switch` span. Nothing styled it, so
+   it rendered as an empty inline element with no width: the rows were
+   toggleable and had NO on-screen state at all. A writer switching a rule off
+   got a menu that looked identical either way.
+
+   A checkbox rather than a sliding switch, deliberately. These rows answer "is
+   this included in the scan", and a column of ticks reads as a set at a glance
+   — which is also what removes the need for an "all on" button, because all on
+   is a thing you can SEE. A switch reads as a row of independent settings and
+   has to be counted.
+
+   State comes from aria-checked on the row, which the menu already maintains
+   for screen readers. One source of truth: there is no way for the tick to
+   disagree with what is announced.
+*/
+.rail-menu__switch {
+    flex-shrink: 0;
+    position: relative;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--glass-border);
+    border-radius: 5px;
+    /* Reads as glass rather than as a form control: the fill is the same
+       translucent white the menu itself is built from. */
+    background: var(--glass-white-sm, rgba(255, 255, 255, 0.35));
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+
+/* The tick: two borders of a box, rotated. Drawn rather than set in an icon
+   font so it cannot arrive late — the flyout is built and shown in one frame,
+   and an ion-icon that resolves afterwards would pop in under the cursor. */
+.rail-menu__switch::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0.6);
+    opacity: 0;
+    transition: opacity var(--dur-fast), transform var(--dur-fast);
+}
+
+.rail-menu__toggle[aria-checked="true"] .rail-menu__switch {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.rail-menu__toggle[aria-checked="true"] .rail-menu__switch::after {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+}
+
+/* The row is the hit target, so the box has to answer to the row's hover -
+   otherwise the only thing that moves under the pointer is the background. */
+.rail-menu__toggle:hover .rail-menu__switch {
+    border-color: var(--accent);
+}
+
+.rail-menu__toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .rail-menu__switch,
+    .rail-menu__switch::after {
+        transition: none;
+    }
+}
+
 /* Section headings inside the rules flyout. Not interactive, so not an item. */
 .rail-menu__group-label {
     padding: var(--space-sm) var(--space-md) var(--space-xs);
@@ -452,4 +530,26 @@
 
 .rail-menu__transport .narrator__progress {
     margin-top: 4px;
+}
+
+/*
+   THE EXPORT PREVIEW.
+
+   A native <audio> in a 300px menu, so it has to be told to fit - left alone
+   Chrome renders it at its own intrinsic width and it hangs out of the flyout.
+*/
+.rail-menu__preview {
+    padding: var(--space-xs) var(--space-md) var(--space-sm);
+}
+
+.rail-menu__preview audio {
+    width: 100%;
+    height: 32px;
+    display: block;
+}
+
+.rail-menu__preview .rail-menu__note {
+    padding: var(--space-xs) 0 0;
+    font-size: var(--text-xs);
+    opacity: 0.75;
 }

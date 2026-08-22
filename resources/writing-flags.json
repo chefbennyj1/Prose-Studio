@@ -1,0 +1,3211 @@
+{
+  "version": 1,
+  "generated": "2026-08-16",
+  "note": "Converted from the TypeScript source Ben supplied. Match rules and the highlight flag travel with each category deliberately: two of these lists must never be highlighted on their own. Hand-edited since 2026-08-20: add words directly to categories.aiVocabulary.terms ({ term, head, reason }), one entry per inflected form, sharing a head.",
+  "categories": {
+    "weasel": {
+      "label": "Weasel words",
+      "match": "literal",
+      "highlight": true,
+      "note": "weaselWords + additionalWeaselWords, deduplicated. The split in the source is provenance, not meaning.",
+      "terms": [
+        "many",
+        "various",
+        "very",
+        "fairly",
+        "several",
+        "extremely",
+        "exceedingly",
+        "quite",
+        "remarkably",
+        "few",
+        "surprisingly",
+        "mostly",
+        "largely",
+        "huge",
+        "tiny",
+        "are a number",
+        "is a number",
+        "excellent",
+        "interestingly",
+        "significantly",
+        "substantially",
+        "clearly",
+        "vast",
+        "relatively",
+        "completely",
+        "virtually",
+        "somewhat",
+        "somehow",
+        "sort of",
+        "kind of",
+        "rather",
+        "usually",
+        "basically",
+        "generally",
+        "pretty much",
+        "arguably",
+        "almost",
+        "occasionally",
+        "approximately",
+        "nearly",
+        "seemingly",
+        "apparently",
+        "evidently",
+        "conceivably",
+        "possibly",
+        "probably",
+        "perhaps",
+        "maybe",
+        "certainly",
+        "definitely",
+        "essentially",
+        "actually",
+        "literally",
+        "obviously",
+        "numerous",
+        "countless",
+        "a lot",
+        "tons of",
+        "a great deal",
+        "a significant number",
+        "a considerable amount",
+        "often",
+        "frequently",
+        "rarely",
+        "seldom",
+        "sometimes",
+        "normally",
+        "commonly",
+        "typically",
+        "really",
+        "just",
+        "simply",
+        "notably",
+        "importantly",
+        "undoubtedly",
+        "unquestionably",
+        "slightly",
+        "marginally",
+        "moderately",
+        "mildly",
+        "reasonably",
+        "comparatively",
+        "peculiarly",
+        "strangely",
+        "oddly",
+        "curiously",
+        "supposedly",
+        "allegedly",
+        "purportedly",
+        "ostensibly",
+        "presumably",
+        "theoretically",
+        "hypothetically",
+        "in theory",
+        "in practice"
+      ]
+    },
+    "fillerAdverbs": {
+      "label": "Filler adverbs",
+      "match": "literal",
+      "highlight": true,
+      "terms": [
+        "absolutely",
+        "accordingly",
+        "admittedly",
+        "altogether",
+        "assuredly",
+        "categorically",
+        "chronically",
+        "collectively",
+        "comparably",
+        "compellingly",
+        "conclusively",
+        "consequently",
+        "consistently",
+        "constantly",
+        "continually",
+        "critically",
+        "decidedly",
+        "demonstrably",
+        "desperately",
+        "disproportionately",
+        "drastically",
+        "effectively",
+        "effortlessly",
+        "emphatically",
+        "enormously",
+        "entirely",
+        "especially",
+        "excitedly",
+        "exclusively",
+        "exponentially",
+        "extraordinarily",
+        "faithfully",
+        "fortunately",
+        "fundamentally",
+        "genuinely",
+        "globally",
+        "gracefully",
+        "greatly",
+        "hastily",
+        "historically",
+        "honestly",
+        "hopefully",
+        "hugely",
+        "ideally",
+        "immensely",
+        "immediately",
+        "impossibly",
+        "incidentally",
+        "incredibly",
+        "independently",
+        "indisputably",
+        "inevitably",
+        "infinitely",
+        "inherently",
+        "insanely",
+        "instantly",
+        "irrefutably",
+        "ironically",
+        "markedly",
+        "massively",
+        "materially",
+        "measurably",
+        "mercifully",
+        "merely",
+        "miraculously",
+        "monumentally",
+        "naturally",
+        "necessarily",
+        "noticeably",
+        "objectively",
+        "obscurely",
+        "overwhelmingly",
+        "overly",
+        "painfully",
+        "paradoxically",
+        "particularly",
+        "perfectly",
+        "permanently",
+        "personally",
+        "plainly",
+        "plausibly",
+        "positively",
+        "practically",
+        "precisely",
+        "predictably",
+        "predominantly",
+        "primarily",
+        "principally",
+        "profoundly",
+        "progressively",
+        "promptly",
+        "proportionally",
+        "purely",
+        "radically",
+        "rapidly",
+        "regrettably",
+        "reliably",
+        "repeatedly",
+        "reportedly",
+        "respectively",
+        "ridiculously",
+        "routinely",
+        "sadly",
+        "seriously",
+        "severely",
+        "sharply",
+        "singularly",
+        "solely",
+        "specifically",
+        "spectacularly",
+        "steadily",
+        "strikingly",
+        "strongly",
+        "stubbornly",
+        "sufficiently",
+        "surely",
+        "suspiciously",
+        "technically",
+        "thankfully",
+        "thoroughly",
+        "tirelessly",
+        "totally",
+        "tremendously",
+        "truly",
+        "unanimously",
+        "unconditionally",
+        "undeniably",
+        "understandably",
+        "unfortunately",
+        "uniformly",
+        "uniquely",
+        "universally",
+        "unnecessarily",
+        "unreasonably",
+        "utterly",
+        "vastly",
+        "vigorously",
+        "wholly",
+        "wildly"
+      ]
+    },
+    "hedging": {
+      "label": "Hedging phrases",
+      "match": "literal",
+      "highlight": true,
+      "terms": [
+        "i think",
+        "i believe",
+        "i feel",
+        "i suppose",
+        "i guess",
+        "i imagine",
+        "i assume",
+        "i suspect",
+        "i reckon",
+        "i would say",
+        "i would argue",
+        "i would suggest",
+        "i would think",
+        "i would hope",
+        "i would expect",
+        "i tend to think",
+        "i tend to believe",
+        "it seems",
+        "it appears",
+        "it would seem",
+        "it would appear",
+        "it could be said",
+        "it might be said",
+        "it may be said",
+        "it could be argued",
+        "it might be argued",
+        "it is possible that",
+        "it is likely that",
+        "it is conceivable that",
+        "it is worth noting",
+        "it should be noted",
+        "it must be noted",
+        "it is interesting to note",
+        "it goes without saying",
+        "one could argue",
+        "one might argue",
+        "one might say",
+        "one could say",
+        "one would think",
+        "one would expect",
+        "in my opinion",
+        "in my view",
+        "in my experience",
+        "to my knowledge",
+        "to my mind",
+        "to my way of thinking",
+        "from my perspective",
+        "from my point of view",
+        "as far as i know",
+        "as far as i can tell",
+        "as far as i am aware",
+        "as far as i understand",
+        "if i'm not mistaken",
+        "if i recall correctly",
+        "if my memory serves",
+        "if i may say so",
+        "to some extent",
+        "to a certain degree",
+        "to a certain extent",
+        "to a large extent",
+        "to a greater or lesser degree",
+        "in some ways",
+        "in some respects",
+        "in a sense",
+        "in a way",
+        "more or less",
+        "for the most part",
+        "by and large",
+        "on the whole",
+        "all things considered",
+        "needless to say",
+        "it stands to reason",
+        "with all due respect",
+        "if you will",
+        "so to speak",
+        "as it were",
+        "in a manner of speaking",
+        "at the end of the day",
+        "when all is said and done",
+        "having said that",
+        "that being said",
+        "that said",
+        "be that as it may",
+        "for what it's worth",
+        "there is a chance that",
+        "there is a possibility that",
+        "there is reason to believe",
+        "there is some evidence",
+        "the evidence suggests",
+        "this suggests that",
+        "this seems to indicate",
+        "this appears to show",
+        "this would suggest",
+        "this might indicate",
+        "this could mean",
+        "this may imply",
+        "not entirely clear",
+        "not fully understood",
+        "remains to be seen",
+        "time will tell"
+      ]
+    },
+    "nominalizations": {
+      "label": "Nominalizations",
+      "match": "literal",
+      "highlight": true,
+      "note": "Each term carries the stronger verb it could become.",
+      "terms": [
+        {
+          "term": "utilization",
+          "suggestion": "use"
+        },
+        {
+          "term": "implementation",
+          "suggestion": "implement"
+        },
+        {
+          "term": "optimization",
+          "suggestion": "optimize"
+        },
+        {
+          "term": "documentation",
+          "suggestion": "document"
+        },
+        {
+          "term": "authorization",
+          "suggestion": "authorize"
+        },
+        {
+          "term": "authentication",
+          "suggestion": "authenticate"
+        },
+        {
+          "term": "configuration",
+          "suggestion": "configure"
+        },
+        {
+          "term": "initialization",
+          "suggestion": "initialize"
+        },
+        {
+          "term": "modification",
+          "suggestion": "modify"
+        },
+        {
+          "term": "specification",
+          "suggestion": "specify"
+        },
+        {
+          "term": "determination",
+          "suggestion": "determine"
+        },
+        {
+          "term": "establishment",
+          "suggestion": "establish"
+        },
+        {
+          "term": "continuation",
+          "suggestion": "continue"
+        },
+        {
+          "term": "examination",
+          "suggestion": "examine"
+        },
+        {
+          "term": "investigation",
+          "suggestion": "investigate"
+        },
+        {
+          "term": "facilitation",
+          "suggestion": "facilitate"
+        },
+        {
+          "term": "notification",
+          "suggestion": "notify"
+        },
+        {
+          "term": "visualization",
+          "suggestion": "visualize"
+        },
+        {
+          "term": "demonstration",
+          "suggestion": "demonstrate"
+        },
+        {
+          "term": "transformation",
+          "suggestion": "transform"
+        },
+        {
+          "term": "simplification",
+          "suggestion": "simplify"
+        },
+        {
+          "term": "maximization",
+          "suggestion": "maximize"
+        },
+        {
+          "term": "minimization",
+          "suggestion": "minimize"
+        },
+        {
+          "term": "finalization",
+          "suggestion": "finalize"
+        },
+        {
+          "term": "prioritization",
+          "suggestion": "prioritize"
+        },
+        {
+          "term": "customization",
+          "suggestion": "customize"
+        },
+        {
+          "term": "generation",
+          "suggestion": "generate"
+        },
+        {
+          "term": "consumption",
+          "suggestion": "consume"
+        },
+        {
+          "term": "acquisition",
+          "suggestion": "acquire"
+        },
+        {
+          "term": "distribution",
+          "suggestion": "distribute"
+        },
+        {
+          "term": "accumulation",
+          "suggestion": "accumulate"
+        },
+        {
+          "term": "acceleration",
+          "suggestion": "accelerate"
+        },
+        {
+          "term": "collaboration",
+          "suggestion": "collaborate"
+        },
+        {
+          "term": "communication",
+          "suggestion": "communicate"
+        },
+        {
+          "term": "recommendation",
+          "suggestion": "recommend"
+        },
+        {
+          "term": "consideration",
+          "suggestion": "consider"
+        },
+        {
+          "term": "interpretation",
+          "suggestion": "interpret"
+        },
+        {
+          "term": "consolidation",
+          "suggestion": "consolidate"
+        },
+        {
+          "term": "validation",
+          "suggestion": "validate"
+        },
+        {
+          "term": "verification",
+          "suggestion": "verify"
+        },
+        {
+          "term": "integration",
+          "suggestion": "integrate"
+        },
+        {
+          "term": "migration",
+          "suggestion": "migrate"
+        },
+        {
+          "term": "allocation",
+          "suggestion": "allocate"
+        },
+        {
+          "term": "calculation",
+          "suggestion": "calculate"
+        },
+        {
+          "term": "delegation",
+          "suggestion": "delegate"
+        },
+        {
+          "term": "duplication",
+          "suggestion": "duplicate"
+        },
+        {
+          "term": "elimination",
+          "suggestion": "eliminate"
+        },
+        {
+          "term": "evaluation",
+          "suggestion": "evaluate"
+        },
+        {
+          "term": "formulation",
+          "suggestion": "formulate"
+        },
+        {
+          "term": "indication",
+          "suggestion": "indicate"
+        },
+        {
+          "term": "installation",
+          "suggestion": "install"
+        },
+        {
+          "term": "introduction",
+          "suggestion": "introduce"
+        },
+        {
+          "term": "manipulation",
+          "suggestion": "manipulate"
+        },
+        {
+          "term": "negotiation",
+          "suggestion": "negotiate"
+        },
+        {
+          "term": "observation",
+          "suggestion": "observe"
+        },
+        {
+          "term": "operation",
+          "suggestion": "operate"
+        },
+        {
+          "term": "preparation",
+          "suggestion": "prepare"
+        },
+        {
+          "term": "presentation",
+          "suggestion": "present"
+        },
+        {
+          "term": "preservation",
+          "suggestion": "preserve"
+        },
+        {
+          "term": "prevention",
+          "suggestion": "prevent"
+        },
+        {
+          "term": "production",
+          "suggestion": "produce"
+        },
+        {
+          "term": "protection",
+          "suggestion": "protect"
+        },
+        {
+          "term": "publication",
+          "suggestion": "publish"
+        },
+        {
+          "term": "regulation",
+          "suggestion": "regulate"
+        },
+        {
+          "term": "registration",
+          "suggestion": "register"
+        },
+        {
+          "term": "replication",
+          "suggestion": "replicate"
+        },
+        {
+          "term": "representation",
+          "suggestion": "represent"
+        },
+        {
+          "term": "resolution",
+          "suggestion": "resolve"
+        },
+        {
+          "term": "restoration",
+          "suggestion": "restore"
+        },
+        {
+          "term": "restriction",
+          "suggestion": "restrict"
+        },
+        {
+          "term": "separation",
+          "suggestion": "separate"
+        },
+        {
+          "term": "simulation",
+          "suggestion": "simulate"
+        },
+        {
+          "term": "stimulation",
+          "suggestion": "stimulate"
+        },
+        {
+          "term": "substitution",
+          "suggestion": "substitute"
+        },
+        {
+          "term": "termination",
+          "suggestion": "terminate"
+        },
+        {
+          "term": "translation",
+          "suggestion": "translate"
+        },
+        {
+          "term": "variation",
+          "suggestion": "vary"
+        },
+        {
+          "term": "violation",
+          "suggestion": "violate"
+        },
+        {
+          "term": "aggregation",
+          "suggestion": "aggregate"
+        },
+        {
+          "term": "annotation",
+          "suggestion": "annotate"
+        },
+        {
+          "term": "approximation",
+          "suggestion": "approximate"
+        },
+        {
+          "term": "centralization",
+          "suggestion": "centralize"
+        },
+        {
+          "term": "classification",
+          "suggestion": "classify"
+        },
+        {
+          "term": "compensation",
+          "suggestion": "compensate"
+        },
+        {
+          "term": "completion",
+          "suggestion": "complete"
+        },
+        {
+          "term": "compression",
+          "suggestion": "compress"
+        },
+        {
+          "term": "concatenation",
+          "suggestion": "concatenate"
+        },
+        {
+          "term": "confirmation",
+          "suggestion": "confirm"
+        },
+        {
+          "term": "connection",
+          "suggestion": "connect"
+        },
+        {
+          "term": "construction",
+          "suggestion": "construct"
+        },
+        {
+          "term": "conversion",
+          "suggestion": "convert"
+        },
+        {
+          "term": "coordination",
+          "suggestion": "coordinate"
+        },
+        {
+          "term": "creation",
+          "suggestion": "create"
+        },
+        {
+          "term": "decoration",
+          "suggestion": "decorate"
+        },
+        {
+          "term": "definition",
+          "suggestion": "define"
+        },
+        {
+          "term": "derivation",
+          "suggestion": "derive"
+        },
+        {
+          "term": "description",
+          "suggestion": "describe"
+        },
+        {
+          "term": "destruction",
+          "suggestion": "destroy"
+        },
+        {
+          "term": "detection",
+          "suggestion": "detect"
+        },
+        {
+          "term": "deviation",
+          "suggestion": "deviate"
+        },
+        {
+          "term": "differentiation",
+          "suggestion": "differentiate"
+        },
+        {
+          "term": "digitization",
+          "suggestion": "digitize"
+        },
+        {
+          "term": "escalation",
+          "suggestion": "escalate"
+        },
+        {
+          "term": "estimation",
+          "suggestion": "estimate"
+        },
+        {
+          "term": "execution",
+          "suggestion": "execute"
+        },
+        {
+          "term": "expansion",
+          "suggestion": "expand"
+        },
+        {
+          "term": "exploration",
+          "suggestion": "explore"
+        },
+        {
+          "term": "exportation",
+          "suggestion": "export"
+        },
+        {
+          "term": "extraction",
+          "suggestion": "extract"
+        },
+        {
+          "term": "fabrication",
+          "suggestion": "fabricate"
+        },
+        {
+          "term": "identification",
+          "suggestion": "identify"
+        },
+        {
+          "term": "illustration",
+          "suggestion": "illustrate"
+        },
+        {
+          "term": "importation",
+          "suggestion": "import"
+        },
+        {
+          "term": "improvisation",
+          "suggestion": "improvise"
+        },
+        {
+          "term": "incorporation",
+          "suggestion": "incorporate"
+        },
+        {
+          "term": "iteration",
+          "suggestion": "iterate"
+        },
+        {
+          "term": "justification",
+          "suggestion": "justify"
+        },
+        {
+          "term": "legalization",
+          "suggestion": "legalize"
+        },
+        {
+          "term": "modernization",
+          "suggestion": "modernize"
+        },
+        {
+          "term": "monetization",
+          "suggestion": "monetize"
+        },
+        {
+          "term": "normalization",
+          "suggestion": "normalize"
+        },
+        {
+          "term": "organization",
+          "suggestion": "organize"
+        },
+        {
+          "term": "origination",
+          "suggestion": "originate"
+        },
+        {
+          "term": "participation",
+          "suggestion": "participate"
+        },
+        {
+          "term": "personalization",
+          "suggestion": "personalize"
+        },
+        {
+          "term": "polarization",
+          "suggestion": "polarize"
+        },
+        {
+          "term": "privatization",
+          "suggestion": "privatize"
+        },
+        {
+          "term": "proliferation",
+          "suggestion": "proliferate"
+        },
+        {
+          "term": "rationalization",
+          "suggestion": "rationalize"
+        },
+        {
+          "term": "reconciliation",
+          "suggestion": "reconcile"
+        },
+        {
+          "term": "remediation",
+          "suggestion": "remediate"
+        },
+        {
+          "term": "renovation",
+          "suggestion": "renovate"
+        },
+        {
+          "term": "reorganization",
+          "suggestion": "reorganize"
+        },
+        {
+          "term": "serialization",
+          "suggestion": "serialize"
+        },
+        {
+          "term": "standardization",
+          "suggestion": "standardize"
+        },
+        {
+          "term": "synchronization",
+          "suggestion": "synchronize"
+        },
+        {
+          "term": "utilisation",
+          "suggestion": "use"
+        },
+        {
+          "term": "visualisation",
+          "suggestion": "visualise"
+        },
+        {
+          "term": "optimisation",
+          "suggestion": "optimise"
+        },
+        {
+          "term": "organisation",
+          "suggestion": "organise"
+        },
+        {
+          "term": "authorisation",
+          "suggestion": "authorise"
+        },
+        {
+          "term": "initialisation",
+          "suggestion": "initialise"
+        },
+        {
+          "term": "prioritisation",
+          "suggestion": "prioritise"
+        },
+        {
+          "term": "customisation",
+          "suggestion": "customise"
+        },
+        {
+          "term": "normalisation",
+          "suggestion": "normalise"
+        },
+        {
+          "term": "serialisation",
+          "suggestion": "serialise"
+        },
+        {
+          "term": "standardisation",
+          "suggestion": "standardise"
+        },
+        {
+          "term": "synchronisation",
+          "suggestion": "synchronise"
+        },
+        {
+          "term": "centralisation",
+          "suggestion": "centralise"
+        },
+        {
+          "term": "personalisation",
+          "suggestion": "personalise"
+        },
+        {
+          "term": "modernisation",
+          "suggestion": "modernise"
+        },
+        {
+          "term": "monetisation",
+          "suggestion": "monetise"
+        },
+        {
+          "term": "digitisation",
+          "suggestion": "digitise"
+        },
+        {
+          "term": "improvement",
+          "suggestion": "improve"
+        },
+        {
+          "term": "development",
+          "suggestion": "develop"
+        },
+        {
+          "term": "achievement",
+          "suggestion": "achieve"
+        },
+        {
+          "term": "replacement",
+          "suggestion": "replace"
+        },
+        {
+          "term": "requirement",
+          "suggestion": "require"
+        },
+        {
+          "term": "measurement",
+          "suggestion": "measure"
+        },
+        {
+          "term": "assessment",
+          "suggestion": "assess"
+        },
+        {
+          "term": "deployment",
+          "suggestion": "deploy"
+        },
+        {
+          "term": "engagement",
+          "suggestion": "engage"
+        },
+        {
+          "term": "enhancement",
+          "suggestion": "enhance"
+        },
+        {
+          "term": "enforcement",
+          "suggestion": "enforce"
+        },
+        {
+          "term": "involvement",
+          "suggestion": "involve"
+        },
+        {
+          "term": "management",
+          "suggestion": "manage"
+        },
+        {
+          "term": "arrangement",
+          "suggestion": "arrange"
+        },
+        {
+          "term": "advancement",
+          "suggestion": "advance"
+        },
+        {
+          "term": "abandonment",
+          "suggestion": "abandon"
+        },
+        {
+          "term": "accomplishment",
+          "suggestion": "accomplish"
+        },
+        {
+          "term": "acknowledgement",
+          "suggestion": "acknowledge"
+        },
+        {
+          "term": "acknowledgment",
+          "suggestion": "acknowledge"
+        },
+        {
+          "term": "adjustment",
+          "suggestion": "adjust"
+        },
+        {
+          "term": "agreement",
+          "suggestion": "agree"
+        },
+        {
+          "term": "alignment",
+          "suggestion": "align"
+        },
+        {
+          "term": "amazement",
+          "suggestion": "amaze"
+        },
+        {
+          "term": "amusement",
+          "suggestion": "amuse"
+        },
+        {
+          "term": "announcement",
+          "suggestion": "announce"
+        },
+        {
+          "term": "attachment",
+          "suggestion": "attach"
+        },
+        {
+          "term": "attainment",
+          "suggestion": "attain"
+        },
+        {
+          "term": "bewilderment",
+          "suggestion": "bewilder"
+        },
+        {
+          "term": "commitment",
+          "suggestion": "commit"
+        },
+        {
+          "term": "containment",
+          "suggestion": "contain"
+        },
+        {
+          "term": "detachment",
+          "suggestion": "detach"
+        },
+        {
+          "term": "discouragement",
+          "suggestion": "discourage"
+        },
+        {
+          "term": "displacement",
+          "suggestion": "displace"
+        },
+        {
+          "term": "embodiment",
+          "suggestion": "embody"
+        },
+        {
+          "term": "empowerment",
+          "suggestion": "empower"
+        },
+        {
+          "term": "encouragement",
+          "suggestion": "encourage"
+        },
+        {
+          "term": "endangerment",
+          "suggestion": "endanger"
+        },
+        {
+          "term": "enrichment",
+          "suggestion": "enrich"
+        },
+        {
+          "term": "entanglement",
+          "suggestion": "entangle"
+        },
+        {
+          "term": "entertainment",
+          "suggestion": "entertain"
+        },
+        {
+          "term": "entitlement",
+          "suggestion": "entitle"
+        },
+        {
+          "term": "excitement",
+          "suggestion": "excite"
+        },
+        {
+          "term": "fulfillment",
+          "suggestion": "fulfill"
+        },
+        {
+          "term": "fulfilment",
+          "suggestion": "fulfil"
+        },
+        {
+          "term": "imprisonment",
+          "suggestion": "imprison"
+        },
+        {
+          "term": "inducement",
+          "suggestion": "induce"
+        },
+        {
+          "term": "investment",
+          "suggestion": "invest"
+        },
+        {
+          "term": "judgment",
+          "suggestion": "judge"
+        },
+        {
+          "term": "judgement",
+          "suggestion": "judge"
+        },
+        {
+          "term": "mismanagement",
+          "suggestion": "mismanage"
+        },
+        {
+          "term": "postponement",
+          "suggestion": "postpone"
+        },
+        {
+          "term": "procurement",
+          "suggestion": "procure"
+        },
+        {
+          "term": "punishment",
+          "suggestion": "punish"
+        },
+        {
+          "term": "resentment",
+          "suggestion": "resent"
+        },
+        {
+          "term": "retirement",
+          "suggestion": "retire"
+        },
+        {
+          "term": "settlement",
+          "suggestion": "settle"
+        },
+        {
+          "term": "statement",
+          "suggestion": "state"
+        },
+        {
+          "term": "treatment",
+          "suggestion": "treat"
+        },
+        {
+          "term": "acceptance",
+          "suggestion": "accept"
+        },
+        {
+          "term": "allowance",
+          "suggestion": "allow"
+        },
+        {
+          "term": "appearance",
+          "suggestion": "appear"
+        },
+        {
+          "term": "assistance",
+          "suggestion": "assist"
+        },
+        {
+          "term": "avoidance",
+          "suggestion": "avoid"
+        },
+        {
+          "term": "compliance",
+          "suggestion": "comply"
+        },
+        {
+          "term": "dependence",
+          "suggestion": "depend"
+        },
+        {
+          "term": "disappearance",
+          "suggestion": "disappear"
+        },
+        {
+          "term": "disturbance",
+          "suggestion": "disturb"
+        },
+        {
+          "term": "dominance",
+          "suggestion": "dominate"
+        },
+        {
+          "term": "emergence",
+          "suggestion": "emerge"
+        },
+        {
+          "term": "endurance",
+          "suggestion": "endure"
+        },
+        {
+          "term": "existence",
+          "suggestion": "exist"
+        },
+        {
+          "term": "governance",
+          "suggestion": "govern"
+        },
+        {
+          "term": "guidance",
+          "suggestion": "guide"
+        },
+        {
+          "term": "hindrance",
+          "suggestion": "hinder"
+        },
+        {
+          "term": "inheritance",
+          "suggestion": "inherit"
+        },
+        {
+          "term": "insistence",
+          "suggestion": "insist"
+        },
+        {
+          "term": "interference",
+          "suggestion": "interfere"
+        },
+        {
+          "term": "maintenance",
+          "suggestion": "maintain"
+        },
+        {
+          "term": "occurrence",
+          "suggestion": "occur"
+        },
+        {
+          "term": "performance",
+          "suggestion": "perform"
+        },
+        {
+          "term": "persistence",
+          "suggestion": "persist"
+        },
+        {
+          "term": "preference",
+          "suggestion": "prefer"
+        },
+        {
+          "term": "prevalence",
+          "suggestion": "prevail"
+        },
+        {
+          "term": "reference",
+          "suggestion": "refer"
+        },
+        {
+          "term": "reliance",
+          "suggestion": "rely"
+        },
+        {
+          "term": "reluctance",
+          "suggestion": "hesitate"
+        },
+        {
+          "term": "remembrance",
+          "suggestion": "remember"
+        },
+        {
+          "term": "resemblance",
+          "suggestion": "resemble"
+        },
+        {
+          "term": "resistance",
+          "suggestion": "resist"
+        },
+        {
+          "term": "tolerance",
+          "suggestion": "tolerate"
+        },
+        {
+          "term": "utterance",
+          "suggestion": "utter"
+        },
+        {
+          "term": "variance",
+          "suggestion": "vary"
+        }
+      ]
+    },
+    "aiVocabulary": {
+      "label": "AI vocabulary",
+      "match": "literal",
+      "highlight": true,
+      "note": "Inflected variants are flattened into their own terms; `head` is the entry they belong to.",
+      "terms": [
+        {
+          "term": "delve",
+          "head": "delve",
+          "reason": "\"delve\" is the canonical AI verb — massively overrepresented in LLM text (Kobak 2025; Juzek & Ward 2025)"
+        },
+        {
+          "term": "delves",
+          "head": "delve",
+          "reason": "\"delve\" is the canonical AI verb — massively overrepresented in LLM text (Kobak 2025; Juzek & Ward 2025)"
+        },
+        {
+          "term": "delved",
+          "head": "delve",
+          "reason": "\"delve\" is the canonical AI verb — massively overrepresented in LLM text (Kobak 2025; Juzek & Ward 2025)"
+        },
+        {
+          "term": "delving",
+          "head": "delve",
+          "reason": "\"delve\" is the canonical AI verb — massively overrepresented in LLM text (Kobak 2025; Juzek & Ward 2025)"
+        },
+        {
+          "term": "tapestry",
+          "head": "tapestry",
+          "reason": "\"tapestry\" (metaphorical) is a strong AI vocabulary marker"
+        },
+        {
+          "term": "tapestries",
+          "head": "tapestry",
+          "reason": "\"tapestry\" (metaphorical) is a strong AI vocabulary marker"
+        },
+        {
+          "term": "multifaceted",
+          "head": "multifaceted",
+          "reason": "\"multifaceted\" is heavily overrepresented in AI writing"
+        },
+        {
+          "term": "commendable",
+          "head": "commendable",
+          "reason": "\"commendable\" is a classic AI praise word (Liang 2024 reviewer study)"
+        },
+        {
+          "term": "meticulous",
+          "head": "meticulous",
+          "reason": "\"meticulous(ly)\" appears far more often in AI than human text (Liang 2024)"
+        },
+        {
+          "term": "meticulously",
+          "head": "meticulous",
+          "reason": "\"meticulous(ly)\" appears far more often in AI than human text (Liang 2024)"
+        },
+        {
+          "term": "intricate",
+          "head": "intricate",
+          "reason": "\"intricate\" is disproportionately used by AI models (Liang 2024; Kobak 2025)"
+        },
+        {
+          "term": "intricacies",
+          "head": "intricate",
+          "reason": "\"intricate\" is disproportionately used by AI models (Liang 2024; Kobak 2025)"
+        },
+        {
+          "term": "intricately",
+          "head": "intricate",
+          "reason": "\"intricate\" is disproportionately used by AI models (Liang 2024; Kobak 2025)"
+        },
+        {
+          "term": "showcase",
+          "head": "showcase",
+          "reason": "\"showcase/showcasing\" is a top AI verb that persists in the newest models (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "showcases",
+          "head": "showcase",
+          "reason": "\"showcase/showcasing\" is a top AI verb that persists in the newest models (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "showcased",
+          "head": "showcase",
+          "reason": "\"showcase/showcasing\" is a top AI verb that persists in the newest models (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "showcasing",
+          "head": "showcase",
+          "reason": "\"showcase/showcasing\" is a top AI verb that persists in the newest models (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasize",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasizes",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasized",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasizing",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasise",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasises",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasised",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "emphasising",
+          "head": "emphasize",
+          "reason": "\"emphasize/emphasizing\" is overused by every model generation to date (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "boast",
+          "head": "boast",
+          "reason": "\"boasts\" (meaning \"has\") is AI copula-avoidance (WP:AISIGNS; Juzek & Ward 2025)"
+        },
+        {
+          "term": "boasts",
+          "head": "boast",
+          "reason": "\"boasts\" (meaning \"has\") is AI copula-avoidance (WP:AISIGNS; Juzek & Ward 2025)"
+        },
+        {
+          "term": "boasted",
+          "head": "boast",
+          "reason": "\"boasts\" (meaning \"has\") is AI copula-avoidance (WP:AISIGNS; Juzek & Ward 2025)"
+        },
+        {
+          "term": "boasting",
+          "head": "boast",
+          "reason": "\"boasts\" (meaning \"has\") is AI copula-avoidance (WP:AISIGNS; Juzek & Ward 2025)"
+        },
+        {
+          "term": "indelible",
+          "head": "indelible",
+          "reason": "\"indelible\" (\"left an indelible mark\") is an extreme AI marker in narrative prose"
+        },
+        {
+          "term": "nuanced",
+          "head": "nuanced",
+          "reason": "\"nuanced\" is a frequent AI filler adjective"
+        },
+        {
+          "term": "comprehensive",
+          "head": "comprehensive",
+          "reason": "\"comprehensive\" is overused by AI as a generic intensifier"
+        },
+        {
+          "term": "pivotal",
+          "head": "pivotal",
+          "reason": "\"pivotal\" is disproportionately favored by AI (Liang 2024)"
+        },
+        {
+          "term": "holistic",
+          "head": "holistic",
+          "reason": "\"holistic\" appears far more in AI text than human writing"
+        },
+        {
+          "term": "groundbreaking",
+          "head": "groundbreaking",
+          "reason": "\"groundbreaking\" is AI hyperbole"
+        },
+        {
+          "term": "transformative",
+          "head": "transformative",
+          "reason": "\"transformative\" is a strong AI vocabulary signal"
+        },
+        {
+          "term": "encompasses",
+          "head": "encompasses",
+          "reason": "\"encompasses\" is overrepresented in AI-generated text"
+        },
+        {
+          "term": "encompass",
+          "head": "encompasses",
+          "reason": "\"encompasses\" is overrepresented in AI-generated text"
+        },
+        {
+          "term": "encompassing",
+          "head": "encompasses",
+          "reason": "\"encompasses\" is overrepresented in AI-generated text"
+        },
+        {
+          "term": "encompassed",
+          "head": "encompasses",
+          "reason": "\"encompasses\" is overrepresented in AI-generated text"
+        },
+        {
+          "term": "embark",
+          "head": "embark",
+          "reason": "\"embark\" (especially \"embark on a journey\") is a known AI tell"
+        },
+        {
+          "term": "embarks",
+          "head": "embark",
+          "reason": "\"embark\" (especially \"embark on a journey\") is a known AI tell"
+        },
+        {
+          "term": "embarked",
+          "head": "embark",
+          "reason": "\"embark\" (especially \"embark on a journey\") is a known AI tell"
+        },
+        {
+          "term": "embarking",
+          "head": "embark",
+          "reason": "\"embark\" (especially \"embark on a journey\") is a known AI tell"
+        },
+        {
+          "term": "fostering",
+          "head": "fostering",
+          "reason": "\"fostering\" is used far more by AI models than human writers"
+        },
+        {
+          "term": "fosters",
+          "head": "fostering",
+          "reason": "\"fostering\" is used far more by AI models than human writers"
+        },
+        {
+          "term": "fostered",
+          "head": "fostering",
+          "reason": "\"fostering\" is used far more by AI models than human writers"
+        },
+        {
+          "term": "spearheading",
+          "head": "spearheading",
+          "reason": "\"spearheading\" is a classic AI action verb"
+        },
+        {
+          "term": "spearheaded",
+          "head": "spearheading",
+          "reason": "\"spearheading\" is a classic AI action verb"
+        },
+        {
+          "term": "spearheads",
+          "head": "spearheading",
+          "reason": "\"spearheading\" is a classic AI action verb"
+        },
+        {
+          "term": "underscores",
+          "head": "underscores",
+          "reason": "\"underscores\" is overused by AI for emphasis (Kobak 2025; still overused by 2026-era models)"
+        },
+        {
+          "term": "underscored",
+          "head": "underscores",
+          "reason": "\"underscores\" is overused by AI for emphasis (Kobak 2025; still overused by 2026-era models)"
+        },
+        {
+          "term": "underscoring",
+          "head": "underscores",
+          "reason": "\"underscores\" is overused by AI for emphasis (Kobak 2025; still overused by 2026-era models)"
+        },
+        {
+          "term": "underpins",
+          "head": "underpins",
+          "reason": "\"underpins\" is disproportionately AI-favored"
+        },
+        {
+          "term": "underpinned",
+          "head": "underpins",
+          "reason": "\"underpins\" is disproportionately AI-favored"
+        },
+        {
+          "term": "underpinning",
+          "head": "underpins",
+          "reason": "\"underpins\" is disproportionately AI-favored"
+        },
+        {
+          "term": "leveraging",
+          "head": "leveraging",
+          "reason": "\"leveraging\" is AI-corporate jargon rarely used naturally"
+        },
+        {
+          "term": "leverages",
+          "head": "leveraging",
+          "reason": "\"leveraging\" is AI-corporate jargon rarely used naturally"
+        },
+        {
+          "term": "leveraged",
+          "head": "leveraging",
+          "reason": "\"leveraging\" is AI-corporate jargon rarely used naturally"
+        },
+        {
+          "term": "landscape",
+          "head": "landscape",
+          "reason": "\"landscape\" (metaphorical) is a known AI tell"
+        },
+        {
+          "term": "landscapes",
+          "head": "landscape",
+          "reason": "\"landscape\" (metaphorical) is a known AI tell"
+        },
+        {
+          "term": "testament",
+          "head": "testament",
+          "reason": "\"testament\" is overused by AI (\"a testament to...\")"
+        },
+        {
+          "term": "noteworthy",
+          "head": "noteworthy",
+          "reason": "\"noteworthy\" is disproportionately AI-generated (Liang 2024)"
+        },
+        {
+          "term": "invaluable",
+          "head": "invaluable",
+          "reason": "\"invaluable\" is overrepresented in AI text (Liang 2024)"
+        },
+        {
+          "term": "elevate",
+          "head": "elevate",
+          "reason": "\"elevate\" is a frequent AI verb"
+        },
+        {
+          "term": "elevates",
+          "head": "elevate",
+          "reason": "\"elevate\" is a frequent AI verb"
+        },
+        {
+          "term": "elevating",
+          "head": "elevate",
+          "reason": "\"elevate\" is a frequent AI verb"
+        },
+        {
+          "term": "garner",
+          "head": "garner",
+          "reason": "\"garner\" (\"garnered significant attention\") is AI-favored (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "garners",
+          "head": "garner",
+          "reason": "\"garner\" (\"garnered significant attention\") is AI-favored (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "garnered",
+          "head": "garner",
+          "reason": "\"garner\" (\"garnered significant attention\") is AI-favored (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "garnering",
+          "head": "garner",
+          "reason": "\"garner\" (\"garnered significant attention\") is AI-favored (Juzek 2025; Kobak 2025)"
+        },
+        {
+          "term": "vibrant",
+          "head": "vibrant",
+          "reason": "\"vibrant\" is AI promotional language (Reinhart PNAS 2025; WP:AISIGNS)"
+        },
+        {
+          "term": "nestled",
+          "head": "nestled",
+          "reason": "\"nestled\" is classic AI travel-guide puffery (WP:AISIGNS)"
+        },
+        {
+          "term": "interplay",
+          "head": "interplay",
+          "reason": "\"interplay\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "enhance",
+          "head": "enhance",
+          "reason": "\"enhance\" is overused by every model generation to date (Kobak 2025; Russell 2025)"
+        },
+        {
+          "term": "enhances",
+          "head": "enhance",
+          "reason": "\"enhance\" is overused by every model generation to date (Kobak 2025; Russell 2025)"
+        },
+        {
+          "term": "enhanced",
+          "head": "enhance",
+          "reason": "\"enhance\" is overused by every model generation to date (Kobak 2025; Russell 2025)"
+        },
+        {
+          "term": "enhancing",
+          "head": "enhance",
+          "reason": "\"enhance\" is overused by every model generation to date (Kobak 2025; Russell 2025)"
+        },
+        {
+          "term": "innovative",
+          "head": "innovative",
+          "reason": "\"innovative\" is a top AI praise adjective (Liang 2024)"
+        },
+        {
+          "term": "seamless",
+          "head": "seamless",
+          "reason": "\"seamless(ly)\" is AI marketing-speak (Liang 2024; vendor corpus lists)"
+        },
+        {
+          "term": "seamlessly",
+          "head": "seamless",
+          "reason": "\"seamless(ly)\" is AI marketing-speak (Liang 2024; vendor corpus lists)"
+        },
+        {
+          "term": "revolutionize",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionizes",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionized",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionizing",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionise",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionises",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionised",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "revolutionising",
+          "head": "revolutionize",
+          "reason": "\"revolutionize\" is AI hype vocabulary"
+        },
+        {
+          "term": "cutting-edge",
+          "head": "cutting-edge",
+          "reason": "\"cutting-edge\" is AI tech-hype vocabulary"
+        },
+        {
+          "term": "ever-evolving",
+          "head": "ever-evolving",
+          "reason": "\"ever-evolving\" is an AI cliche modifier (\"ever-evolving landscape\")"
+        },
+        {
+          "term": "game-changer",
+          "head": "game-changer",
+          "reason": "\"game-changer\" is AI marketing hyperbole"
+        },
+        {
+          "term": "game-changing",
+          "head": "game-changer",
+          "reason": "\"game-changer\" is AI marketing hyperbole"
+        },
+        {
+          "term": "game changer",
+          "head": "game-changer",
+          "reason": "\"game-changer\" is AI marketing hyperbole"
+        },
+        {
+          "term": "empower",
+          "head": "empower",
+          "reason": "\"empower\" is overrepresented in AI marketing prose"
+        },
+        {
+          "term": "empowers",
+          "head": "empower",
+          "reason": "\"empower\" is overrepresented in AI marketing prose"
+        },
+        {
+          "term": "empowered",
+          "head": "empower",
+          "reason": "\"empower\" is overrepresented in AI marketing prose"
+        },
+        {
+          "term": "empowering",
+          "head": "empower",
+          "reason": "\"empower\" is overrepresented in AI marketing prose"
+        },
+        {
+          "term": "unleash",
+          "head": "unleash",
+          "reason": "\"unleash\" (\"unleash the power of\") is AI hype vocabulary"
+        },
+        {
+          "term": "unleashes",
+          "head": "unleash",
+          "reason": "\"unleash\" (\"unleash the power of\") is AI hype vocabulary"
+        },
+        {
+          "term": "unleashed",
+          "head": "unleash",
+          "reason": "\"unleash\" (\"unleash the power of\") is AI hype vocabulary"
+        },
+        {
+          "term": "unleashing",
+          "head": "unleash",
+          "reason": "\"unleash\" (\"unleash the power of\") is AI hype vocabulary"
+        },
+        {
+          "term": "unwavering",
+          "head": "unwavering",
+          "reason": "\"unwavering\" (\"unwavering commitment\") is an AI intensifier"
+        },
+        {
+          "term": "paramount",
+          "head": "paramount",
+          "reason": "\"paramount\" is AI-formal where \"most important\" would do"
+        },
+        {
+          "term": "stark",
+          "head": "stark",
+          "reason": "\"stark\" (\"a stark reminder/contrast\") is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "utilize",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilizes",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilized",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilizing",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilise",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilises",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilised",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "utilising",
+          "head": "utilize",
+          "reason": "\"utilize\" is stiff AI diction — humans write \"use\""
+        },
+        {
+          "term": "synergy",
+          "head": "synergy",
+          "reason": "\"synergy\" is AI corporate-speak"
+        },
+        {
+          "term": "synergies",
+          "head": "synergy",
+          "reason": "\"synergy\" is AI corporate-speak"
+        },
+        {
+          "term": "poignant",
+          "head": "poignant",
+          "reason": "\"poignant\" is overrepresented in AI narrative prose (Kobak 2025)"
+        },
+        {
+          "term": "surpass",
+          "head": "surpass",
+          "reason": "\"surpass\" is AI-favored comparative language (Kobak 2025)"
+        },
+        {
+          "term": "surpasses",
+          "head": "surpass",
+          "reason": "\"surpass\" is AI-favored comparative language (Kobak 2025)"
+        },
+        {
+          "term": "surpassed",
+          "head": "surpass",
+          "reason": "\"surpass\" is AI-favored comparative language (Kobak 2025)"
+        },
+        {
+          "term": "surpassing",
+          "head": "surpass",
+          "reason": "\"surpass\" is AI-favored comparative language (Kobak 2025)"
+        },
+        {
+          "term": "versatile",
+          "head": "versatile",
+          "reason": "\"versatile\" is a top AI praise adjective (Liang 2024)"
+        },
+        {
+          "term": "versatility",
+          "head": "versatile",
+          "reason": "\"versatile\" is a top AI praise adjective (Liang 2024)"
+        },
+        {
+          "term": "robust",
+          "head": "robust",
+          "reason": "\"robust\" is AI jargon — humans rarely use it outside engineering"
+        },
+        {
+          "term": "streamline",
+          "head": "streamline",
+          "reason": "\"streamline\" is overrepresented in AI-generated content"
+        },
+        {
+          "term": "streamlines",
+          "head": "streamline",
+          "reason": "\"streamline\" is overrepresented in AI-generated content"
+        },
+        {
+          "term": "streamlined",
+          "head": "streamline",
+          "reason": "\"streamline\" is overrepresented in AI-generated content"
+        },
+        {
+          "term": "streamlining",
+          "head": "streamline",
+          "reason": "\"streamline\" is overrepresented in AI-generated content"
+        },
+        {
+          "term": "crucial",
+          "head": "crucial",
+          "reason": "\"crucial\" is overused by AI where \"important\" would do (Liang 2024)"
+        },
+        {
+          "term": "realm",
+          "head": "realm",
+          "reason": "\"realm\" (metaphorical, \"in the realm of\") is AI-favored (Liang 2024)"
+        },
+        {
+          "term": "realms",
+          "head": "realm",
+          "reason": "\"realm\" (metaphorical, \"in the realm of\") is AI-favored (Liang 2024)"
+        },
+        {
+          "term": "paradigm",
+          "head": "paradigm",
+          "reason": "\"paradigm\" is overrepresented in AI text"
+        },
+        {
+          "term": "paradigms",
+          "head": "paradigm",
+          "reason": "\"paradigm\" is overrepresented in AI text"
+        },
+        {
+          "term": "myriad",
+          "head": "myriad",
+          "reason": "\"myriad\" is disproportionately AI-generated"
+        },
+        {
+          "term": "plethora",
+          "head": "plethora",
+          "reason": "\"plethora\" is a known AI vocabulary marker"
+        },
+        {
+          "term": "beacon",
+          "head": "beacon",
+          "reason": "\"beacon\" (metaphorical) is AI-overused (\"a beacon of hope\")"
+        },
+        {
+          "term": "bustling",
+          "head": "bustling",
+          "reason": "\"bustling\" is overrepresented in AI descriptions"
+        },
+        {
+          "term": "camaraderie",
+          "head": "camaraderie",
+          "reason": "\"camaraderie\" appears ~150x more in ChatGPT text (CMU/PNAS study)"
+        },
+        {
+          "term": "resonate",
+          "head": "resonate",
+          "reason": "\"resonate\" is disproportionately AI"
+        },
+        {
+          "term": "resonates",
+          "head": "resonate",
+          "reason": "\"resonate\" is disproportionately AI"
+        },
+        {
+          "term": "resonated",
+          "head": "resonate",
+          "reason": "\"resonate\" is disproportionately AI"
+        },
+        {
+          "term": "resonating",
+          "head": "resonate",
+          "reason": "\"resonate\" is disproportionately AI"
+        },
+        {
+          "term": "bespoke",
+          "head": "bespoke",
+          "reason": "\"bespoke\" is overrepresented in AI writing"
+        },
+        {
+          "term": "esteemed",
+          "head": "esteemed",
+          "reason": "\"esteemed\" is AI-formal language rarely used naturally"
+        },
+        {
+          "term": "unparalleled",
+          "head": "unparalleled",
+          "reason": "\"unparalleled\" is AI superlative overuse"
+        },
+        {
+          "term": "harnessing",
+          "head": "harnessing",
+          "reason": "\"harnessing\" (metaphorical) is AI-overused (\"harnessing the power of\")"
+        },
+        {
+          "term": "harnessed",
+          "head": "harnessing",
+          "reason": "\"harnessing\" (metaphorical) is AI-overused (\"harnessing the power of\")"
+        },
+        {
+          "term": "adept",
+          "head": "adept",
+          "reason": "\"adept\" is disproportionately AI-generated"
+        },
+        {
+          "term": "aligns",
+          "head": "aligns",
+          "reason": "\"aligns\" / \"aligns with\" is AI transition overuse"
+        },
+        {
+          "term": "burgeoning",
+          "head": "burgeoning",
+          "reason": "\"burgeoning\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "renowned",
+          "head": "renowned",
+          "reason": "\"renowned\" is AI promotional puffery (WP:AISIGNS)"
+        },
+        {
+          "term": "breathtaking",
+          "head": "breathtaking",
+          "reason": "\"breathtaking\" is AI promotional language (WP:AISIGNS)"
+        },
+        {
+          "term": "profound",
+          "head": "profound",
+          "reason": "\"profound\" is AI-favored gravitas (WP:AISIGNS puffery list)"
+        },
+        {
+          "term": "enduring",
+          "head": "enduring",
+          "reason": "\"enduring\" (\"enduring legacy\") is AI legacy-puffery (Kobak 2025; WP:AISIGNS)"
+        },
+        {
+          "term": "bolster",
+          "head": "bolster",
+          "reason": "\"bolster\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "bolsters",
+          "head": "bolster",
+          "reason": "\"bolster\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "bolstered",
+          "head": "bolster",
+          "reason": "\"bolster\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "bolstering",
+          "head": "bolster",
+          "reason": "\"bolster\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "excels",
+          "head": "excels",
+          "reason": "\"excels\" is AI praise language (\"the tool excels at...\")"
+        },
+        {
+          "term": "captivate",
+          "head": "captivate",
+          "reason": "\"captivate/captivating\" is AI narrative puffery"
+        },
+        {
+          "term": "captivates",
+          "head": "captivate",
+          "reason": "\"captivate/captivating\" is AI narrative puffery"
+        },
+        {
+          "term": "captivated",
+          "head": "captivate",
+          "reason": "\"captivate/captivating\" is AI narrative puffery"
+        },
+        {
+          "term": "captivating",
+          "head": "captivate",
+          "reason": "\"captivate/captivating\" is AI narrative puffery"
+        },
+        {
+          "term": "daunting",
+          "head": "daunting",
+          "reason": "\"daunting\" is overrepresented in AI text (Kobak 2025)"
+        },
+        {
+          "term": "demystify",
+          "head": "demystify",
+          "reason": "\"demystify\" is AI blog-title vocabulary"
+        },
+        {
+          "term": "demystifies",
+          "head": "demystify",
+          "reason": "\"demystify\" is AI blog-title vocabulary"
+        },
+        {
+          "term": "demystified",
+          "head": "demystify",
+          "reason": "\"demystify\" is AI blog-title vocabulary"
+        },
+        {
+          "term": "demystifying",
+          "head": "demystify",
+          "reason": "\"demystify\" is AI blog-title vocabulary"
+        },
+        {
+          "term": "elucidate",
+          "head": "elucidate",
+          "reason": "\"elucidate\" is stiff AI-academic diction"
+        },
+        {
+          "term": "elucidates",
+          "head": "elucidate",
+          "reason": "\"elucidate\" is stiff AI-academic diction"
+        },
+        {
+          "term": "elucidated",
+          "head": "elucidate",
+          "reason": "\"elucidate\" is stiff AI-academic diction"
+        },
+        {
+          "term": "elucidating",
+          "head": "elucidate",
+          "reason": "\"elucidate\" is stiff AI-academic diction"
+        },
+        {
+          "term": "exemplary",
+          "head": "exemplary",
+          "reason": "\"exemplary\" is AI praise vocabulary"
+        },
+        {
+          "term": "exemplifies",
+          "head": "exemplifies",
+          "reason": "\"exemplifies\" is AI significance-framing (WP:AISIGNS puffery list)"
+        },
+        {
+          "term": "exemplified",
+          "head": "exemplifies",
+          "reason": "\"exemplifies\" is AI significance-framing (WP:AISIGNS puffery list)"
+        },
+        {
+          "term": "kaleidoscope",
+          "head": "kaleidoscope",
+          "reason": "\"kaleidoscope\" (metaphorical) is AI ornamental vocabulary"
+        },
+        {
+          "term": "symphony",
+          "head": "symphony",
+          "reason": "\"symphony\" (metaphorical, \"a symphony of flavors\") is AI ornamental vocabulary"
+        },
+        {
+          "term": "linchpin",
+          "head": "linchpin",
+          "reason": "\"linchpin\" is overrepresented in AI analysis prose"
+        },
+        {
+          "term": "multitude",
+          "head": "multitude",
+          "reason": "\"multitude\" (\"a multitude of\") is AI quantity inflation"
+        },
+        {
+          "term": "nascent",
+          "head": "nascent",
+          "reason": "\"nascent\" is AI-academic diction (Kobak 2025)"
+        },
+        {
+          "term": "uncharted",
+          "head": "uncharted",
+          "reason": "\"uncharted\" (\"uncharted waters/territory\") is an AI cliche"
+        },
+        {
+          "term": "unveil",
+          "head": "unveil",
+          "reason": "\"unveil\" is AI announcement diction (Kobak 2025)"
+        },
+        {
+          "term": "unveils",
+          "head": "unveil",
+          "reason": "\"unveil\" is AI announcement diction (Kobak 2025)"
+        },
+        {
+          "term": "unveiled",
+          "head": "unveil",
+          "reason": "\"unveil\" is AI announcement diction (Kobak 2025)"
+        },
+        {
+          "term": "unveiling",
+          "head": "unveil",
+          "reason": "\"unveil\" is AI announcement diction (Kobak 2025)"
+        },
+        {
+          "term": "insightful",
+          "head": "insightful",
+          "reason": "\"insightful\" is a top AI praise adjective (Liang 2024)"
+        },
+        {
+          "term": "compelling",
+          "head": "compelling",
+          "reason": "\"compelling\" is AI praise vocabulary (Liang 2024)"
+        },
+        {
+          "term": "laudable",
+          "head": "laudable",
+          "reason": "\"laudable\" is AI praise vocabulary (Liang 2024 reviewer study)"
+        },
+        {
+          "term": "ingenious",
+          "head": "ingenious",
+          "reason": "\"ingenious\" is AI praise vocabulary"
+        },
+        {
+          "term": "aforementioned",
+          "head": "aforementioned",
+          "reason": "\"aforementioned\" is stiff AI-formal backreference — humans write \"this\" or \"that\""
+        },
+        {
+          "term": "cognizant",
+          "head": "cognizant",
+          "reason": "\"cognizant\" is stiff AI-formal diction — humans write \"aware\""
+        },
+        {
+          "term": "endeavor",
+          "head": "endeavor",
+          "reason": "\"endeavor\" (noun) is AI-formal where \"effort\" or \"project\" would do"
+        },
+        {
+          "term": "endeavors",
+          "head": "endeavor",
+          "reason": "\"endeavor\" (noun) is AI-formal where \"effort\" or \"project\" would do"
+        },
+        {
+          "term": "endeavour",
+          "head": "endeavor",
+          "reason": "\"endeavor\" (noun) is AI-formal where \"effort\" or \"project\" would do"
+        },
+        {
+          "term": "endeavours",
+          "head": "endeavor",
+          "reason": "\"endeavor\" (noun) is AI-formal where \"effort\" or \"project\" would do"
+        },
+        {
+          "term": "facilitate",
+          "head": "facilitate",
+          "reason": "\"facilitate\" is AI business-speak — humans write \"help\" or \"enable\""
+        },
+        {
+          "term": "facilitates",
+          "head": "facilitate",
+          "reason": "\"facilitate\" is AI business-speak — humans write \"help\" or \"enable\""
+        },
+        {
+          "term": "facilitated",
+          "head": "facilitate",
+          "reason": "\"facilitate\" is AI business-speak — humans write \"help\" or \"enable\""
+        },
+        {
+          "term": "facilitating",
+          "head": "facilitate",
+          "reason": "\"facilitate\" is AI business-speak — humans write \"help\" or \"enable\""
+        },
+        {
+          "term": "skyrocket",
+          "head": "skyrocket",
+          "reason": "\"skyrocket\" is AI marketing hyperbole"
+        },
+        {
+          "term": "skyrockets",
+          "head": "skyrocket",
+          "reason": "\"skyrocket\" is AI marketing hyperbole"
+        },
+        {
+          "term": "skyrocketed",
+          "head": "skyrocket",
+          "reason": "\"skyrocket\" is AI marketing hyperbole"
+        },
+        {
+          "term": "skyrocketing",
+          "head": "skyrocket",
+          "reason": "\"skyrocket\" is AI marketing hyperbole"
+        },
+        {
+          "term": "comprehend",
+          "head": "comprehend",
+          "reason": "\"comprehend\" is stiff AI diction — humans write \"understand\""
+        },
+        {
+          "term": "revitalize",
+          "head": "revitalize",
+          "reason": "\"revitalize\" is AI marketing vocabulary"
+        },
+        {
+          "term": "revitalizes",
+          "head": "revitalize",
+          "reason": "\"revitalize\" is AI marketing vocabulary"
+        },
+        {
+          "term": "revitalized",
+          "head": "revitalize",
+          "reason": "\"revitalize\" is AI marketing vocabulary"
+        },
+        {
+          "term": "revitalizing",
+          "head": "revitalize",
+          "reason": "\"revitalize\" is AI marketing vocabulary"
+        },
+        {
+          "term": "illuminates",
+          "head": "illuminates",
+          "reason": "\"illuminates\" (figurative) is AI-academic framing"
+        },
+        {
+          "term": "illuminating",
+          "head": "illuminates",
+          "reason": "\"illuminates\" (figurative) is AI-academic framing"
+        },
+        {
+          "term": "massive",
+          "head": "massive",
+          "reason": "\"massive\" is AI scale-inflation - it reaches for size where a plain number or nothing at all would do (Ben, 2026-08-20)"
+        },
+        {
+          "term": "massively",
+          "head": "massive",
+          "reason": "\"massive\" is AI scale-inflation - it reaches for size where a plain number or nothing at all would do (Ben, 2026-08-20)"
+        }
+      ]
+    },
+    "aiPhrases": {
+      "label": "AI phrases",
+      "match": "literal",
+      "highlight": true,
+      "terms": [
+        {
+          "term": "as an ai language model",
+          "reason": "Chatbot self-disclosure left in pasted output"
+        },
+        {
+          "term": "as a large language model",
+          "reason": "Chatbot self-disclosure left in pasted output"
+        },
+        {
+          "term": "as of my last knowledge update",
+          "reason": "Knowledge-cutoff disclaimer left in pasted output (WP:AISIGNS)"
+        },
+        {
+          "term": "my knowledge cutoff",
+          "reason": "Knowledge-cutoff disclaimer left in pasted output"
+        },
+        {
+          "term": "my training data",
+          "reason": "Chatbot self-reference left in pasted output"
+        },
+        {
+          "term": "i don't have access to real-time",
+          "reason": "Chatbot capability disclaimer left in pasted output"
+        },
+        {
+          "term": "in the provided search results",
+          "reason": "RAG-chatbot source disclaimer left in pasted output (WP:AISIGNS)"
+        },
+        {
+          "term": "while specific details are limited",
+          "reason": "RAG-chatbot hedge for missing sources (WP:AISIGNS)"
+        },
+        {
+          "term": "regenerate response",
+          "reason": "Chat-UI button label copied along with the answer"
+        },
+        {
+          "term": "i hope this helps",
+          "reason": "Assistant sign-off left in pasted output"
+        },
+        {
+          "term": "i hope this message finds you well",
+          "reason": "AI form-letter opener (WP:AISIGNS)"
+        },
+        {
+          "term": "would you like me to",
+          "reason": "Assistant follow-up offer left in pasted output"
+        },
+        {
+          "term": "is there anything else i can",
+          "reason": "Assistant closing offer left in pasted output"
+        },
+        {
+          "term": "let me know if you'd like",
+          "reason": "Assistant follow-up offer left in pasted output"
+        },
+        {
+          "term": "feel free to customize",
+          "reason": "Assistant template handoff left in pasted output"
+        },
+        {
+          "term": "feel free to personalize",
+          "reason": "Assistant template handoff left in pasted output"
+        },
+        {
+          "term": "you're absolutely right",
+          "reason": "Chatbot sycophancy artifact (2025-era models)"
+        },
+        {
+          "term": "great question",
+          "reason": "Sycophantic AI opener — humans rarely say this in writing"
+        },
+        {
+          "term": "excellent question",
+          "reason": "Sycophantic AI opener"
+        },
+        {
+          "term": "glad you asked",
+          "reason": "AI conversational filler"
+        },
+        {
+          "term": "it's important to note that",
+          "reason": "AI hedging preamble — add the point directly"
+        },
+        {
+          "term": "it's worth noting that",
+          "reason": "AI hedging filler"
+        },
+        {
+          "term": "it's worth mentioning that",
+          "reason": "AI hedging filler — just mention it"
+        },
+        {
+          "term": "it is essential to",
+          "reason": "AI importance-framing — say why, or drop it"
+        },
+        {
+          "term": "it's essential to",
+          "reason": "AI importance-framing — say why, or drop it"
+        },
+        {
+          "term": "it is evident that",
+          "reason": "AI-academic hedge — show the evidence instead"
+        },
+        {
+          "term": "in today's fast-paced world",
+          "reason": "AI cliche opener — 107x more in AI text than human"
+        },
+        {
+          "term": "in today's digital age",
+          "reason": "AI cliche opener"
+        },
+        {
+          "term": "in today's rapidly evolving",
+          "reason": "AI cliche opener variant"
+        },
+        {
+          "term": "in today's world",
+          "reason": "AI scene-setting cliche opener"
+        },
+        {
+          "term": "in the realm of",
+          "reason": "AI filler phrase — 50x overrepresentation"
+        },
+        {
+          "term": "in an era of",
+          "reason": "AI scene-setting cliche"
+        },
+        {
+          "term": "at its core",
+          "reason": "AI emphasis filler — often adds nothing"
+        },
+        {
+          "term": "when it comes to",
+          "reason": "AI transition filler — overused as topic introducer"
+        },
+        {
+          "term": "first and foremost",
+          "reason": "AI list-opener filler — \"first\" alone works"
+        },
+        {
+          "term": "furthermore,",
+          "reason": "AI transition — \"also\" or \"and\" is more natural"
+        },
+        {
+          "term": "moreover,",
+          "reason": "AI transition overuse"
+        },
+        {
+          "term": "additionally,",
+          "reason": "AI transition overuse — \"also\" is more natural"
+        },
+        {
+          "term": "in conclusion,",
+          "reason": "AI structural cliche — rarely needed"
+        },
+        {
+          "term": "in summary,",
+          "reason": "AI wrap-up formula (WP:AISIGNS section summaries)"
+        },
+        {
+          "term": "to summarize,",
+          "reason": "AI wrap-up formula"
+        },
+        {
+          "term": "in essence,",
+          "reason": "AI restatement filler"
+        },
+        {
+          "term": "key takeaway",
+          "reason": "AI summary-listicle framing"
+        },
+        {
+          "term": "let's dive in",
+          "reason": "AI conversational filler"
+        },
+        {
+          "term": "let's explore",
+          "reason": "AI conversational filler — just explore it"
+        },
+        {
+          "term": "let's delve",
+          "reason": "AI filler combining two tells"
+        },
+        {
+          "term": "let's break this down",
+          "reason": "AI structural filler"
+        },
+        {
+          "term": "without further ado",
+          "reason": "AI filler phrase before getting to the point"
+        },
+        {
+          "term": "here's the kicker",
+          "reason": "AI faux-candor pivot (2024+ chatty register)"
+        },
+        {
+          "term": "a testament to",
+          "reason": "AI emphasis cliche"
+        },
+        {
+          "term": "it's not just about",
+          "reason": "AI negation-pivot opener"
+        },
+        {
+          "term": "cannot be overstated",
+          "reason": "AI importance inflation (\"the importance of X cannot be overstated\")"
+        },
+        {
+          "term": "highlights the importance of",
+          "reason": "AI significance-framing formula (Juzek 2026 cross-lingual study)"
+        },
+        {
+          "term": "underscores the importance of",
+          "reason": "AI significance-framing formula"
+        },
+        {
+          "term": "sheds light on",
+          "reason": "AI-academic illumination cliche"
+        },
+        {
+          "term": "gain a deeper understanding",
+          "reason": "AI-academic filler — what specifically is understood?"
+        },
+        {
+          "term": "opens new avenues",
+          "reason": "AI-academic outlook cliche (Kobak 2025 excess phrase)"
+        },
+        {
+          "term": "aims to explore",
+          "reason": "AI meta-announcement — ~50x more frequent in AI text (GPTZero)"
+        },
+        {
+          "term": "valuable insights",
+          "reason": "AI insight-inflation collocation (WP:AISIGNS; Geng & Trotta 2025)"
+        },
+        {
+          "term": "actionable insights",
+          "reason": "AI business-speak collocation"
+        },
+        {
+          "term": "rich tapestry",
+          "reason": "AI ornamental metaphor"
+        },
+        {
+          "term": "rich cultural heritage",
+          "reason": "AI travel-brochure puffery (WP:AISIGNS)"
+        },
+        {
+          "term": "treasure trove",
+          "reason": "AI ornamental metaphor"
+        },
+        {
+          "term": "hidden gem",
+          "reason": "AI travel-listicle cliche"
+        },
+        {
+          "term": "faces several challenges",
+          "reason": "AI challenges-formula prose (WP:AISIGNS)"
+        },
+        {
+          "term": "faced numerous challenges",
+          "reason": "AI challenges-formula prose (WP:AISIGNS)"
+        },
+        {
+          "term": "no discussion would be complete without",
+          "reason": "AI completeness-formula filler"
+        },
+        {
+          "term": "unlock the potential",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "unlock the full potential",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "unlock the power",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "harness the power",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "to the next level",
+          "reason": "AI marketing cliche (\"take X to the next level\")"
+        },
+        {
+          "term": "to new heights",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "push the boundaries of",
+          "reason": "AI marketing cliche"
+        },
+        {
+          "term": "look no further",
+          "reason": "AI sales-copy cliche"
+        },
+        {
+          "term": "supercharge your",
+          "reason": "AI marketing hype"
+        },
+        {
+          "term": "secret sauce",
+          "reason": "AI business-blog cliche"
+        },
+        {
+          "term": "deep dive",
+          "reason": "AI content-marketing cliche"
+        },
+        {
+          "term": "embrace the",
+          "reason": "AI call-to-action cliche (\"embrace the future\")"
+        },
+        {
+          "term": "navigate the complexities",
+          "reason": "AI closing cliche"
+        },
+        {
+          "term": "navigating the complexities",
+          "reason": "AI closing cliche"
+        },
+        {
+          "term": "pave the way for",
+          "reason": "AI forward-looking cliche"
+        },
+        {
+          "term": "the possibilities are endless",
+          "reason": "AI optimism cliche"
+        }
+      ]
+    },
+    "aiPatterns": {
+      "label": "AI sentence patterns",
+      "match": "regex",
+      "highlight": true,
+      "note": "Regex sources, to be compiled with the \"gi\" flags.",
+      "terms": [
+        {
+          "name": "negative-parallelism",
+          "pattern": "\\bn(?:ot|[''’]t) (?:just|only|merely|simply|about) [^.!?\\n]{1,80}?[,;.:—–-] ?(?:it[''’]s|it is|this is|that[''’]s|they[''’]re|but rather)\\b|\\b(?:it|this|that)(?:[''’]s| is) not (?:a|an|the) [^.!?\\n]{1,60}?[.;,—–] ?(?:it|this|that)(?:[''’]s| is) (?:a|an|the)\\b",
+          "reason": "\"It's not just X — it's Y\" negative parallelism is a signature LLM construction (WP:AISIGNS; Kriss/NYT 2025)"
+        },
+        {
+          "name": "not-only-but-also",
+          "pattern": "\\bnot only\\b[^.!?\\n]{2,80}?\\bbut also\\b",
+          "reason": "\"not only... but also\" is heavily overused by LLMs of every generation (Russell 2025; WP:AISIGNS)"
+        },
+        {
+          "name": "trailing-participial-analysis",
+          "pattern": ",\\s+(?:further |thereby |ultimately )?(?:highlighting|underscoring|showcasing|reflecting|emphasi[sz]ing|demonstrating|signall?ing|illustrating|cementing|solidifying|reinforcing|exemplifying|epitomizing|symbolizing|embodying|heralding)\\b",
+          "reason": "Trailing \", highlighting/underscoring/showcasing...\" significance clauses are the best-evidenced syntactic AI tell (Reinhart PNAS 2025; WP:AISIGNS)"
+        },
+        {
+          "name": "vague-attribution",
+          "pattern": "\\b(?:experts|critics|observers|scholars|analysts|commentators|industry (?:reports|experts|leaders|insiders)) (?:have )?(?:widely )?(?:argued?s?|agreed?s?|suggests?|suggested|believed?s?|noted?s?|cited?s?|claims?|claimed|warns?|warned|say|pointed? out)\\b|\\bstudies (?:show|suggest|indicate|have shown)\\b|\\bresearch (?:shows|suggests|indicates|has shown)\\b",
+          "reason": "Vague authority attribution (\"experts agree\", \"studies show\") without a named source is a documented AI weasel pattern (WP:AISIGNS)"
+        },
+        {
+          "name": "audience-hedge",
+          "pattern": "\\bwhether you[''’]re (?:a|an|new|just|looking|building|running)\\b[^.!?\\n]{1,80}?\\bor\\b",
+          "reason": "\"Whether you're a X or a Y\" audience-flattening openers are an AI content-marketing formula"
+        },
+        {
+          "name": "despite-challenges",
+          "pattern": "\\bdespite (?:its|these|their|the)\\b[^.!?\\n]{1,60}?\\b(?:faces?|faced|continues? to face|remains?)\\b[^.!?\\n]{0,40}?\\bchallenges\\b",
+          "reason": "The \"Despite its X, [subject] faces challenges\" formula is a documented AI outline habit (WP:AISIGNS; Russell 2025)"
+        },
+        {
+          "name": "copula-puffery",
+          "pattern": "\\bstands as an?\\b|\\bholds the distinction of\\b|\\bserves as a (?:testament|beacon|reminder|symbol|cornerstone)\\b",
+          "reason": "Inflated copulas (\"stands as a\", \"serves as a testament\") replace plain \"is\" in AI prose (WP:AISIGNS; Geng & Trotta 2025)"
+        },
+        {
+          "name": "pivotal-role-claim",
+          "pattern": "\\bplay(?:s|ed|ing)? an? (?:crucial|pivotal|vital|key|critical|essential|significant|central|integral|major|prominent|important) (?:role|part)\\b",
+          "reason": "\"plays a crucial/vital/key role\" is an AI significance cliche (WP:AISIGNS grandiose-phrase list)"
+        },
+        {
+          "name": "false-range",
+          "pattern": "\\bfrom [^,.;!?\\n]{2,40} to [^,.;!?\\n]{2,40}, (?:and )?from [^,.;!?\\n]{2,40} to\\b",
+          "reason": "Chained \"from X to Y, from Z to W\" false ranges are a documented AI comprehensiveness gesture (WP:AISIGNS)"
+        },
+        {
+          "name": "unfilled-placeholder",
+          "pattern": "\\[(?:your (?:name|username|email|company(?: name)?)|company name|insert [^\\]\\n]{2,40}|[a-z ]{0,20}goes here)\\]",
+          "reason": "Unfilled template placeholders (\"[Your Name]\", \"[insert X]\") are AI draft output left incomplete (WP:AISIGNS)"
+        },
+        {
+          "name": "meta-announcement",
+          "pattern": "\\bthis (?:article|blog post|post|essay|guide) (?:aims|seeks) to\\b",
+          "reason": "\"This article aims to explore...\" meta-announcements are ~50x more frequent in AI text (GPTZero)"
+        },
+        {
+          "name": "dance-metaphor",
+          "pattern": "\\b(?:intricate|delicate|complex|careful) dance\\b",
+          "reason": "The \"delicate dance between X and Y\" metaphor is a documented LLM favorite"
+        }
+      ]
+    },
+    "passiveVoice": {
+      "label": "Passive voice",
+      "match": "composed",
+      "highlight": true,
+      "auxiliaries": [
+        "am",
+        "are",
+        "were",
+        "being",
+        "is",
+        "been",
+        "was",
+        "be",
+        "get",
+        "gets",
+        "got",
+        "gotten",
+        "getting"
+      ],
+      "participles": [
+        "awoken",
+        "been",
+        "born",
+        "beat",
+        "beaten",
+        "become",
+        "begun",
+        "bent",
+        "beset",
+        "bet",
+        "bid",
+        "bidden",
+        "bound",
+        "bitten",
+        "bled",
+        "blown",
+        "broken",
+        "bred",
+        "brought",
+        "broadcast",
+        "built",
+        "burnt",
+        "burst",
+        "bought",
+        "cast",
+        "caught",
+        "chosen",
+        "clung",
+        "come",
+        "cost",
+        "crept",
+        "cut",
+        "dealt",
+        "dug",
+        "done",
+        "drawn",
+        "dreamt",
+        "driven",
+        "drunk",
+        "eaten",
+        "fallen",
+        "fed",
+        "felt",
+        "fought",
+        "found",
+        "fit",
+        "fled",
+        "flung",
+        "flown",
+        "forbidden",
+        "forgotten",
+        "foregone",
+        "forgiven",
+        "forsaken",
+        "frozen",
+        "got",
+        "gotten",
+        "given",
+        "gone",
+        "ground",
+        "grown",
+        "hung",
+        "heard",
+        "hidden",
+        "hit",
+        "held",
+        "hurt",
+        "kept",
+        "knelt",
+        "knit",
+        "known",
+        "laid",
+        "led",
+        "leapt",
+        "learnt",
+        "left",
+        "lent",
+        "let",
+        "lain",
+        "lost",
+        "made",
+        "meant",
+        "met",
+        "misspelt",
+        "mistaken",
+        "mown",
+        "overcome",
+        "overdone",
+        "overtaken",
+        "overthrown",
+        "paid",
+        "pled",
+        "proven",
+        "put",
+        "quit",
+        "read",
+        "rid",
+        "ridden",
+        "rung",
+        "risen",
+        "run",
+        "sawn",
+        "said",
+        "seen",
+        "sought",
+        "sold",
+        "sent",
+        "set",
+        "sewn",
+        "shaken",
+        "shaven",
+        "shorn",
+        "shed",
+        "shone",
+        "shod",
+        "shot",
+        "shown",
+        "shrunk",
+        "shut",
+        "sung",
+        "sunk",
+        "sat",
+        "slept",
+        "slain",
+        "slid",
+        "slung",
+        "slit",
+        "smelt",
+        "smitten",
+        "sown",
+        "spoken",
+        "sped",
+        "spent",
+        "spilt",
+        "spoilt",
+        "spun",
+        "spit",
+        "spat",
+        "split",
+        "spread",
+        "sprung",
+        "stood",
+        "stolen",
+        "stuck",
+        "stung",
+        "stunk",
+        "stridden",
+        "struck",
+        "strung",
+        "striven",
+        "sworn",
+        "swept",
+        "swollen",
+        "swum",
+        "swung",
+        "taken",
+        "taught",
+        "torn",
+        "told",
+        "thought",
+        "thrown",
+        "thrust",
+        "trod",
+        "trodden",
+        "understood",
+        "upheld",
+        "upset",
+        "woken",
+        "worn",
+        "woven",
+        "wed",
+        "wept",
+        "wound",
+        "won",
+        "withheld",
+        "withstood",
+        "wrung",
+        "written",
+        "arisen",
+        "borne",
+        "begotten",
+        "bereft",
+        "besought",
+        "clad",
+        "cleft",
+        "dove",
+        "dwelt",
+        "forecast",
+        "forgone",
+        "fraught",
+        "gilt",
+        "girt",
+        "graven",
+        "hewn",
+        "inlaid",
+        "input",
+        "interwoven",
+        "laden",
+        "leant",
+        "lit",
+        "misled",
+        "misgiven",
+        "misunderstood",
+        "misbegotten",
+        "outbid",
+        "outdone",
+        "outgrown",
+        "outrun",
+        "outshone",
+        "outworn",
+        "overbid",
+        "overborne",
+        "overcast",
+        "overdrawn",
+        "overfed",
+        "overheard",
+        "overlaid",
+        "overpaid",
+        "overridden",
+        "overrun",
+        "overseen",
+        "oversold",
+        "overspent",
+        "overthought",
+        "partaken",
+        "preset",
+        "proofread",
+        "rebuilt",
+        "redone",
+        "relaid",
+        "remade",
+        "repaid",
+        "rerun",
+        "resold",
+        "reset",
+        "retold",
+        "rewritten",
+        "rewound",
+        "rebound",
+        "rethought",
+        "retaken",
+        "shriven",
+        "slunk",
+        "snuck",
+        "spelt",
+        "stricken",
+        "sunken",
+        "undergone",
+        "underpaid",
+        "undersold",
+        "undertaken",
+        "undone",
+        "unfrozen",
+        "unladen",
+        "unmade",
+        "unsaid",
+        "untold",
+        "unwound",
+        "upswept",
+        "wrought"
+      ]
+    }
+  },
+  "support": {
+    "abbreviations": {
+      "label": "Abbreviations",
+      "highlight": false,
+      "note": "NOT a flag list. Sentence-boundary support only: these are the full stops that do not end a sentence.",
+      "terms": [
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "st",
+        "rev",
+        "hon",
+        "sgt",
+        "cpl",
+        "pvt",
+        "gen",
+        "col",
+        "lt",
+        "cmdr",
+        "adm",
+        "capt",
+        "maj",
+        "ph.d",
+        "m.d",
+        "b.a",
+        "m.a",
+        "b.s",
+        "m.s",
+        "j.d",
+        "d.d.s",
+        "esq",
+        "cpa",
+        "dvm",
+        "e.g",
+        "i.e",
+        "etc",
+        "vs",
+        "approx",
+        "dept",
+        "est",
+        "govt",
+        "inc",
+        "corp",
+        "ltd",
+        "vol",
+        "fig",
+        "a.m",
+        "p.m",
+        "u.s",
+        "u.k",
+        "assn",
+        "ave",
+        "blvd",
+        "bldg",
+        "ct",
+        "dist",
+        "ed",
+        "ft",
+        "hwy",
+        "mt",
+        "natl",
+        "pkg",
+        "rd",
+        "sq",
+        "univ",
+        "yr",
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "sept",
+        "oct",
+        "nov",
+        "dec",
+        "oz",
+        "lb",
+        "lbs",
+        "kg",
+        "km",
+        "mi",
+        "pt",
+        "qt",
+        "gal",
+        "min",
+        "sec",
+        "hr",
+        "hrs",
+        "al",
+        "cf",
+        "ref",
+        "tel",
+        "fax",
+        "misc",
+        "temp",
+        "org",
+        "co",
+        "intl"
+      ]
+    }
+  }
+}

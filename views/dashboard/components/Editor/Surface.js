@@ -38,6 +38,10 @@ import {
     Decoration, ViewPlugin, StateField, StateEffect, RangeSetBuilder
 } from '/libs/codemirror/codemirror.js';
 
+// The writing-flags scanner. Named on import because `search` above is already
+// CodeMirror's, and a bare `scan` here would read as if it were CodeMirror's too.
+import { scan as scanFlags } from './WritingFlags.js';
+
 /**
  * Tags map to class names rather than inline styles, so the appearance lives
  * in Editor.css with the rest of the editor's look instead of in here.
@@ -313,6 +317,79 @@ const highlightPlugin = ViewPlugin.fromClass(class {
     }
 }, { decorations: instance => instance.decorations });
 
+/* ------------------------------------------------------------------ *
+   WRITING FLAGS
+
+   Weasel words, hedges, passive voice, nominalizations and the AI tells,
+   underlined live as the chapter is written. Everything is local and regex -
+   see WritingFlags.js for why it is one alternation per category rather than
+   nine hundred patterns.
+
+   Built exactly like the search highlight above, and for the same reason: only
+   the VISIBLE ranges are decorated. This recomputes on every change, and a
+   phrase that straddles the viewport edge resolves as it scrolls into view -
+   the same trade the search highlight already makes.
+ * ------------------------------------------------------------------ */
+
+const setFlagsEffect = StateEffect.define();
+
+const flagsState = StateField.define({
+    create: () => null,
+    update(value, tr) {
+        for (const effect of tr.effects) {
+            if (effect.is(setFlagsEffect)) return effect.value;
+        }
+        return value;
+    }
+});
+
+/*
+   One mark per category, made once. Decoration.mark() called inside the build
+   loop would allocate a new class object for every hit on every keystroke;
+   CodeMirror also compares marks by identity when it diffs decorations, so
+   fresh objects would defeat that and repaint spans that never changed.
+*/
+const FLAG_MARKS = new Map(['weasel', 'fillerAdverbs', 'hedging', 'nominalizations',
+    'aiVocabulary', 'aiPhrases', 'aiPatterns', 'passiveVoice']
+    .map(id => [id, Decoration.mark({ class: `cm-proseFlag cm-proseFlag--${id}` })]));
+
+const FALLBACK_FLAG_MARK = Decoration.mark({ class: 'cm-proseFlag' });
+
+function buildFlags(view) {
+    const builder = new RangeSetBuilder();
+    const config = view.state.field(flagsState, false);
+    if (!config || !config.compiled || !config.compiled.length) return builder.finish();
+
+    for (const { from, to } of view.visibleRanges) {
+        const text = view.state.sliceDoc(from, to);
+        let hits;
+        try {
+            hits = scanFlags(text, config.compiled, { only: config.only });
+        } catch {
+            return builder.finish();   // never let the flags break the editor
+        }
+        // scan() returns hits sorted and non-overlapping, which is exactly what
+        // RangeSetBuilder requires - it throws on an out-of-order add.
+        for (const hit of hits) {
+            builder.add(from + hit.from, from + hit.to, FLAG_MARKS.get(hit.category) || FALLBACK_FLAG_MARK);
+        }
+    }
+    return builder.finish();
+}
+
+const flagsPlugin = ViewPlugin.fromClass(class {
+    constructor(view) {
+        this.decorations = buildFlags(view);
+    }
+    update(update) {
+        const retargeted = update.transactions.some(tr =>
+            tr.effects.some(effect => effect.is(setFlagsEffect)));
+        if (update.docChanged || update.viewportChanged || retargeted) {
+            this.decorations = buildFlags(update.view);
+        }
+    }
+}, { decorations: instance => instance.decorations });
+
 /**
  * Run something that moves the caret, and put every scroll position OUTSIDE
  * the editor back where it was.
@@ -382,6 +459,10 @@ export function createSurface(host, options = {}) {
         // which is Ctrl+F within this chapter and keeps its own marks.
         highlightState,
         highlightPlugin,
+        // Weasel words, hedges, passive voice and the AI tells, underlined as
+        // the writer types. Local regex only - see WritingFlags.js.
+        flagsState,
+        flagsPlugin,
         placeholderExt(placeholder),
 
         // Ctrl/Cmd+S is muscle memory for anyone who writes, and the browser's
@@ -486,6 +567,32 @@ export function createSurface(host, options = {}) {
             view.dispatch({ effects: setHighlightEffect.of(null) });
         },
 
+        /**
+         * Turn the writing flags on, off, or down to a few categories.
+         *
+         * Set once. The plugin re-scans on every document change by itself, so
+         * nothing has to call this as the writer types - which is the point of
+         * doing it in a view plugin rather than pushing offsets in from the
+         * editor. Offsets pushed from outside would need remapping through
+         * every edit, and would be wrong for exactly as long as it took to
+         * recompute them.
+         *
+         * @param {Array|null} compiled  output of WritingFlags.compile(), or null to clear
+         * @param {Set<string>|null} only  restrict to these category ids
+         */
+        setWritingFlags(compiled, only = null) {
+            view.dispatch({
+                effects: setFlagsEffect.of(compiled ? { compiled, only } : null)
+            });
+        },
+
+        /** Everything currently flagged in this chapter, for a panel or a count. */
+        writingFlags() {
+            const config = view.state.field(flagsState, false);
+            if (!config || !config.compiled) return [];
+            return scanFlags(view.state.doc.toString(), config.compiled, { only: config.only });
+        },
+
         /** How many hits are marked in THIS chapter right now. */
         countHighlights() {
             const config = view.state.field(highlightState, false);
@@ -526,7 +633,23 @@ export function createSurface(host, options = {}) {
                     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
                     return;
                 }
+
+                /*
+                 * setState builds a WHOLE NEW STATE, which means every
+                 * StateField goes back to whatever its create() returns. The
+                 * writing-flags configuration lives in one of those fields, so
+                 * opening a chapter silently threw it away and the underlines
+                 * never appeared again - the editor loads every chapter through
+                 * here, so in the real app they never appeared at all.
+                 *
+                 * Carried across explicitly. The alternative is for every
+                 * caller of setValue to remember to re-arm the flags, which is
+                 * the kind of thing that works until someone adds a second
+                 * caller.
+                 */
+                const flags = view.state.field(flagsState, false);
                 view.setState(EditorState.create({ doc: next, extensions }));
+                if (flags) view.dispatch({ effects: setFlagsEffect.of(flags) });
             } finally {
                 applying = false;
             }
