@@ -2,8 +2,28 @@ const SpellService = require('../services/proofing/SpellService');
 const SuggestionService = require('../services/proofing/SuggestionService');
 const MechanicsService = require('../services/proofing/MechanicsService');
 const OveruseService = require('../services/proofing/OveruseService');
+const ThesaurusService = require('../services/proofing/ThesaurusService');
 const GeminiOveruseService = require('../services/gemini/GeminiOveruseService');
 const ManuscriptService = require('../services/manuscript/ManuscriptService');
+
+/**
+ * One way to report a failure, matching NarratorController's.
+ *
+ * These three lines were written out six times in this file, which is how a
+ * handler copied from the other controller arrived calling a fail() that did
+ * not exist here - a ReferenceError that reached the browser as an HTML error
+ * page and read as a routing problem.
+ *
+ * NOT applied to three catch blocks that look like these and are not:
+ *   - the overuse judgement, which returns ok:true with the counts intact,
+ *     because the numbers survive an opinion that did not arrive
+ *   - the mechanics pass inside spell, which logs and carries on
+ *   - the suggestion scan, which answers over `deliver` rather than `res`
+ */
+function fail(res, err, where, status = 500) {
+    console.error(`[ProofingController] ${where}:`, err.message);
+    res.status(status).json({ ok: false, message: err.message });
+}
 
 /**
  * ProofingController
@@ -59,8 +79,7 @@ exports.checkMechanics = (req, res) => {
         console.log(`[ProofingController] Mechanics: ${result.counts.total} finding(s) in ${result.stats.words} words.`);
         res.json({ ok: true, ...result });
     } catch (err) {
-        console.error('[ProofingController] Mechanics scan failed:', err.message);
-        res.status(500).json({ ok: false, message: err.message });
+        fail(res, err, 'Mechanics scan failed');
     }
 };
 
@@ -139,8 +158,7 @@ exports.checkOveruse = async (req, res) => {
             return res.json({ ok: true, ...report, judgement: { error: err.message } });
         }
     } catch (err) {
-        console.error('[ProofingController] Overuse scan failed:', err.message);
-        res.status(500).json({ ok: false, message: err.message });
+        fail(res, err, 'Overuse scan failed');
     }
 };
 
@@ -157,8 +175,7 @@ exports.checkSpelling = async (req, res) => {
         const result = await SpellService.check(text, { seriesFolder });
         res.json({ ok: true, ...result });
     } catch (err) {
-        console.error('[ProofingController] Spell check failed:', err.message);
-        res.status(500).json({ ok: false, message: err.message });
+        fail(res, err, 'Spell check failed');
     }
 };
 
@@ -187,8 +204,7 @@ exports.scanOnComplete = async (req, res) => {
         try {
             spelling = await SpellService.check(text, { seriesFolder });
         } catch (err) {
-            console.error('[ProofingController] Spell check failed:', err.message);
-            return res.status(500).json({ ok: false, message: err.message });
+            return fail(res, err, 'Spell check failed');
         }
     }
 
@@ -234,5 +250,33 @@ exports.scanOnComplete = async (req, res) => {
     } catch (err) {
         console.error('[ProofingController] Suggestion scan failed:', err.message);
         deliver({ ok: false, suggestions: [], message: err.message });
+    }
+};
+
+/**
+ * Synonyms for one highlighted word.
+ *
+ * Local in every sense that matters to a writer: no key, no account, no model,
+ * and it works with the AI switched off. See ThesaurusService for why the list
+ * is short and ordered the way it is.
+ */
+exports.getThesaurus = async (req, res) => {
+    const { word, pos } = req.query;
+    try {
+        res.json({ ok: true, ...await ThesaurusService.lookup(word, { pos }) });
+    } catch (err) {
+        /*
+         * Offline, or a phrase rather than a word. Both are the writer's to
+         * act on, so the message goes through unchanged.
+         *
+         * Written out rather than routed through a fail() helper: this file
+         * does not have one. NarratorController does, and copying its shape
+         * across put a call to a function that does not exist in here - which
+         * only surfaced when the endpoint was first hit, as a ReferenceError
+         * that reached the browser as an HTML error page.
+         */
+        // 400 rather than 500: "look up a single word" and "could not reach
+        // the thesaurus" are both about the request, not a fault in here.
+        fail(res, err, 'Thesaurus lookup failed', 400);
     }
 };
