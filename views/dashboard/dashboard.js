@@ -5,7 +5,6 @@ import {
     registerNavigationHandlers,
     restoreStateFromUrl
 } from './studio/js/Navigation.js';
-import { populateSeriesSelect } from './studio/js/LibraryManager.js';
 import { setActiveScene, restoreLastScene } from './studio/js/SceneSession.js';
 import { initEditor } from './components/Editor/Editor.js';
 import CharacterEditor from './components/CharacterLab/CharacterLab.js';
@@ -75,20 +74,13 @@ export async function init(container) {
         console.warn("[WebSocket] Socket.io client script not found.");
     }
 
-    // Initialize Global Selects
-    populateSeriesSelect('globalSeriesSelect').then(() => {
-        const savedSeries = localStorage.getItem('globalSeries');
-        if (savedSeries) {
-            const sSel = document.getElementById('globalSeriesSelect');
-            if (sSel) {
-                sSel.value = savedSeries;
-                // Dispatch change so globalVolumeSelect populates
-                sSel.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-    });
-
-    // The settings section no longer has a series dropdown to fill — its
+    // A populateSeriesSelect('globalSeriesSelect') stood here, restoring a
+    // saved series from localStorage on every boot. Neither #globalSeriesSelect
+    // nor the #globalVolumeSelect it cascaded into has existed since the comic
+    // stack was removed, so it was a request to /library/series on every load
+    // whose result was handed to a querySelector that returned null.
+    //
+    // The settings section no longer has a series dropdown either — its
     // per-series block was replaced by the story-folder picker.
 
     const allSections = container.querySelectorAll('.dashboard-section');

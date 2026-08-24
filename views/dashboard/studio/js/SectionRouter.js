@@ -107,13 +107,21 @@ export async function switchToSection(targetPage, container) {
     // never lags behind the click. Non-rail sections clear the highlight.
     syncStudioRail(container, targetPage);
 
-    // Trigger Population Logic based on the section
+    /*
+     * Trigger Population Logic based on the section.
+     *
+     * Only the Character Lab is left. Four more lines stood here targeting
+     * #createVolumeSeriesSelect, #volumeSeriesSelect, #chapterSeriesSelect and
+     * #editorSeriesSelect - none of which has existed since the comic stack
+     * went. Two of them named sections that are not in STUDIO_SECTIONS either.
+     * The editor one was the expensive one: a fetch of /library/series every
+     * time a writer opened a chapter, resolved against nothing.
+     *
+     * Characters are still keyed to a series, and CharacterLab.js aborts its
+     * init without this select, so this call is load-bearing.
+     */
     const popTasks = [];
-    if (targetPage === 'create-new-volume') popTasks.push(populateSeriesSelect('createVolumeSeriesSelect'));
-    if (targetPage === 'edit-volume') popTasks.push(populateSeriesSelect('volumeSeriesSelect'));
-    if (targetPage === 'create-new-chapter') popTasks.push(populateSeriesSelect('chapterSeriesSelect'));
     if (targetPage === 'characters') popTasks.push(populateSeriesSelect('char-series-select'));
-    if (targetPage === 'editor') popTasks.push(populateSeriesSelect('editorSeriesSelect'));
 
     await Promise.all(popTasks);
 

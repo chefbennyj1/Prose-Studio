@@ -1,7 +1,6 @@
 import { updateUrlState } from './Navigation.js';
 import { switchToSection, lastStudioSection } from './SectionRouter.js';
 import {
-    populateSeriesSelect,
     populateVolumeSelect,
     populateChapterSelect,
     populateEditPageSelect,
@@ -20,11 +19,15 @@ function toggleNavPopover(force) {
     const show = force ?? popover.classList.contains('hidden');
     popover.classList.toggle('hidden', !show);
     document.getElementById('activePageCrumb')?.setAttribute('aria-expanded', String(show));
-    // Preload only if the section switch hasn't populated the cascade yet,
-    // so reopening the popover never resets an in-progress selection
-    if (show && !document.getElementById('editSeriesSelect')?.options.length) {
-        populateSeriesSelect('editSeriesSelect');
-    }
+    // A populateSeriesSelect('editSeriesSelect') preload stood here, for a
+    // cascade that no longer exists.
+    //
+    // NOTE: this whole function is unreachable. #pageNavPopover went with the
+    // comic page cascade, so the guard on the first line returns every time -
+    // as does the #activePageCrumb / #layoutEmptyPickBtn click handler that
+    // calls it. Left in place because removing it means removing
+    // loadSelectedPage() and its handlers too, which is a wider sweep than
+    // this commit is doing.
 }
 
 function loadSelectedPage() {
