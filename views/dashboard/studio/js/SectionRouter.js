@@ -11,10 +11,14 @@ import { populateSeriesSelect } from './LibraryManager.js';
 // Fragment load cache — prevents duplicate fetches
 const _loadedSections = new Set();
 
-// Sections reachable from the persistent studio rail; the "studio" tab and
-// fresh entries resolve to the last one the writer used. The panel-art tools
-// (layout editor, page builder, style lab, export) went with the comic stack;
-// the editor takes their place as the landing section.
+// Sections reachable from the persistent studio rail. A fresh entry resolves
+// to the last one the writer used. The panel-art tools (layout editor, page
+// builder, style lab, export) went with the comic stack; the editor takes
+// their place as the landing section.
+//
+// The "studio" tab that used to resolve here was removed on 2026-08-23 - the
+// rail does that job. `?tab=studio` is still honoured by Navigation.js and
+// EventHandlers.js, because a bookmark or an old URL can still carry it.
 export const STUDIO_SECTIONS = [
     'editor', 'characters', 'plot-lab', 'dictionary', 'create-story', 'create-chapter',
     'library-settings'

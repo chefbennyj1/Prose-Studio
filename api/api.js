@@ -11,7 +11,6 @@ console.log('[API] Initializing API routes...');
 const UserController = require('../controllers/UserController.js');
 const VolumeController = require('../controllers/VolumeController.js');
 const LibraryController = require('../controllers/LibraryController.js');
-const ScheduledTaskController = require('../controllers/ScheduledTaskController.js');
 const CharacterController = require('../controllers/CharacterController.js');
 const CriticController = require('../controllers/CriticController.js');
 const SiteController = require('../controllers/SiteController.js');
@@ -303,9 +302,10 @@ router.get('/volume/:id/chapter/:chapterNumber', isAuth, VolumeController.getCha
 // the static handler in server.js; they no longer need a controller.
 
 // --- SCHEDULED TASKS & ADMIN ROUTES ---
-router.get('/library/roots', isAdmin, ScheduledTaskController.getLibraryRoots);
-router.post('/library/roots', isAdmin, ScheduledTaskController.addLibraryRoot);
-router.delete('/library/roots/:id', isAdmin, ScheduledTaskController.deleteLibraryRoot);
-router.post('/library/scan', isAdmin, ScheduledTaskController.triggerScan);
+// The library-roots and library-scan routes stood here. They served the comic
+// engine's scanner: folders of comic files swept into series and volumes, with
+// a Vision AI pass over the panel images. A manuscript is Markdown in a story
+// folder, so none of it applied - and the vision half was already dead, its
+// controller noting that the pipeline "went with the panel-image pipeline".
 
 module.exports = router;

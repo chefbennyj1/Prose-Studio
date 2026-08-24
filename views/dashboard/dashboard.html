@@ -16,15 +16,33 @@
              font-weight span anyway, so the split is explicit. -->
         <div class="logo">Prose <span class="logo__thin">Engine</span></div>
         <div class="glass-tabs">
+            <!--
+                Two tabs, because only two things up here are PAGES.
+
+                Studio, Scanner and Library were removed 2026-08-23:
+
+                - Studio resolved to lastStudioSection(), i.e. "go back to the
+                  rail section I was already in". The studio rail down the left
+                  does that, permanently and with one click per destination, so
+                  the tab was a second way to reach somewhere the writer can
+                  already see. Removing it is safe: Navigation.js reads the tab
+                  from the URL and falls back to lastStudioSection() on its own,
+                  so the landing never depended on this button existing.
+
+                - Scanner is `scheduled-tasks`, which is the COMIC ENGINE's
+                  library scanner - library roots, a sync button, and a Vision
+                  AI pass over series/volumes/chapters. A manuscript is Markdown
+                  in a story folder; none of that applies to it.
+
+                - Library linked to /library, the comic reader.
+
+                What remains is genuinely page-level: Settings configures the
+                app, Accounts manages users. Neither belongs in the rail, which
+                is about the manuscript.
+            -->
             <nav class="glass-tab-list" id="main-navigation" role="tablist" aria-label="Main navigation">
-                <button class="glass-tab" role="tab" aria-selected="true" data-page="studio" tabindex="0">Studio</button>
-                <button class="glass-tab" role="tab" aria-selected="false" data-page="scheduled-tasks" tabindex="-1">Scanner</button>
-                <button class="glass-tab" role="tab" aria-selected="false" data-page="library-settings" tabindex="-1">Settings</button>
+                <button class="glass-tab" role="tab" aria-selected="false" data-page="library-settings" tabindex="0">Settings</button>
                 <button class="glass-tab" role="tab" aria-selected="false" data-page="accounts" tabindex="-1">Accounts</button>
-                <div class="divider-v" style="height: 20px; margin: 0 10px;"></div>
-                <a href="/library" class="glass-tab" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;" title="Go to Library">
-                    <ion-icon name="library-outline"></ion-icon> Library
-                </a>
             </nav>
         </div>
     </div>

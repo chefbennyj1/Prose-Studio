@@ -9,7 +9,6 @@ import { populateSeriesSelect } from './studio/js/LibraryManager.js';
 import { setActiveScene, restoreLastScene } from './studio/js/SceneSession.js';
 import { initEditor } from './components/Editor/Editor.js';
 import CharacterEditor from './components/CharacterLab/CharacterLab.js';
-import ScheduledTaskView from './components/ScheduledTasks/ScheduledTasks.js';
 import { initPlotLab } from './components/PlotLab/PlotLab.js';
 import { initAccounts } from './sections/accounts/accounts.js';
 import { initUserSettings } from './sections/user-settings/user-settings.js';
@@ -133,9 +132,6 @@ export async function init(container) {
         }
         if (section === 'characters') {
              try { new CharacterEditor(container); } catch (err) { console.error("CharacterEditor init failed", err); }
-        }
-        if (section === 'scheduled-tasks') {
-             try { new ScheduledTaskView(); } catch (err) { console.error("ScheduledTaskView init failed", err); }
         }
         if (section === 'dictionary') {
              try { initDictionary(); } catch (err) { console.error('Dictionary init failed', err); }
@@ -297,9 +293,12 @@ export async function init(container) {
         setActiveScene(link.volume, link.chapter, link.pageId, link.series || null, link.seriesFolder || null);
     });
 
-    // Define restrictions
-    const moderatorHidden = ['user-settings', 'create-new-volume', 'scheduled-tasks', 'create-new-chapter', 'accounts'];
-    const basicHidden = ['studio', 'scheduled-tasks', 'user-settings', 'accounts'];
+    // Define restrictions. 'scheduled-tasks' left both lists with the comic
+    // scanner; 'studio' and 'create-new-volume' name targets that no longer
+    // exist either, and are kept only because hiding a target that is already
+    // gone costs nothing and removing them is a separate question about roles.
+    const moderatorHidden = ['user-settings', 'create-new-volume', 'create-new-chapter', 'accounts'];
+    const basicHidden = ['studio', 'user-settings', 'accounts'];
 
     const hiddenTargets = role === 'admin' ? [] : (role === 'moderator' ? moderatorHidden : basicHidden);
 
@@ -325,14 +324,10 @@ export async function init(container) {
     }
 
 
-    // Default view for basic users (who don't have 'studio' active)
+    // Default view for basic users. The Studio tab that used to be
+    // deselected here went on 2026-08-23; the rail is how sections are
+    // reached now, and it is hidden outright for this role a few lines up.
     if (role === 'basic') {
-        const studioTab = container.querySelector('.glass-tab[data-page="studio"]');
-        if (studioTab) {
-            studioTab.setAttribute('aria-selected', 'false');
-            studioTab.classList.remove('glass-nav__item--active');
-        }
-
         const settingsTab = container.querySelector('.glass-tab[data-page="library-settings"]');
         if (settingsTab) {
             settingsTab.setAttribute('aria-selected', 'true');
