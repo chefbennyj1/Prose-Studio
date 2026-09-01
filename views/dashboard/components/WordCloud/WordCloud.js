@@ -17,6 +17,31 @@
 /** Breathing room around every word, in px. Below about 6 they read as joined. */
 const GAP = 8;
 
+/**
+ * Where the editor records what is open. Read, never written.
+ *
+ * THIS SECTION CANNOT LEARN THE STORY FROM AN EVENT ALONE. `manuscriptOpened`
+ * fires when the editor opens a chapter, which has already happened by the
+ * time a writer clicks through to this section - fragments are lazy, so the
+ * listener below is registered after the announcement it needs. Waiting for
+ * the next one means an empty panel until the writer goes back and reopens
+ * something, which reads as broken and produces no error to explain itself.
+ *
+ * The listener still earns its place for the case where a story is switched
+ * while this section is on screen. It is just not the only source.
+ */
+const LAST_PLACE_KEY = 'prose_engine_last_place';
+
+function lastPlace() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(LAST_PLACE_KEY) || 'null');
+        if (saved && saved.story) return { story: saved.story, chapter: saved.chapter || null };
+    } catch {
+        // A corrupt entry is not worth losing the panel over.
+    }
+    return { story: null, chapter: null };
+}
+
 let els = {};
 let doc = { story: null, chapter: null };
 let data = null;
@@ -56,7 +81,25 @@ export function initWordCloud(container) {
         if (isVisible()) load();
     });
 
-    if (doc.story) load();
+    /*
+     * Fragments load ONCE, so fragmentLoaded fires once and nothing re-runs on
+     * a second visit. Without this, opening a different story and coming back
+     * would show the previous story's cloud - correct-looking, and wrong.
+     * SectionRouter announces every switch, including repeats.
+     */
+    container.addEventListener('sectionShown', (event) => {
+        if (event.detail?.section !== 'word-cloud') return;
+        const place = lastPlace();
+        if (place.story && place.story !== doc.story) {
+            doc = place;
+            data = null;
+        }
+        if (!data) load();
+    });
+
+    // Ask, rather than wait to be told. See LAST_PLACE_KEY above.
+    if (!doc.story) doc = lastPlace();
+    load();
 }
 
 function isVisible() {
