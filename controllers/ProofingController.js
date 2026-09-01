@@ -3,6 +3,8 @@ const SuggestionService = require('../services/proofing/SuggestionService');
 const MechanicsService = require('../services/proofing/MechanicsService');
 const OveruseService = require('../services/proofing/OveruseService');
 const ThesaurusService = require('../services/proofing/ThesaurusService');
+const WordCloudService = require('../services/proofing/WordCloudService');
+const DictionaryService = require('../services/proofing/DictionaryService');
 const GeminiOveruseService = require('../services/gemini/GeminiOveruseService');
 const ManuscriptService = require('../services/manuscript/ManuscriptService');
 
@@ -278,5 +280,49 @@ exports.getThesaurus = async (req, res) => {
         // 400 rather than 500: "look up a single word" and "could not reach
         // the thesaurus" are both about the request, not a fault in here.
         fail(res, err, 'Thesaurus lookup failed', 400);
+    }
+};
+
+/**
+ * What the story is made of, by weight.
+ *
+ * Whole-novel by default: every chapter, function words removed, ranked by how
+ * often the writer actually reaches for a word. `chapter` switches to the
+ * TF-IDF view - what makes ONE chapter different from the rest.
+ *
+ * Character names come from the story's pronunciation lexicon. It is not a
+ * complete cast list, but it is free and it is real: those are the words the
+ * writer has already had to teach the narrator to say, which in practice is
+ * mostly names. They are exempt from the length and frequency floors, so a
+ * three-letter protagonist is not quietly dropped.
+ */
+exports.getWordCloud = async (req, res) => {
+    const { story, chapter } = req.query;
+    if (typeof story !== 'string' || !story.trim()) {
+        return fail(res, new Error("Provide a 'story' to read."), 'getWordCloud', 400);
+    }
+
+    try {
+        const list = await ManuscriptService.listChapters(story);
+        if (!list.length) {
+            return fail(res, new Error(`There is nothing written in "${story}" yet.`), 'getWordCloud', 404);
+        }
+
+        const [chapters, lexicon] = await Promise.all([
+            Promise.all(list.map(async ({ name }) => ({
+                chapter: name,
+                text: (await ManuscriptService.read(story, name)).text
+            }))),
+            DictionaryService.lexicon(story).catch(() => ({}))
+        ]);
+
+        const cloud = WordCloudService.build(chapters, {
+            chapter: chapter || undefined,
+            names: Object.keys(lexicon || {})
+        });
+
+        res.json({ ok: true, story, chapters: list.map(c => c.name), ...cloud });
+    } catch (err) {
+        fail(res, err, 'getWordCloud');
     }
 };

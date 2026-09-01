@@ -9,6 +9,7 @@ import { setActiveScene, restoreLastScene } from './studio/js/SceneSession.js';
 import { initEditor } from './components/Editor/Editor.js';
 import CharacterEditor from './components/CharacterLab/CharacterLab.js';
 import { initPlotLab } from './components/PlotLab/PlotLab.js';
+import { initWordCloud, refreshWordCloud } from './components/WordCloud/WordCloud.js';
 import { initAccounts } from './sections/accounts/accounts.js';
 import { initUserSettings } from './sections/user-settings/user-settings.js';
 import { initCreateStory, initCreateChapter } from './studio/js/StoryStructure.js';
@@ -124,6 +125,9 @@ export async function init(container) {
         }
         if (section === 'characters') {
              try { new CharacterEditor(container); } catch (err) { console.error("CharacterEditor init failed", err); }
+        }
+        if (section === 'word-cloud') {
+             try { initWordCloud(container); refreshWordCloud(); } catch (err) { console.error('WordCloud init failed', err); }
         }
         if (section === 'dictionary') {
              try { initDictionary(); } catch (err) { console.error('Dictionary init failed', err); }

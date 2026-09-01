@@ -201,6 +201,8 @@ router.post('/manuscript/save',     isAuth, ManuscriptController.saveChapter);
 const ProofingController = require('../controllers/ProofingController.js');
 // Datamuse. No key, no AI, works with everything switched off.
 router.get('/proofing/thesaurus', isAuth, ProofingController.getThesaurus);
+// Whole-novel word cloud, function words removed. Local, no AI.
+router.get('/proofing/word-cloud', isAuth, ProofingController.getWordCloud);
 router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);

@@ -1,0 +1,24 @@
+    <div class="word-cloud dashboard-section hidden glass glass--frosted glass-card">
+        <div class="word-cloud__bar">
+            <div class="flex-row-center gap-15">
+                <h3 class="margin-0">Word Cloud</h3>
+                <!--
+                    Whole story is the default and the point: a writer cannot
+                    see their own vocabulary chapter by chapter, for the same
+                    reason they cannot see their own tics that way.
+                -->
+                <select id="wordCloudScope" class="glass-select">
+                    <option value="story">Whole story</option>
+                    <option value="chapter">One chapter, against the rest</option>
+                </select>
+                <select id="wordCloudChapter" class="glass-select hidden"></select>
+            </div>
+            <span id="wordCloudStatus" class="word-cloud__status"></span>
+        </div>
+
+        <div id="wordCloudCanvas" class="word-cloud__canvas"></div>
+
+        <!-- Height reserved whether or not a word is hovered, so the cloud does
+             not jump up and down as the pointer crosses it. -->
+        <div id="wordCloudDetail" class="word-cloud__detail"></div>
+    </div>

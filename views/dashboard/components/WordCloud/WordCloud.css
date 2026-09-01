@@ -1,0 +1,77 @@
+/* views/dashboard/components/WordCloud/WordCloud.css */
+
+.word-cloud {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.word-cloud__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    flex-wrap: wrap;
+}
+
+.word-cloud__status {
+    font-size: 0.85rem;
+    color: var(--text-muted, #777);
+}
+
+/* The cloud takes the room that is left, and scrolls only if a very wide
+   window makes it taller than the card. */
+.word-cloud__canvas {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 20px;
+}
+
+/*
+   The words themselves.
+
+   Serif, matching the editor page, because this is a picture of prose rather
+   than a chart. currentColor plus opacity rather than a colour ramp: a cloud
+   in eight colours reads as eight categories, and there is only one dimension
+   here - how often a word is used - which size already carries.
+*/
+.word-cloud__word {
+    fill: var(--color-text, #1a1a1a);
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    cursor: default;
+    opacity: 0.82;
+    transition: opacity var(--dur-fast, 0.15s), fill var(--dur-fast, 0.15s);
+}
+
+.word-cloud__word:hover {
+    opacity: 1;
+    fill: var(--accent, #0891b2);
+}
+
+/*
+   Names, in the accent.
+
+   The one distinction worth colouring: a character's name at the top of the
+   cloud is structure, not a vocabulary habit. Without this, seeing "Rin" large
+   reads as a warning when it is simply the protagonist doing her job.
+*/
+.word-cloud__word--name {
+    fill: var(--accent, #0891b2);
+    opacity: 0.72;
+}
+
+.word-cloud__word--name:hover {
+    opacity: 1;
+}
+
+.word-cloud__detail {
+    min-height: 2.2em;
+    padding: 10px 20px 14px;
+    border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
+    font-size: 0.85rem;
+    color: var(--text-muted, #777);
+}

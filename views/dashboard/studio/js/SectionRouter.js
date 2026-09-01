@@ -20,8 +20,8 @@ const _loadedSections = new Set();
 // rail does that job. `?tab=studio` is still honoured by Navigation.js and
 // EventHandlers.js, because a bookmark or an old URL can still carry it.
 export const STUDIO_SECTIONS = [
-    'editor', 'characters', 'plot-lab', 'dictionary', 'create-story', 'create-chapter',
-    'library-settings'
+    'editor', 'characters', 'plot-lab', 'dictionary', 'word-cloud',
+    'create-story', 'create-chapter', 'library-settings'
 ];
 
 export function lastStudioSection() {
