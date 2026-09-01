@@ -5,6 +5,7 @@
   "\"Hmph.\"": {
     "spoken": "Humph!"
   },
+  "air-gapped": {},
   "amongst": {},
   "arcologies": {},
   "arcology": {},
@@ -12,6 +13,8 @@
   "BLAM": {},
   "brutalist": {},
   "C'mon": {},
+  "chokehold": {},
+  "Circuts": {},
   "datapad": {},
   "dra": {},
   "eyeline": {},
@@ -23,6 +26,7 @@
   "Mnemosyne": {
     "spoken": "Newmoscene"
   },
+  "NovOS": {},
   "Oshima": {},
   "pixelated": {},
   "rebreather": {},
@@ -36,6 +40,9 @@
   },
   "spasmed": {},
   "Takeda": {},
+  "Takeda-Holden": {
+    "spoken": "Tahkehh-da Holden"
+  },
   "Takeda's": {},
   "wireframe": {}
 }
