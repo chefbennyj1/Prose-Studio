@@ -1,5 +1,23 @@
 // views/dashboard/components/CharacterLab/CharacterLab.js
-import { fetchCharactersAPI, fetchSeriesAPI } from '../../studio/api/StudioClient.js';
+import { fetchCharactersAPI } from '../../studio/api/StudioClient.js';
+
+/**
+ * Which story the editor has open, read from its own record.
+ *
+ * The same trick the word cloud needs: this section mounts lazily, so
+ * manuscriptOpened has already fired by the time it exists and cannot be
+ * waited for.
+ */
+const LAST_PLACE_KEY = 'prose_engine_last_place';
+
+function lastOpenStory() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(LAST_PLACE_KEY) || 'null');
+        return saved && saved.story ? saved.story : null;
+    } catch {
+        return null;
+    }
+}
 
 export default class CharacterLab {
     constructor(container) {
@@ -10,7 +28,8 @@ export default class CharacterLab {
             this.listContainer = container.querySelector('#character-list');
             this.formContainer = container.querySelector('#character-form-container');
             this.createBtn = container.querySelector('#create-character-btn');
-            this.seriesSelect = container.querySelector('#char-series-select');
+            // Named seriesSelect throughout for now; it holds a STORY name.
+            this.seriesSelect = container.querySelector('#char-story-select');
             this.activeCharacterId = null;
             this.activeSeriesId = null;
 
@@ -23,24 +42,50 @@ export default class CharacterLab {
     async init() {
         console.log("[CharacterLab] Initializing...");
         if (!this.seriesSelect) {
-            console.warn("[CharacterLab] Missing #char-series-select. Initialization aborted.");
+            console.warn("[CharacterLab] Missing #char-story-select. Initialization aborted.");
             return;
         }
 
-        // Load series list
+        /*
+         * STORIES, not series.
+         *
+         * This asked /library/series for a list that only the comic library
+         * scanner ever populated, so in a prose app it came back empty every
+         * time - the dropdown had nothing in it, "+ New" stayed disabled, and
+         * nothing anywhere said why. The lab has been dead since the comic
+         * conversion for exactly this reason.
+         */
         try {
-            const seriesList = await fetchSeriesAPI();
-            if (Array.isArray(seriesList)) {
-                this.seriesSelect.innerHTML = '<option value="">Select Series</option>';
-                seriesList.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s._id;
-                    opt.textContent = s.title;
-                    this.seriesSelect.appendChild(opt);
-                });
+            const response = await (await fetch('/api/manuscript/stories')).json();
+            const stories = response.stories || [];
+
+            this.seriesSelect.innerHTML = stories.length
+                ? '<option value="">Select a story</option>'
+                : '<option value="">No stories yet</option>';
+
+            for (const entry of stories) {
+                const name = entry.name || entry;
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                this.seriesSelect.appendChild(opt);
+            }
+
+            /*
+             * Preselect whatever the editor has open. A writer who arrives here
+             * from a chapter is thinking about that book's cast, and making
+             * them pick it again from a list of one is a step for nothing.
+             */
+            const open = lastOpenStory();
+            if (open && stories.some(e => (e.name || e) === open)) {
+                this.seriesSelect.value = open;
+                this.activeSeriesId = open;
+                if (this.createBtn) this.createBtn.disabled = false;
+                this.loadCharacters();
             }
         } catch (e) {
-            console.error("[CharacterLab] Failed to load series:", e);
+            console.error("[CharacterLab] Failed to load stories:", e);
+            this.seriesSelect.innerHTML = '<option value="">Could not read your stories</option>';
         }
 
         this.seriesSelect.onchange = (e) => {
@@ -100,7 +145,7 @@ export default class CharacterLab {
     async loadCharacters() {
         this.listContainer.innerHTML = '<div class="text-muted">Loading subjects...</div>';
         try {
-            const res = await fetch(`/api/characters?series=${this.activeSeriesId}`);
+            const res = await fetch(`/api/characters?story=${encodeURIComponent(this.activeSeriesId)}`);
             const data = await res.json();
             if (data.ok) {
                 this.renderList(data.characters);
@@ -313,13 +358,13 @@ export default class CharacterLab {
         const dialogueStylePrompt = document.getElementById('char-dialogue-style') ? document.getElementById('char-dialogue-style').value : '';
 
         if (!name) return alert('Name is required');
-        if (!this.activeSeriesId) return alert('Series must be selected');
+        if (!this.activeSeriesId) return alert('Choose a story first.');
 
         const payload = {
             name,
             description,
             dialogueStylePrompt,
-            series: this.activeSeriesId // Include Series ID
+            story: this.activeSeriesId   // the story folder this cast belongs to
         };
 
         try {

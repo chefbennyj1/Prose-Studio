@@ -3,8 +3,15 @@ const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const CharacterService = require('../services/CharacterService');
-const { resolveSeriesPath } = require('../services/HierarchyLookupService');
 
+/**
+ * Move an uploaded image into the story folder it belongs to.
+ *
+ * resolveSeriesPath stood here, resolving a Series record to a comic library
+ * directory. Characters are keyed to a story now - see models/Character.js -
+ * so the destination is the story's own folder, which means a character's
+ * reference art travels with the manuscript and is backed up alongside it.
+ */
 async function handleCharacterFileUpload(req, subDir) {
     if (!req.file) return { error: 'No file uploaded', status: 400 };
 
@@ -12,19 +19,17 @@ async function handleCharacterFileUpload(req, subDir) {
     const character = await Character.findById(charId);
     if (!character) return { error: 'Character not found', status: 404 };
 
-    const seriesPath = await resolveSeriesPath(character.series);
-    const destDir = path.join(seriesPath, 'Characters', charId, subDir);
-    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-
+    const destDir = await CharacterService.assetDir(character.story, charId, subDir);
     const fileName = path.basename(req.file.path);
-    const destPath = path.join(destDir, fileName);
 
-    // Move the file from temp storage to series folder
-    await fsPromises.rename(req.file.path, destPath);
+    // Moved out of multer's temp location, not copied: two copies of a
+    // reference image is one more than anybody wanted.
+    await fsPromises.rename(req.file.path, path.join(destDir, fileName));
 
     return {
         charId,
-        relativePath: `/api/images/${character.series}/characters/${charId}/${subDir}/${fileName}`
+        relativePath: `/api/images/story/${encodeURIComponent(character.story)}`
+            + `/characters/${charId}/${subDir}/${fileName}`
     };
 }
 
@@ -34,7 +39,7 @@ class CharacterController {
   // sheets are written, not inferred from a picture.
   async getAll(req, res) {
     try {
-      const characters = await CharacterService.getAllCharacters(req.query.series);
+      const characters = await CharacterService.getAllCharacters(req.query.story);
       res.json({ ok: true, characters });
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message });
@@ -43,7 +48,7 @@ class CharacterController {
 
   async getOne(req, res) {
     try {
-      const character = await CharacterService.getCharacterByName(req.params.name, req.query.series);
+      const character = await CharacterService.getCharacterByName(req.params.name, req.query.story);
       if (!character) return res.status(404).json({ ok: false, message: 'Character not found' });
       res.json({ ok: true, character });
     } catch (error) {
@@ -103,6 +108,34 @@ class CharacterController {
     } catch (error) {
         console.error("[CharacterLab] Reference upload error:", error);
         res.status(500).json({ ok: false, message: error.message });
+    }
+  }
+
+  /**
+   * Serve a character's image out of the story folder.
+   *
+   * There was NO route behind the old /api/images/... paths at all - uploads
+   * wrote a URL that had never resolved, so avatars and reference art were
+   * broken independently of the Series problem.
+   *
+   * Every segment is validated rather than trusted: the id must look like a
+   * Mongo id, the kind is one of two fixed words, and the filename may not
+   * contain a separator. assetDir applies the same containment check the rest
+   * of the app uses, so a crafted story name cannot escape the story root.
+   */
+  async getImage(req, res) {
+    const { story, id, kind, file } = req.params;
+    try {
+      if (!/^[a-f0-9]{24}$/i.test(id)) throw new Error('Not a character id.');
+      if (!['avatar', 'references'].includes(kind)) throw new Error('Not a character image.');
+      if (!file || /[/]/.test(file) || file.includes('..')) throw new Error('Not a file name.');
+
+      const dir = await CharacterService.assetDir(story, id, kind);
+      res.sendFile(path.join(dir, file), (err) => {
+        if (err && !res.headersSent) res.status(404).json({ ok: false, message: 'No such image.' });
+      });
+    } catch (error) {
+      res.status(400).json({ ok: false, message: error.message });
     }
   }
 }

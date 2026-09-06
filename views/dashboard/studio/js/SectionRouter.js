@@ -6,7 +6,6 @@
  * Navigation, and SceneEditor in the dependency graph so all three can route
  * without importing each other.
  */
-import { populateSeriesSelect } from './LibraryManager.js';
 
 // Fragment load cache — prevents duplicate fetches
 const _loadedSections = new Set();
@@ -108,20 +107,21 @@ export async function switchToSection(targetPage, container) {
     syncStudioRail(container, targetPage);
 
     /*
-     * Trigger Population Logic based on the section.
+     * NOTHING LEFT TO POPULATE HERE.
      *
-     * Only the Character Lab is left. Four more lines stood here targeting
-     * #createVolumeSeriesSelect, #volumeSeriesSelect, #chapterSeriesSelect and
-     * #editorSeriesSelect - none of which has existed since the comic stack
-     * went. Two of them named sections that are not in STUDIO_SECTIONS either.
-     * The editor one was the expensive one: a fetch of /library/series every
-     * time a writer opened a chapter, resolved against nothing.
+     * Six lines stood here filling series dropdowns. Five targeted elements
+     * that had not existed since the comic stack went - the worst being the
+     * editor's, which fetched /library/series every time a writer opened a
+     * chapter and handed the result to a querySelector that returned null.
      *
-     * Characters are still keyed to a series, and CharacterLab.js aborts its
-     * init without this select, so this call is load-bearing.
+     * The last one filled the Character Lab's selector. The lab reads STORIES
+     * now and loads them itself, so LibraryManager - the comic series cascade -
+     * is no longer reached from this file at all.
+     *
+     * Kept as an empty array rather than deleted: this is where per-section
+     * setup goes, and the next section to need some will want the seam.
      */
     const popTasks = [];
-    if (targetPage === 'characters') popTasks.push(populateSeriesSelect('char-series-select'));
 
     await Promise.all(popTasks);
 

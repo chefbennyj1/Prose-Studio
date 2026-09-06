@@ -203,6 +203,10 @@ const ProofingController = require('../controllers/ProofingController.js');
 router.get('/proofing/thesaurus', isAuth, ProofingController.getThesaurus);
 // Whole-novel word cloud, function words removed. Local, no AI.
 router.get('/proofing/word-cloud', isAuth, ProofingController.getWordCloud);
+// Character art, served out of the story folder it belongs to. There was no
+// route behind the old /api/images/... paths at all, so avatars never loaded.
+router.get('/images/story/:story/characters/:id/:kind/:file', isAuth, (req, res) => CharacterController.getImage(req, res));
+
 router.post('/proofing/word-cloud/ignore', isAuth, ProofingController.setWordCloudIgnore);
 router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
