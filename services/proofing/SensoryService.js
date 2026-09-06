@@ -82,8 +82,21 @@ class SensoryService {
         const paragraphs = [];
         let words = 0;
 
+        /*
+         * splitParagraphs returns { start, end, text } - NOT { from, to }.
+         *
+         * Read as from/to they are both undefined, and String.slice(undefined,
+         * undefined) returns the WHOLE STRING rather than throwing. So every
+         * paragraph was the entire chapter: a 250-word sample counted 4,095
+         * words and 650 sight hits, and every paragraph "contained" every
+         * sense, which is also why the run detector found nothing to report.
+         *
+         * A silent wrong answer, from a method that cannot fail loudly.
+         */
         for (const span of spans) {
-            const body = clean.slice(span.from, span.to);
+            const from = span.start;
+            const to = span.end;
+            const body = span.text ?? clean.slice(from, to);
             if (!body.trim()) continue;
 
             const present = new Set();
@@ -99,7 +112,7 @@ class SensoryService {
                 paragraphWords += 1;
                 total += 1;
 
-                const offset = span.from + match.index;
+                const offset = from + match.index;
                 const isQuoted = inQuote(offset);
                 if (isQuoted) quoted += 1;
 
@@ -128,9 +141,9 @@ class SensoryService {
             words += paragraphWords;
             paragraphs.push({
                 index: paragraphs.length,
-                from: span.from,
-                to: span.to,
-                line: lineAt(starts, span.from),
+                from,
+                to,
+                line: lineAt(starts, from),
                 words: paragraphWords,
                 // Half or more of the words inside quotes reads as a spoken
                 // paragraph. An action beat with one line of speech does not.

@@ -75,3 +75,37 @@
     font-size: 0.85rem;
     color: var(--text-muted, #777);
 }
+
+/* Hiding a word: offered in the detail line, never on the word itself. The
+   cloud is a thing you poke at, and every poke must be safe. */
+.word-cloud__hide,
+.word-cloud__restore {
+    padding: 2px 8px;
+    border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.14));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.word-cloud__hide:hover,
+.word-cloud__restore:hover {
+    border-color: var(--accent, #0891b2);
+    color: var(--accent, #0891b2);
+}
+
+.word-cloud__ignored {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 20px 14px;
+    font-size: 0.85rem;
+    color: var(--text-muted, #777);
+}
+
+.word-cloud__ignored-label {
+    opacity: 0.8;
+}

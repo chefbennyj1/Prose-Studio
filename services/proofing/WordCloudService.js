@@ -1,5 +1,8 @@
 // services/proofing/WordCloudService.js
 
+const path = require('path');
+const fsp = require('fs').promises;
+
 const { stripMarkdown } = require('../narrator/TextPlan');
 const { splitParagraphs, findQuotes, makeInQuote } = require('./MechanicsText');
 
@@ -91,11 +94,65 @@ const MIN_LENGTH = 3;
 /** A word must appear at least this often to be worth drawing. */
 const MIN_COUNT = 3;
 
+/*
+ * THE IGNORE LIST.
+ *
+ * Beside the dictionaries, one file per story, for the same reason the
+ * pronunciation lexicon lives there: it is a fact about THIS manuscript, and it
+ * should travel with the manuscript - backed up to GitHub with everything else,
+ * and still there on another machine. localStorage would tie a writer's
+ * decisions to one browser on one computer.
+ *
+ * Per story rather than global. A word worth hiding in a cyberpunk novel is
+ * often the point of the next book, and a global list would quietly strip it.
+ */
+const IGNORE_DIR = path.join(__dirname, '..', '..', 'dictionaries');
+
+/** Same guard the dictionary uses: a key, never a path. */
+function ignoreFileFor(story) {
+    const safe = String(story || '').replace(/[^a-z0-9_ -]/gi, '_').trim();
+    if (!safe) throw new Error('Open a story first.');
+    return path.join(IGNORE_DIR, `${safe}.cloud-ignore.json`);
+}
+
 class WordCloudService {
+
+    /** Words this story has been told to leave out. Lowercase, sorted. */
+    async ignored(story) {
+        try {
+            const raw = await fsp.readFile(ignoreFileFor(story), 'utf8');
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.map(w => String(w).toLowerCase()) : [];
+        } catch {
+            // No file yet, or an unreadable one. An empty list is the right
+            // answer to both - a corrupt ignore list must not cost the writer
+            // their cloud.
+            return [];
+        }
+    }
+
+    /**
+     * Hide a word, or bring it back.
+     *
+     * Returns the whole list so the caller never has to guess what state it
+     * left things in.
+     */
+    async setIgnored(story, word, hidden = true) {
+        const key = String(word || '').trim().toLowerCase();
+        if (!key) throw new Error('Give a word to hide.');
+
+        const current = new Set(await this.ignored(story));
+        if (hidden) current.add(key); else current.delete(key);
+
+        const list = [...current].sort();
+        await fsp.mkdir(IGNORE_DIR, { recursive: true });
+        await fsp.writeFile(ignoreFileFor(story), JSON.stringify(list, null, 2) + '\n', 'utf8');
+        return list;
+    }
 
     /**
      * @param {Array<{chapter: string, text: string}>} chapters
-     * @param {object} opts  { chapter, names }
+     * @param {object} opts  { chapter, names, ignore }
      *   chapter  name of one chapter for the TF-IDF view; omit for the story view
      *   names    character names, kept whatever their score and marked as names
      * @returns {object} { mode, words, stats }
@@ -103,11 +160,23 @@ class WordCloudService {
     build(chapters, opts = {}) {
         const names = new Set((opts.names || []).map(n => n.toLowerCase()));
 
+        /*
+         * The ignore list beats the names list.
+         *
+         * Names are otherwise exempt from every floor, so without this a writer
+         * could not hide a character who had a pronunciation entry - which is
+         * most of them, and exactly the case where hiding is wanted: a
+         * protagonist's name dominates a cloud and tells you nothing you did
+         * not already know.
+         */
+        const ignore = new Set((opts.ignore || []).map(w => String(w).toLowerCase()));
+        for (const word of ignore) names.delete(word);
+
         // Counted once, used by both views. Names go in so a short one is not
         // dropped by MIN_LENGTH before anything can protect it.
         const perChapter = chapters.map(({ chapter, text }) => ({
             chapter,
-            ...this.#count(text, names)
+            ...this.#count(text, names, ignore)
         }));
 
         return opts.chapter
@@ -202,7 +271,7 @@ class WordCloudService {
      * Markdown comes off first - otherwise a chapter full of *emphasis* scores
      * the asterisks into the words, and a heading marker becomes a word.
      */
-    #count(text, names = new Set()) {
+    #count(text, names = new Set(), ignore = new Set()) {
         const clean = stripMarkdown(String(text || ''));
         const inQuote = makeInQuote(findQuotes(clean, splitParagraphs(clean)));
 
@@ -222,6 +291,9 @@ class WordCloudService {
             // A name is never too short and never a stopword. Without this a
             // character called Rin, Jo or Sam is dropped here, and no amount of
             // protecting names further down can bring her back.
+            // Dropped at the counting stage, like a stopword: an ignored word
+            // should cost nothing downstream and appear in no total.
+            if (ignore.has(word)) continue;
             if (!names.has(word) && (word.length < MIN_LENGTH || STOPWORDS.has(word))) continue;
 
             counts.set(word, (counts.get(word) || 0) + 1);

@@ -203,6 +203,7 @@ const ProofingController = require('../controllers/ProofingController.js');
 router.get('/proofing/thesaurus', isAuth, ProofingController.getThesaurus);
 // Whole-novel word cloud, function words removed. Local, no AI.
 router.get('/proofing/word-cloud', isAuth, ProofingController.getWordCloud);
+router.post('/proofing/word-cloud/ignore', isAuth, ProofingController.setWordCloudIgnore);
 router.get('/proofing/status', isAuth, ProofingController.getStatus);
 router.post('/proofing/spell', isAuth, ProofingController.checkSpelling);
 router.post('/proofing/scan', isAuth, ProofingController.scanOnComplete);

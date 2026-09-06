@@ -316,13 +316,35 @@ exports.getWordCloud = async (req, res) => {
             DictionaryService.lexicon(story).catch(() => ({}))
         ]);
 
+        const ignore = await WordCloudService.ignored(story);
         const cloud = WordCloudService.build(chapters, {
             chapter: chapter || undefined,
-            names: Object.keys(lexicon || {})
+            names: Object.keys(lexicon || {}),
+            ignore
         });
 
-        res.json({ ok: true, story, chapters: list.map(c => c.name), ...cloud });
+        res.json({ ok: true, story, chapters: list.map(c => c.name), ignore, ...cloud });
     } catch (err) {
         fail(res, err, 'getWordCloud');
+    }
+};
+
+/**
+ * Hide a word from this story's cloud, or bring it back.
+ *
+ * Stored beside the dictionaries, one file per story, so it travels with the
+ * manuscript - backed up with it, and still there on another machine.
+ */
+exports.setWordCloudIgnore = async (req, res) => {
+    const { story, word, hidden } = req.body || {};
+    if (typeof story !== 'string' || !story.trim()) {
+        return fail(res, new Error("Provide a 'story'."), 'setWordCloudIgnore', 400);
+    }
+
+    try {
+        const ignore = await WordCloudService.setIgnored(story, word, hidden !== false);
+        res.json({ ok: true, ignore });
+    } catch (err) {
+        fail(res, err, 'setWordCloudIgnore', 400);
     }
 };

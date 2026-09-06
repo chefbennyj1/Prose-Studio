@@ -54,7 +54,8 @@ export function initWordCloud(container) {
         status: container.querySelector('#wordCloudStatus'),
         scope: container.querySelector('#wordCloudScope'),
         chapter: container.querySelector('#wordCloudChapter'),
-        detail: container.querySelector('#wordCloudDetail')
+        detail: container.querySelector('#wordCloudDetail'),
+        ignored: container.querySelector('#wordCloudIgnored')
     };
     if (!els.canvas) return;
 
@@ -128,6 +129,7 @@ async function load() {
 
         data = response;
         fillChapters(response.chapters);
+        drawIgnored(response.ignore);
         draw(response);
     } catch (err) {
         say(err.message);
@@ -282,7 +284,69 @@ function describe(entry) {
     }
     if (entry.isName) parts.push('a name from your pronunciation list');
 
-    els.detail.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+    /*
+     * Hiding is offered here rather than on the word itself. Clicking a word in
+     * the cloud to delete it would make every exploratory click destructive,
+     * and the cloud is a thing you poke at.
+     */
+    els.detail.innerHTML = parts.join(' &nbsp;·&nbsp; ')
+        + ` &nbsp;·&nbsp; <button type="button" class="word-cloud__hide"
+            data-hide="${escapeAttr(entry.word)}">hide this word</button>`;
+
+    els.detail.querySelector('[data-hide]')
+        ?.addEventListener('click', () => hide(entry.word));
+}
+
+/** Take a word out of this story's cloud, and redraw without it. */
+async function hide(word) {
+    try {
+        const response = await (await fetch('/api/proofing/word-cloud/ignore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story: doc.story, word, hidden: true })
+        })).json();
+        if (!response.ok) throw new Error(response.message || 'Could not hide that word.');
+
+        data = null;   // the counts change, so the whole cloud is restated
+        await load();
+    } catch (err) {
+        if (els.detail) els.detail.textContent = err.message;
+    }
+}
+
+/**
+ * What is currently hidden, and a way back.
+ *
+ * Shown as a plain line under the cloud rather than tucked in a settings panel:
+ * a writer who hides six words and forgets needs to be able to see that the
+ * picture in front of them is edited.
+ */
+function drawIgnored(list) {
+    if (!els.ignored) return;
+
+    if (!list || !list.length) {
+        els.ignored.classList.add('hidden');
+        els.ignored.innerHTML = '';
+        return;
+    }
+
+    els.ignored.classList.remove('hidden');
+    els.ignored.innerHTML = `<span class="word-cloud__ignored-label">Hidden:</span> `
+        + list.map(word =>
+            `<button type="button" class="word-cloud__restore" data-restore="${escapeAttr(word)}"
+                title="Show ${escapeAttr(word)} again">${escapeHtml(word)} ✕</button>`).join(' ');
+
+    els.ignored.querySelectorAll('[data-restore]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            await fetch('/api/proofing/word-cloud/ignore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ story: doc.story, word: button.dataset.restore, hidden: false })
+            });
+            data = null;
+            load();
+        });
+    });
 }
 
 function say(message) {
