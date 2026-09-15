@@ -229,6 +229,23 @@
                     <span class="rail-menu__hint">whole story</span>
                 </button>
                 <!--
+                    Weak adverbs. Whole story again, and for one extra reason
+                    the overuse scan does not have: whether "Emily" is a
+                    character or an adverb is decided by how the word is
+                    capitalised across every chapter, so a single chapter would
+                    give a worse answer rather than a narrower one.
+
+                    Not marked data-needs-ai, and unlike the row above it there
+                    is no Gemini half at all - the four kinds already say what
+                    the edit is.
+                -->
+                <button type="button" class="rail-menu__item rail-menu__action"
+                    data-review="adverbs" role="menuitem">
+                    <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
+                    <span class="rail-menu__label">Weak adverbs</span>
+                    <span class="rail-menu__hint">whole story</span>
+                </button>
+                <!--
                     These two are the AI, and data-needs-ai is what hides them.
                     The AI is opt-in: until it is switched on in Settings with a
                     key, these rows are not in the menu at all, rather than
@@ -322,6 +339,20 @@
                     </button>
                     <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
                         id="reviewOveruseFlyout" role="menu"></div>
+                </div>
+
+                <!-- Which of the four kinds the adverb scan reports. A writer
+                     drafting wants the top two; a writer doing a deliberate
+                     adverb pass wants all four. -->
+                <div class="rail-menu__submenu" data-review-menu="adverbs">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Adverb kinds</span>
+                        <span class="rail-menu__value" id="reviewAdverbsValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout rail-menu__flyout--tall glass glass--frosted"
+                        id="reviewAdverbsFlyout" role="menu"></div>
                 </div>
 
                 <!--

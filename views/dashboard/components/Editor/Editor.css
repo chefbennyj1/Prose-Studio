@@ -872,6 +872,69 @@
     color: var(--color-warning, #a06a00);
 }
 
+/*
+   The adverb kinds, as chips on the row.
+
+   `margin-left: auto` is unset because there are up to four of these and they
+   sit in their own line rather than being pushed to the end of the heading.
+
+   Only `redundant` is coloured, and that is the whole design. It is the one
+   kind of the four where the edit is certain - the verb already says it, the
+   adverb comes out, nothing is lost. The other three are judgements the writer
+   has to make by looking at the sentence, and colouring them would turn a panel
+   that reports into a panel that scolds.
+*/
+.editor__kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 4px;
+}
+
+.editor__kinds .editor__verdict {
+    margin-left: 0;
+    text-transform: none;
+}
+
+.editor__verdict--redundant {
+    background: color-mix(in srgb, var(--color-warning, #c47f00) 16%, transparent);
+    color: var(--color-warning, #a06a00);
+}
+
+/*
+   The per-word instance list in the adverb report.
+
+   A <details> rather than a button and a panel, because the open/closed state,
+   the keyboard handling and the screen-reader announcement all come free and
+   correct, and none of the three is worth reimplementing.
+
+   The hits inside wear `.editor__search-hit`, so they are marked in the ACCENT
+   like a search result rather than in the drawer's amber - which is the right
+   way round for the reason given above that rule: clicking one also lights the
+   word up in the manuscript through .cm-proseMatch, and a panel and a page
+   showing the same hit in two colours read as two features that happened to run
+   at once.
+*/
+.editor__instances {
+    margin: 6px 0 0;
+}
+
+.editor__instances > summary {
+    padding: 2px 0;
+    color: var(--text-muted, #999);
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.editor__instances > summary:hover {
+    color: inherit;
+}
+
+.editor__instances[open] > summary {
+    margin-bottom: 2px;
+}
+
 .editor__summary {
     margin: 0 0 10px;
     padding: 8px 10px;

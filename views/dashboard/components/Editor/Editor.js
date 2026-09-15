@@ -139,6 +139,7 @@ export async function initEditor(container) {
             const detail = event.detail || {};
             if (detail.task === 'mechanics') runMechanics(detail.mechanics);
             else if (detail.task === 'overuse') runOveruse(detail.overuse);
+            else if (detail.task === 'adverbs') runAdverbs(detail.adverbs);
             else if (detail.task === 'spelling') runSpelling();
             else if (detail.task === 'edits') runScan();
             else if (detail.task === 'critique') runCritique(detail.lens);
@@ -1485,6 +1486,40 @@ async function runOveruse(options = {}) {
     }
 }
 
+/**
+ * Weak adverbs, across the whole story.
+ *
+ * Reads the FILES rather than the surface, the same as runOveruse and with the
+ * same consequence: what is on screen and unsaved would not be counted, so the
+ * buffer is written first. A writer who has just cut thirty "carefully"s should
+ * not be shown the thirty they have already fixed.
+ */
+async function runAdverbs(options = {}) {
+    if (!doc.story) {
+        working('Weak adverbs', 'Open a story first.');
+        return;
+    }
+
+    if (dirty) await save();
+
+    working('Weak adverbs', 'Counting across the story...');
+    try {
+        const res = await fetch('/api/proofing/adverbs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                story: doc.story,
+                options: { disabled: options.disabled || [] }
+            })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+        renderAdverbs(data);
+    } catch (err) {
+        failed(err);
+    }
+}
+
 async function runSpelling() {
     working('Spelling', 'Checking...');
     try {
@@ -1760,6 +1795,187 @@ function renderOveruse(payload) {
             // working jump to the wrong sentence.
             if (occ.chapter !== doc.chapter) return;
 
+            surface.setSelection(occ.offset, occ.offset + occ.quote.length);
+            surface.focus();
+        });
+    });
+}
+
+/**
+ * The weak-adverb report.
+ *
+ * Ordered by how much of the word is CLASSIFIED, not by how often it occurs.
+ *
+ * Count order would put "finally" and "really" at the top of every manuscript
+ * ever written, which is the number every other tool reports and the reason
+ * nobody acts on it. A word with nine redundant uses and a word with nine
+ * hundred loose ones are not the same finding, and the first is the one with an
+ * edit attached, so classified hits sort first and the flat -ly words sink to
+ * the bottom where they belong - present, countable, and not shouting.
+ */
+function renderAdverbs(payload) {
+    const { words, kinds, stats, counts, names } = payload;
+
+    openDrawer('Weak adverbs');
+    announce(counts.total, 0);
+
+    if (!words.length) {
+        els.output.innerHTML = `<h4>Weak adverbs</h4>
+            <p class="text-muted">Nothing counted across ${stats.words.toLocaleString()} words.</p>`;
+        return;
+    }
+
+    const actionable = row => row.kinds.redundant + row.kinds.tag + row.kinds.propping;
+    const sorted = [...words].sort((a, b) =>
+        actionable(b) - actionable(a) || b.per10k - a.per10k || a.word.localeCompare(b.word));
+
+    const rows = sorted.map((row, index) => {
+        // Only the kinds this word actually has. A row of four chips where
+        // three read "0" is noise pretending to be data.
+        const chips = (kinds || [])
+            .filter(kind => row.kinds[kind.id])
+            .map(kind => `<span class="editor__verdict editor__verdict--${escapeHtml(kind.id)}"
+                title="${escapeHtml(kind.note || '')}">${row.kinds[kind.id]} ${escapeHtml(kind.label.toLowerCase())}</span>`)
+            .join('');
+
+        // The split is the honest number, and it matters more here than
+        // anywhere: people talk in adverbs. A character saying "I walked
+        // really slowly" is characterised, not sloppy.
+        const split = row.dialogue
+            ? `${row.narration} narration &middot; ${row.dialogue} dialogue`
+            : `${row.narration} in narration`;
+
+        /*
+         * The instances are a <details>, and they are EMPTY until it is opened.
+         *
+         * Three samples with a jump button each was the first shape, and it was
+         * wrong in the way Ben spotted: a word with thirty-four uses showed
+         * three of them and offered no way to the other thirty-one, which is
+         * the one thing the search has always done properly.
+         *
+         * Listing them all up front is the obvious fix and it does not survive
+         * contact with a novel. Three hundred distinct adverbs carrying every
+         * occurrence is several thousand list items built in one innerHTML, on
+         * a panel whose whole job is to open instantly. So the summary row is
+         * always built and the list is filled once, on first open - see the
+         * toggle handler below.
+         */
+        const label = row.total === 1 ? '1 instance' : `${row.total} instances`;
+
+        return `<li class="editor__finding">
+            <div class="editor__finding-head">
+                <strong>${escapeHtml(row.word)}</strong>
+                <span class="text-muted">${row.total} &middot; ${row.per10k}/10k</span>
+            </div>
+            <p class="editor__kinds">${chips}</p>
+            <p class="text-muted">${split} &middot; ${row.chapters.length} chapter(s)</p>
+            <details class="editor__instances" data-adverb="${index}">
+                <summary>${label}</summary>
+                <ul class="editor__search-hits"></ul>
+            </details>
+        </li>`;
+    }).join('');
+
+    const tally = (kinds || []).filter(kind => kind.total)
+        .map(kind => `${escapeHtml(kind.label)} ${kind.total}`).join(' &middot; ');
+
+    const head = `${counts.total.toLocaleString()} adverb(s), ${stats.distinct} distinct &middot;
+        ${counts.per10k}/10k &middot; ${stats.words.toLocaleString()} words, ${stats.chapters} chapter(s)`;
+
+    /*
+     * The names are shown, and that is not a footnote.
+     *
+     * The scan decides that "Emily" is a person rather than an adverb by
+     * looking at how the whole manuscript capitalises it, and that decision is
+     * a guess that can go wrong in both directions. Printing the list is what
+     * makes it checkable: a writer who sees a real adverb in it knows why the
+     * count looks low, and a writer whose protagonist is missing from it knows
+     * why she is suddenly at the top of the report.
+     */
+    const skipped = (names && names.length)
+        ? `<p class="text-muted">Treated as names, not adverbs: ${names.map(escapeHtml).join(', ')}</p>`
+        : '';
+
+    els.output.innerHTML = `<h4>Weak adverbs</h4>
+        <p class="text-muted">${head}</p>
+        ${tally ? `<p class="editor__summary">${tally}</p>` : ''}
+        ${skipped}
+        <ul class="editor__list">${rows}</ul>`;
+
+    els.output.querySelectorAll('.editor__instances[data-adverb]').forEach((details) => {
+        const row = sorted[Number(details.dataset.adverb)];
+        details.addEventListener('toggle', () => {
+            if (!details.open || details.dataset.filled) return;
+            details.dataset.filled = '1';
+            fillAdverbInstances(details, row);
+        });
+    });
+}
+
+/**
+ * One word's occurrences, in the shape the search already uses.
+ *
+ * Reusing `editor__search-hit` is not laziness about styling - it is the same
+ * object. A line number, the sentence with the word marked inside it, and a
+ * click that takes you there is what a writer has already learned in this panel
+ * from the search, and giving the same thing a second appearance would be a
+ * second thing to learn for no gain.
+ *
+ * The chapter is on every line rather than in a per-chapter heading, which is
+ * where this differs from the search. The search groups by chapter because the
+ * question there is "where in the book is this phrase". Here the row has
+ * already answered that - it carries a chapter count - and the question is "is
+ * THIS use doing any work", which reads better as one flat list in book order.
+ */
+function fillAdverbInstances(details, row) {
+    const list = details.querySelector('.editor__search-hits');
+    if (!list) return;
+
+    // `markQuote` wants context/contextOffset/quote/length, which is exactly
+    // what the service puts on an occurrence - and its guard is what makes the
+    // mark safe: if the offsets ever disagree with the text it returns the
+    // sentence unmarked rather than marking the wrong word.
+    list.innerHTML = row.occurrences.map((occ, i) => `
+        <li>
+            <button class="editor__search-hit" data-occ="${i}"
+                title="${escapeHtml(occ.chapter)}${occ.verb ? ` - ${escapeHtml(occ.verb)} ${escapeHtml(row.word)}` : ''}">
+                <span class="editor__search-line">${occ.line}</span>
+                <span class="editor__search-text">${markQuote(occ)}</span>
+            </button>
+        </li>`).join('');
+
+    if (row.truncated) {
+        // The COUNT is exact and the list is not. Saying so is the difference
+        // between a cap and a miscount, and the writer cannot tell by looking.
+        const note = document.createElement('p');
+        note.className = 'text-muted';
+        note.textContent = `Showing the first ${row.occurrences.length} of ${row.total}.`;
+        details.appendChild(note);
+    }
+
+    list.querySelectorAll('.editor__search-hit').forEach((btn) => {
+        const occ = row.occurrences[Number(btn.dataset.occ)];
+        btn.addEventListener('click', async () => {
+            // Cross-chapter, exactly as the overuse report is, and with the
+            // same trap: an offset is valid in every chapter, so applying one
+            // to whatever happens to be open lands on the wrong sentence and
+            // looks like it worked.
+            if (occ.chapter !== doc.chapter) await openChapter(occ.chapter);
+
+            // openChapter refuses when the buffer is dirty and the writer keeps
+            // their changes, and it returns either way.
+            if (occ.chapter !== doc.chapter) return;
+
+            /*
+             * Mark every use of the word in the chapter, not just this one.
+             *
+             * This is the other half of what the search does and the half that
+             * actually changes the edit: an adverb is judged against its
+             * neighbours, and seeing the four other "carefully"s on the same
+             * page is what tells a writer which one to keep. Whole-word, or
+             * "softly" lights up inside "softly-spoken".
+             */
+            surface.setHighlight(row.word, { wholeWord: true, caseSensitive: false });
             surface.setSelection(occ.offset, occ.offset + occ.quote.length);
             surface.focus();
         });

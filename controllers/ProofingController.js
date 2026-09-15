@@ -2,6 +2,7 @@ const SpellService = require('../services/proofing/SpellService');
 const SuggestionService = require('../services/proofing/SuggestionService');
 const MechanicsService = require('../services/proofing/MechanicsService');
 const OveruseService = require('../services/proofing/OveruseService');
+const AdverbService = require('../services/proofing/AdverbService');
 const ThesaurusService = require('../services/proofing/ThesaurusService');
 const WordCloudService = require('../services/proofing/WordCloudService');
 const DictionaryService = require('../services/proofing/DictionaryService');
@@ -161,6 +162,67 @@ exports.checkOveruse = async (req, res) => {
         }
     } catch (err) {
         fail(res, err, 'Overuse scan failed');
+    }
+};
+
+/** The four kinds, so the rail can build its toggles. */
+exports.getAdverbKinds = (req, res) => {
+    res.json({ ok: true, ...AdverbService.describe() });
+};
+
+/**
+ * Weak adverbs across a WHOLE story.
+ *
+ * Same scope as the overuse scan and for the same reason - a tic is invisible
+ * a chapter at a time - but this one needs the whole book for a second reason
+ * the other does not have: the names pass. Whether "Emily" is a character or an
+ * adverb is decided by how the word is capitalised across every chapter, so
+ * scanning one chapter would genuinely give a different and worse answer than
+ * scanning the book. See AdverbService.scan.
+ *
+ * No model, no key, no opt-in. Unlike the overuse scan there is no judgement
+ * half here at all: the four kinds already say what the edit is, and asking a
+ * model which adverbs are load-bearing would send the manuscript off the
+ * machine to be told something the classification has said for free.
+ */
+exports.checkAdverbs = async (req, res) => {
+    const { story, options } = req.body || {};
+    if (typeof story !== 'string' || !story.trim()) {
+        return res.status(400).json({ ok: false, message: "Provide a 'story' to scan." });
+    }
+
+    try {
+        const list = await ManuscriptService.listChapters(story);
+        if (!list.length) {
+            // "No chapters" and "no such story" are different answers and only
+            // one of them is good news - the same trap checkOveruse documents.
+            const stories = await ManuscriptService.listStories();
+            const known = stories.some(entry => (entry.name || entry) === story);
+            if (!known) {
+                return res.status(404).json({ ok: false, message: `There is no story called "${story}".` });
+            }
+
+            return res.json({
+                ok: true,
+                words: [], kinds: AdverbService.describe().kinds.map(k => ({ ...k, total: 0 })),
+                chapters: [], names: [],
+                stats: { words: 0, chapters: 0, distinct: 0 },
+                counts: { total: 0, narration: 0, dialogue: 0, per10k: 0 }
+            });
+        }
+
+        const chapters = [];
+        for (const entry of list) {
+            const { text } = await ManuscriptService.read(story, entry.name);
+            chapters.push({ chapter: entry.name, text });
+        }
+
+        const report = AdverbService.scan(chapters, options || {});
+        console.log(`[ProofingController] Adverbs: ${report.counts.total} use(s) of ${report.stats.distinct} word(s) across ${report.stats.chapters} chapter(s), ${report.stats.words} words. Names skipped: ${report.names.length}.`);
+
+        return res.json({ ok: true, ...report });
+    } catch (err) {
+        fail(res, err, 'Adverb scan failed');
     }
 };
 

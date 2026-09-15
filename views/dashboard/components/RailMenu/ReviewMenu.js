@@ -31,6 +31,7 @@ let ruleset = null;     // { groups, rules, defaults }
 let els = {};
 
 let overuse = null;     // { groups, words }
+let adverbs = null;     // { kinds }
 
 // `engine` used to live here too, when a local Gemma and Gemini both answered.
 let choice = {
@@ -42,7 +43,11 @@ let choice = {
     // sending the manuscript off the machine because it was convenient is
     // exactly the thing the opt-in exists to prevent.
     overuseOff: [],
-    judge: false
+    judge: false,
+    // Which of the four adverb kinds are reported. All four on by default: the
+    // classification is what makes the list readable rather than a wall of
+    // -ly words, so a writer who never opens this menu still sees it working.
+    adverbsOff: []
 };
 
 export function initReviewMenu() {
@@ -54,6 +59,8 @@ export function initReviewMenu() {
         rulesFlyout: document.getElementById('reviewRulesFlyout'),
         overuseValue: document.getElementById('reviewOveruseValue'),
         overuseFlyout: document.getElementById('reviewOveruseFlyout'),
+        adverbsValue: document.getElementById('reviewAdverbsValue'),
+        adverbsFlyout: document.getElementById('reviewAdverbsFlyout'),
         flagsValue: document.getElementById('reviewFlagsValue'),
         flagsFlyout: document.getElementById('reviewFlagsFlyout')
     };
@@ -70,11 +77,13 @@ export function initReviewMenu() {
     els.lensFlyout.addEventListener('click', onLensClick);
     els.rulesFlyout.addEventListener('click', onRuleClick);
     els.overuseFlyout?.addEventListener('click', onOveruseClick);
+    els.adverbsFlyout?.addEventListener('click', onAdverbsClick);
     els.flagsFlyout?.addEventListener('click', onFlagsClick);
 
     submenu('lens')?.addEventListener('flyoutOpened', drawLensList);
     submenu('rules')?.addEventListener('flyoutOpened', drawRuleList);
     submenu('overuse')?.addEventListener('flyoutOpened', drawOveruseList);
+    submenu('adverbs')?.addEventListener('flyoutOpened', drawAdverbsList);
     submenu('flags')?.addEventListener('flyoutOpened', drawFlagsList);
 
     // Switching the AI on in Settings should put its rows in the menu without
@@ -87,6 +96,7 @@ export function initReviewMenu() {
     loadCritic();
     loadRules();
     loadOveruse();
+    loadAdverbs();
     // No fetch behind this one - the families are known here, so the summary
     // is correct before anything loads.
     drawFlagsValue();
@@ -113,7 +123,8 @@ function start(task) {
             task,
             lens: choice.lens,
             mechanics: getMechanicsOptions(),
-            overuse: getOveruseOptions()
+            overuse: getOveruseOptions(),
+            adverbs: getAdverbOptions()
         }
     }));
 
@@ -143,6 +154,11 @@ export function getOveruseOptions() {
     return { disabled: [...choice.overuseOff], judge: !!choice.judge };
 }
 
+/** The scan options, in the shape AdverbService.scan expects. */
+export function getAdverbOptions() {
+    return { disabled: [...choice.adverbsOff] };
+}
+
 /* ---------- persistence ---------- */
 
 function restore() {
@@ -152,6 +168,7 @@ function restore() {
         choice.disabled = Array.isArray(saved.disabled) ? saved.disabled : [];
         choice.overuseOff = Array.isArray(saved.overuseOff) ? saved.overuseOff : [];
         choice.judge = !!saved.judge;
+        choice.adverbsOff = Array.isArray(saved.adverbsOff) ? saved.adverbsOff : [];
     } catch {
         // A corrupt entry is not worth a broken menu; the defaults are fine.
     }
@@ -403,6 +420,72 @@ function onOveruseClick(event) {
     toggle.setAttribute('aria-checked', String(off));
     remember();
     drawOveruseValue();
+}
+
+/* ---------- weak adverbs ---------- */
+
+async function loadAdverbs() {
+    if (!els.adverbsFlyout) return;
+    try {
+        const data = await (await fetch('/api/proofing/adverbs/kinds')).json();
+        if (!data.ok) return;
+        adverbs = data;
+        drawAdverbsValue();
+    } catch (err) {
+        console.error('[ReviewMenu] Could not load adverb kinds', err);
+    }
+}
+
+function drawAdverbsValue() {
+    if (!els.adverbsValue || !adverbs) return;
+    const on = adverbs.kinds.length - choice.adverbsOff.length;
+    els.adverbsValue.textContent = choice.adverbsOff.length
+        ? `${on} of ${adverbs.kinds.length}`
+        : 'all on';
+}
+
+/**
+ * The four kinds.
+ *
+ * Every row carries its note as a tooltip rather than as a second line,
+ * because the note says what the EDIT is - "the verb already says this" - and
+ * that is the thing a writer needs when deciding whether to leave the family
+ * on, not a definition of the word "redundant".
+ *
+ * Nothing here reaches the network, so there is no divider and no AI row: the
+ * classification is the opinion, and it was arrived at locally.
+ */
+function drawAdverbsList() {
+    if (!adverbs) {
+        els.adverbsFlyout.innerHTML = note('Loading...');
+        return;
+    }
+
+    els.adverbsFlyout.innerHTML = adverbs.kinds.map((kind) => {
+        const off = choice.adverbsOff.includes(kind.id);
+        return `
+            <button type="button" class="rail-menu__item rail-menu__toggle" role="menuitemcheckbox"
+                aria-checked="${!off}" data-adverb-kind="${escapeHtml(kind.id)}"
+                title="${escapeHtml(kind.note || '')}">
+                <span class="rail-menu__label">${escapeHtml(kind.label)}</span>
+                <span class="rail-menu__switch" aria-hidden="true"></span>
+            </button>`;
+    }).join('');
+}
+
+function onAdverbsClick(event) {
+    const toggle = event.target.closest('[data-adverb-kind]');
+    if (!toggle) return;
+
+    const id = toggle.dataset.adverbKind;
+    const off = choice.adverbsOff.includes(id);
+    choice.adverbsOff = off
+        ? choice.adverbsOff.filter(entry => entry !== id)
+        : [...choice.adverbsOff, id];
+
+    toggle.setAttribute('aria-checked', String(off));
+    remember();
+    drawAdverbsValue();
 }
 
 /* ---------- writing flags ---------- */

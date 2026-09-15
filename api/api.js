@@ -223,6 +223,13 @@ router.post('/proofing/mechanics', isAuth, ProofingController.checkMechanics);
 router.get('/proofing/overuse/words', isAuth, ProofingController.getOveruseWords);
 router.post('/proofing/overuse', isAuth, ProofingController.checkOveruse);
 
+// Weak adverbs, also across a whole story. Sorted into the four edits they
+// represent rather than counted flat - a bare -ly total is the number every
+// other tool reports and it teaches the writer to delete "slowly" from "walked
+// slowly", which leaves the weaker sentence. Entirely local; no judge half.
+router.get('/proofing/adverbs/kinds', isAuth, ProofingController.getAdverbKinds);
+router.post('/proofing/adverbs', isAuth, ProofingController.checkAdverbs);
+
 // --- MANUSCRIPT BACKUP (GitHub) ---
 // isModerator rather than isAuth: this writes to the writer's GitHub account
 // and creates repositories, which is not something a reader account should

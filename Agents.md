@@ -1,7 +1,10 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — Review menu toggles now actually draw (they never did, see
+**CLAUDE:** idle — Weak-adverb scan built and wired (see below). Server-side
+driven and verified; the PANEL IS UNVERIFIED IN A BROWSER, because the dev
+server on 3100 was running stale code and I did not restart Ben's instance.
+Previously: Review menu toggles now actually draw (they never did, see
 below), splash screen and the PROSE ENGINE wordmark are in. The editor bar
 sliding up under the card frame is fixed and reproduced both ways in a real
 browser. Also: formatting bar, em dash, overused-words scan, manuscript-wide
@@ -21,6 +24,149 @@ have known whether they had switched it on.
 > `GitHubService.createRepo` is the only value it will send and there is no
 > parameter to change it. Do not add one. Publishing an unfinished novel is the
 > worst thing this feature could do and it must not be one checkbox away.
+
+## Weak adverbs, and why the count is not the feature, 2026-09-15
+
+`AdverbLexicon` / `AdverbService`, `/api/proofing/adverbs`, a Review-menu row
+and a drawer report. Whole story, local, exact, no model and **no Gemini half
+at all** — unlike the overuse scan there is nothing here to opt into.
+
+Ben asked for "a search and count for all weak adverb words". The count alone
+would have been the wrong build. Every tool on the market reports "412 -ly
+adverbs" and that number is close to meaningless — it is roughly a function of
+how long the book is, and it teaches the writer to delete "slowly" from "walked
+slowly", which leaves "walked". The adverb was the symptom.
+
+So each hit is sorted into the edit it actually represents:
+
+- **redundant** — "whispered quietly". The verb already contains the adverb, so
+  it is a straight cut. The only one of the four where the edit is certain, and
+  the only one coloured in the panel.
+- **tag** — "said softly". The adverb is carrying what the dialogue should
+  carry. Needs three things, not one: a speech verb, the adverb *outside* the
+  quotation marks, and a quotation in that paragraph at all — the third is what
+  keeps "he asked quietly whether she had eaten" out of the count.
+- **propping** — "walked slowly". A generic verb held up by a modifier; the fix
+  is a better verb. `said` is deliberately NOT in `WEAK_VERBS`: replacing "said"
+  is bad advice, so an adverb on it is caught as a tag instead.
+- **loose** — every other -ly adverb, reported as a rate rather than a list of
+  sins.
+
+Rows sort by how much of the word is CLASSIFIED, not by frequency. Count order
+puts "finally" and "really" at the top of every manuscript ever written, which
+is exactly the number nobody acts on.
+
+### The names pass, which is why this cannot be per-chapter
+
+Morphology cannot tell "Emily" from an adverb — it ends in -ly and no fixed list
+can hold the cast of an unwritten novel. A capital does not settle it either,
+because "Slowly, he turned" opens a sentence in the same shape.
+
+Two rules, both biased toward calling a word a name, because a missed adverb
+costs one row in a list while a character counted as an adverb puts the
+protagonist at the top of the report and discredits the whole panel:
+
+- a capital **mid-sentence** is decisive, and settles the word for the whole book
+- a word **always** capitalised and never once lower-case, twice or more, is a
+  name too — the case the first rule misses entirely, a character who only ever
+  opens sentences
+
+This is why the scan reads the whole story rather than the open chapter: the
+evidence for chapter one is in chapter nine. The panel PRINTS the list it
+skipped, because that decision is a guess that can go wrong both ways and
+printing it is what makes it checkable.
+
+### Two bugs the driver caught before any UI existed
+
+**The four-letter stem guard was pasted in from the wrong lesson.**
+ThesaurusService keeps "a stem under four letters is damage, so return the
+original" because a bad stem sent to Datamuse returns confident nonsense. Aimed
+at a closed table it silently LOSES matches instead: "raced" strips to "rac",
+the guard hands back "raced", and "raced quickly" stopped being redundant even
+though "race" was sitting in the table. Replaced with candidate stems — offer
+every form and let the table decide. A closed table cannot be poisoned by a
+short candidate; nothing in it is under four letters.
+
+**A wiring check that could not fail.** Looking for the literal string
+`editor__verdict--redundant` in Editor.js proved nothing either way: the class
+is interpolated as `editor__verdict--${kind.id}`, so the literal never appears
+in the source whether the code is right or wrong. Replaced with a check that the
+template is emitted AND that the ids the lexicon can produce are the ids the
+stylesheet colours. Same trap as the `includes('ThesaurusService')` incident
+below, and it came back in a different costume.
+
+Driven three ways before the browser: the service directly, the controller
+handlers with a fake `res` and the manuscript layer stubbed (400 / 404 / 200 /
+filtered all correct), and the routes against a real server on port 3101 —
+**401, not 404**, which is what distinguishes "registered behind auth" from "not
+registered". The 404-vs-401 probe is worth keeping; it is what proved the
+already-running instance on 3100 was serving stale code.
+
+Still unverified: the panel in a browser. Ben's dev server was running old code
+and was not restarted.
+
+### The instance list, 2026-09-15 (same day, Ben's catch)
+
+The first shape showed **three** samples per word as blockquotes and stopped
+there. Ben asked why it did not link to the instances the way the search does,
+and he was right — a word with thirty-four uses showed three of them and offered
+no route to the other thirty-one. Three gaps, not one:
+
+- three of N, with no way to the rest
+- **no highlight** — the search marks every match on the page, this only selected
+  the one you clicked
+- the blockquote-plus-button sample was about three times the height of a search
+  hit, so a list of thirty would have been unreadable even if it existed
+
+Now each word carries a `<details>` whose hits wear `.editor__search-hit`, the
+search's own row. Reusing it is not laziness about styling: it is the same
+object, and a writer has already learned it in this panel.
+
+**The list is filled on first open, not up front.** Three hundred distinct
+adverbs carrying every occurrence is several thousand list items in one
+innerHTML, on a panel whose job is to open instantly.
+
+**`MAX_OCCURRENCES` went 40 → 100**, because these are now a list rather than
+three examples, and forty of ninety with no route to the rest is the letdown the
+list exists to prevent. Rows carry `truncated` and the panel says "Showing the
+first N of M" — the count is exact and the list is not, and a row saying 90 that
+lists 100 badly is indistinguishable from a miscount.
+
+**Occurrences gained `contextOffset` and `length`** so `markQuote` can be reused.
+Searching the context for the word instead would mark the wrong one in
+"carefully at the lock, then more carefully at the door" — the same trap
+markQuote was written for. The offset is computed AFTER the whitespace collapse:
+a manuscript wraps mid-sentence, so a context spanning a line break is a
+character shorter once the newline becomes a space, and an offset taken from the
+raw text lands one place left. markQuote's guard would have caught that by
+silently refusing to mark anything, which is a bug you find by squinting.
+Verified against a scan — all occurrences mark, including the wrapped case and
+the twice-in-one-sentence case.
+
+The panel marks in the **accent, not the drawer's amber**, which falls out of
+reusing the search row and is the right way round: clicking a hit also lights
+the word up in the manuscript via `.cm-proseMatch`, and one hit in two colours
+across panel and page reads as two features that happened to run at once. That
+is the reasoning already written above `.editor__output .editor__search-text
+mark`; it now applies here for the same reason.
+
+### Known limits, none of them worth fixing yet
+
+- One-token lookback, so "turned over reluctantly" reads as loose — the particle
+  hides the verb.
+- The highlight is whole-word and case-insensitive on the WORD, so opening the
+  instances for "carefully" lights every "carefully" in the chapter rather than
+  only the classified ones. That is deliberate — an adverb is judged against its
+  neighbours — but it does mean the page shows more marks than the row counts.
+- `fillerAdverbs` in `resources/writing-flags.json` (139 words, live underlines,
+  off by default) now overlaps this. They answer different questions — underline
+  this chapter vs count the book — but the overlap is real and is worth a look
+  before either grows.
+
+> **`SensoryService` and `SensoryLexicon` are fully built and wired to NOTHING.**
+> No controller, no route, no UI, no reference anywhere outside the two files.
+> Dated 2026-09-01. Either finish it or delete it; a service nobody can reach is
+> a service nobody is maintaining.
 
 ## A thesaurus that is not a thesaurus, 2026-08-21
 
