@@ -238,9 +238,12 @@ app.use("/", siteRoutes);
   server.listen(PORT, () => {
     console.log(`Website running on http://${hostname}:${PORT}`);
     if (!result.ok) return;
-    SetupController.isSetupComplete().then(complete => {
-      if (!complete) console.log(`[Setup] No accounts yet — create the first admin at http://${hostname}:${PORT}/setup`);
-    });
+    // Synchronous now: it asks the lock file whether an account exists, because
+    // counting users would mean reading an encrypted store that nothing has
+    // unlocked yet.
+    if (!SetupController.isSetupComplete()) {
+      console.log(`[Setup] No accounts yet — create the first one at http://${hostname}:${PORT}/setup`);
+    }
   });
 })();
 

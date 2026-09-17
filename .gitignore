@@ -13,6 +13,10 @@ data/
 # are in the module, so a fresh clone makes its own.
 config.json
 
+# Desktop build output (electron-builder). Installers are release artefacts,
+# not source — they are hundreds of megabytes and rebuilt from this repo.
+dist/
+
 .DS_Store
 Thumbs.db
 cache/

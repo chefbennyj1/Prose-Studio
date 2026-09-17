@@ -5,10 +5,16 @@ const router = express.Router();
 const AccountsController = require('../controllers/AccountsController.js');
 const { isAdmin } = require('../middleware/auth.js');
 
+// No keyGenerator: the default one is used deliberately.
+//
+// It used to be `req.ip`, which express-rate-limit complains about on every
+// boot, and it is right to. An IPv6 user is normally handed a whole /64 — so
+// keying on the full address lets one person walk through addresses and make
+// five account requests each, which is not a limit. The default groups IPv6
+// addresses by prefix and handles IPv4 as before.
 const requestLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 5,
-    keyGenerator: (req) => req.ip,
     handler: (req, res) => {
         res.status(429).json({
             ok: false,

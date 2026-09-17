@@ -106,33 +106,49 @@ means:
 
 ### Uninstalling
 
-Delete the folder. That's the whole procedure. Your story folder is yours and is
-never touched.
+Delete the folder. That's the whole procedure — the app keeps its data in a
+`data/` folder beside itself, so nothing is left scattered around your system.
+(If you used the installer rather than the portable build, uninstall it the
+normal way and delete the data folder; **File → Where Is Everything?** in the
+app tells you exactly where it is.)
+
+Your story folder is yours and is never touched by any of this.
 
 ---
 
 ## Getting started
 
-> **Where this is today:** Prose Engine works, and it's what I write with. But
-> it is not yet a double-click installer — right now you need Node.js and a
-> terminal for about two minutes. A packaged desktop app is the next thing being
-> built. If that sentence lost you, this isn't ready for you *yet*, and I'd
-> rather say so than waste your evening.
+Prose Engine is a desktop app. You open it and write — there is no database to
+install, no configuration file to edit, and no terminal.
 
-1. Install [Node.js](https://nodejs.org) (the "LTS" button).
-2. Download this project, open a terminal in its folder, and run:
+1. Start Prose Engine.
+2. Create your account. **Save your recovery code** — the button on that screen
+   writes it to a file, and it is the only way back in if you forget your
+   password.
+3. In Settings, choose the folder where your stories should live.
 
-   ```bash
-   npm install
-   npm run dev
-   ```
+That's it.
 
-3. Open <http://localhost:3100> in your browser.
-4. Create your account, **save your recovery code**, then point Prose Engine at
-   a folder for your stories in Settings.
+> **Where this is today:** the desktop app builds and runs, but there is no
+> published installer to download yet — you build it yourself with the command
+> below. If that sentence lost you, this isn't ready for you *quite* yet, and
+> I'd rather say so than waste your evening.
 
-That's it. No database to install, no configuration file to edit, no services to
-start. It makes a `data/` folder next to itself and gets on with it.
+### Building the app
+
+You need [Node.js](https://nodejs.org) (the "LTS" button), then:
+
+```bash
+npm install
+npm run dist       # makes an installer and a portable .exe in dist/
+```
+
+Or run it straight from the source without packaging:
+
+```bash
+npm run app        # the desktop app
+npm run dev        # just the server, at http://localhost:3100
+```
 
 ---
 
@@ -148,6 +164,7 @@ unlocked at sign-in by a key derived from the writer's password with scrypt. The
 data layer in `services/db/` presents the slice of the Mongoose API this app
 uses, so models and controllers read the way they always did.
 
+- `electron/main.js` — the desktop shell: window, menu, data locations
 - `services/db/` — the store: schemas, queries, encryption at rest
 - `services/config/Vault.js` — password-derived keys, recovery codes
 - `services/manuscript/` — chapters on disk, the watcher, search
@@ -158,6 +175,8 @@ uses, so models and controllers read the way they always did.
 
 ```bash
 npm run dev            # nodemon, port 3100
+npm run app            # the Electron app against the source tree
+npm run dist           # package installers into dist/
 npm run build:editor   # rebuild the CodeMirror bundle
 ```
 

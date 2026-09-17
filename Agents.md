@@ -38,6 +38,35 @@ drivers, 143 checks, including a real browser run of the first-run wizard.
   SystemSettingsController.
 - **Ben must re-enter his Gemini key and story root** — the old Mongo data is not
   migrated. His .env still exists on disk and is no longer read by anything.
+- **The desktop app is real** (`electron/main.js`, `npm run app`, `npm run dist`).
+  It boots the same server in the main process and points a window at it —
+  packaging, not a fork, so opening localhost in a browser still gives the same
+  studio. Data locations are decided BEFORE the server is required, because the
+  store reads them as it loads; a packaged app cannot use its own directory,
+  which is inside app.asar and read-only.
+  - `sharp` and `onnxruntime-node` needed NO rebuild — both are N-API, which is
+    ABI-stable across Electron. The step everyone warns about did not apply.
+  - The Edit menu is not decoration: without it Ctrl+C and Ctrl+V do nothing in
+    an Electron window, which in a writing app is a broken application.
+- **Packaging exclusions are worth reading before touching.** The first build
+  was 2.3GB. `ai_models/` (1.1GB of weights from the plugin system removed on
+  2026-08-09) and `.git` (413MB) were both being swept in by `files: **/*`, and
+  onnxruntime-node ships macOS and Linux binaries a Windows build can never
+  load. Now 683MB.
+  - A platform-specific `win.files` list does NOT merge with the common `files`
+    list — it takes over, and every exclusion in the common list is silently
+    dropped. That is what hid the problem for two builds. Keep ONE list.
+  - To check what is actually in a package, read the asar header
+    (`@electron/asar` getRawHeader) and sum the sizes. `asar list` piped through
+    a grep told me ai_models was excluded when it was still 1.1GB of the build.
+- Fixed while packaging: `server.js` called `.then()` on `isSetupComplete()`,
+  which is synchronous now — every boot logged a FATAL uncaught exception. And
+  `accounts.js` rate-limited by `req.ip`, which express-rate-limit warns about
+  on every boot and is right to: an IPv6 user gets a whole /64 to walk through.
+- The packaged .exe is verified end to end: setup, recovery code, sign-in,
+  dashboard, and the narrator and proofing endpoints answering from inside the
+  asar. Not verified: the NSIS installer itself, and the app has no icon yet
+  (`build/icon.ico`), so it ships with the default Electron one.
 - **Deliberately not done:** per-user data isolation. Every account unwraps the
   same data key, which matches what the app already was (roles guarded the
   routes; Mongo had no per-user boundary either). Storage is the wrong layer for

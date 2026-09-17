@@ -1,17 +1,21 @@
 {
   "name": "prose-engine",
   "version": "0.1.0",
-  "main": "index.js",
+  "main": "electron/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server",
     "build:editor": "esbuild build/codemirror-entry.js --bundle --format=esm --minify --outfile=libs/codemirror/codemirror.js",
-    "postinstall": "npm run build:editor"
+    "postinstall": "npm run build:editor",
+    "app": "electron .",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir",
+    "rebuild": "electron-rebuild -f -w sharp,onnxruntime-node"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "A writing desk for novelists, that runs on your own computer.",
   "dependencies": {
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-markdown": "^6.5.2",
@@ -35,11 +39,83 @@
     "onnxruntime-node": "^1.21.0",
     "pdf-lib": "^1.17.1",
     "phonemizer": "^1.2.1",
-    "puppeteer": "^24.37.5",
     "sharp": "^0.34.4",
     "socket.io": "^4.8.3",
     "three": "^0.180.0",
     "uuid": "^13.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "puppeteer": "^24.37.5"
+  },
+  "productName": "Prose Engine",
+  "build": {
+    "appId": "com.chefbennyj.prose-engine",
+    "productName": "Prose Engine",
+    "copyright": "Benjamin Anderson",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!data/**",
+      "!config.json",
+      "!.env",
+      "!prose.key",
+      "!.git/**",
+      "!ai_models/**",
+      "!unit_tests/**",
+      "!build/**",
+      "!.vscode/**",
+      "!.gemini/**",
+      "!.claude/**",
+      "!**/*.map",
+      "!Agents.md",
+      "!WORKING_PRACTICES.md",
+      "!CLAUDE.md",
+      "!GEMINI.md",
+      "!**/node_modules/onnxruntime-node/bin/napi-v3/darwin/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v3/linux/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/**",
+      "!**/node_modules/onnxruntime-web/**"
+    ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**",
+      "**/node_modules/onnxruntime-node/**",
+      "resources/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "Prose-Engine-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Prose Engine"
+    },
+    "portable": {
+      "artifactName": "Prose-Engine-${version}-portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
+  }
 }
