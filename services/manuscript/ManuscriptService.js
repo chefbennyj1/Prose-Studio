@@ -3,6 +3,7 @@ const fsp = fs.promises;
 const path = require('path');
 
 const Storage = require('../StorageService');
+const ChapterHeader = require('./ChapterHeader');
 
 /**
  * ManuscriptService
@@ -159,7 +160,7 @@ class ManuscriptService {
                 fsp.readFile(full, 'utf8').catch(() => ''),
                 fsp.stat(full)
             ]);
-            const words = countWords(text);
+            const words = countWords(ChapterHeader.split(text).body);
             chapters.push({
                 name: file.replace(/\.md$/i, ''),
                 words,
@@ -196,15 +197,18 @@ class ManuscriptService {
     async read(story, chapter) {
         const { clean, target } = await resolveChapter(story, chapter);
         try {
-            const [text, stat] = await Promise.all([
+            const [raw, stat] = await Promise.all([
                 fsp.readFile(target, 'utf8'),
                 fsp.stat(target)
             ]);
+            // The body only. See ChapterHeader: nothing past this point may
+            // count, scan, search or speak a chapter's settings.
+            const { meta, body: text } = ChapterHeader.split(raw);
             const words = countWords(text);
-            return { story, name: clean, text, words, pages: countPages(words), modified: stat.mtimeMs };
+            return { story, name: clean, text, meta, words, pages: countPages(words), modified: stat.mtimeMs };
         } catch (err) {
             if (err.code === 'ENOENT') {
-                return { story, name: clean, text: '', words: 0, pages: 1, modified: 0 };
+                return { story, name: clean, text: '', meta: {}, words: 0, pages: 1, modified: 0 };
             }
             throw err;
         }
@@ -226,38 +230,93 @@ class ManuscriptService {
             throw new Error('That story no longer exists on disk.');
         }
 
-        if (baseModified) {
-            let current = 0;
-            try {
-                current = (await fsp.stat(target)).mtimeMs;
-            } catch (err) {
-                if (err.code !== 'ENOENT') throw err;
-            }
-            // Compare on whole milliseconds; some filesystems round the value
-            // returned by stat differently from the one recorded on write.
-            if (current && Math.abs(current - baseModified) > 1) {
-                const conflict = new Error('This chapter changed on disk since you opened it. Reload before saving, or your edit would overwrite the newer version.');
-                conflict.code = 'STALE_WRITE';
-                conflict.currentModified = current;
-                throw conflict;
-            }
-        }
+        if (baseModified) await assertNotStale(target, baseModified);
 
-        // The temp file sits beside the target: rename is only atomic within a
-        // filesystem, and the story folder is certain to be on the same one.
-        const temp = path.join(storyPath, `.${clean}.${process.pid}.${Date.now()}.tmp`);
-        try {
-            await fsp.writeFile(temp, text, 'utf8');
-            await fsp.rename(temp, target);
-        } catch (err) {
-            await fsp.unlink(temp).catch(() => {});
-            throw err;
-        }
+        // The editor only ever held the body. Whatever header is on disk goes
+        // back on top, or saving a chapter would wipe its settings.
+        const { meta } = ChapterHeader.split(await readRaw(target));
+        const stat = await replaceFile(target, clean, ChapterHeader.build(meta) + text);
 
-        const stat = await fsp.stat(target);
         const words = countWords(text);
         return { story, name: clean, words, pages: countPages(words), modified: stat.mtimeMs };
     }
+
+    /* ---------- chapter settings ---------- */
+
+    async readMeta(story, chapter) {
+        const { clean, target } = await resolveChapter(story, chapter);
+        const raw = await readRaw(target, true);
+        const stat = await fsp.stat(target);
+        return { story, name: clean, meta: ChapterHeader.split(raw).meta, modified: stat.mtimeMs };
+    }
+
+    /**
+     * Change settings without touching the prose. A null or empty value
+     * removes that setting; removing the last one removes the header.
+     *
+     * No baseModified: the body written back is the one on disk this instant,
+     * so there is no stale copy of the text to overwrite anything with. The
+     * new mtime is returned so an open editor can adopt it - otherwise its next
+     * save would be refused as stale over a change it did not make.
+     */
+    async setMeta(story, chapter, changes) {
+        const { clean, target } = await resolveChapter(story, chapter);
+        if (!changes || typeof changes !== 'object') throw new Error('Provide the settings to change.');
+
+        const { meta, body } = ChapterHeader.split(await readRaw(target, true));
+        for (const [key, value] of Object.entries(changes)) {
+            if (!ChapterHeader.KEYS.has(key)) throw new Error(`Unknown chapter setting: ${key}`);
+            if (value === null || value === undefined || String(value).trim() === '') delete meta[key];
+            else meta[key] = String(value);
+        }
+
+        const stat = await replaceFile(target, clean, ChapterHeader.build(meta) + body);
+        return { story, name: clean, meta: ChapterHeader.split(ChapterHeader.build(meta)).meta, modified: stat.mtimeMs };
+    }
+}
+
+/* ---------- file helpers ---------- */
+
+/** @param {boolean} mustExist  settings cannot be set on a chapter that is not there. */
+async function readRaw(target, mustExist = false) {
+    try {
+        return await fsp.readFile(target, 'utf8');
+    } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+        if (mustExist) throw new Error('That chapter does not exist.');
+        return '';
+    }
+}
+
+async function assertNotStale(target, baseModified) {
+    let current = 0;
+    try {
+        current = (await fsp.stat(target)).mtimeMs;
+    } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+    }
+    // Compare on whole milliseconds; some filesystems round the value
+    // returned by stat differently from the one recorded on write.
+    if (current && Math.abs(current - baseModified) > 1) {
+        const conflict = new Error('This chapter changed on disk since you opened it. Reload before saving, or your edit would overwrite the newer version.');
+        conflict.code = 'STALE_WRITE';
+        conflict.currentModified = current;
+        throw conflict;
+    }
+}
+
+async function replaceFile(target, clean, content) {
+    // The temp file sits beside the target: rename is only atomic within a
+    // filesystem, and the story folder is certain to be on the same one.
+    const temp = path.join(path.dirname(target), `.${clean}.${process.pid}.${Date.now()}.tmp`);
+    try {
+        await fsp.writeFile(temp, content, 'utf8');
+        await fsp.rename(temp, target);
+    } catch (err) {
+        await fsp.unlink(temp).catch(() => {});
+        throw err;
+    }
+    return fsp.stat(target);
 }
 
 module.exports = new ManuscriptService();

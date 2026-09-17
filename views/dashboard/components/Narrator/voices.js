@@ -133,6 +133,23 @@ export function setMusicTrack(name) {
     return name || null;
 }
 
+const MUSIC_VOLUME_KEY = 'narrator_music_volume';
+const DEFAULT_MUSIC_VOLUME = 0.12;   // quiet enough to sit under a voice
+
+/** Level of the bed, 0..1. */
+export function getMusicVolume() {
+    const raw = read(MUSIC_VOLUME_KEY);
+    const value = Number(raw);
+    if (raw === null || !Number.isFinite(value) || value < 0 || value > 1) return DEFAULT_MUSIC_VOLUME;
+    return value;
+}
+
+export function setMusicVolume(value) {
+    const level = Math.min(1, Math.max(0, Number(value) || 0));
+    write(MUSIC_VOLUME_KEY, level);
+    return level;
+}
+
 /* ---------- render on save ---------- */
 
 /**

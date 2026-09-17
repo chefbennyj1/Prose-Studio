@@ -23,6 +23,8 @@
  * long input and have to be fed a sentence at a time.
  */
 
+const ChapterHeader = require('../manuscript/ChapterHeader');
+
 // Survives emphasis stripping because it contains no Markdown characters.
 const SCENE_MARK = ' SCENE ';
 
@@ -64,7 +66,10 @@ function applyLexicon(text, lexicon) {
 function stripMarkdown(markdown) {
     let text = String(markdown || '').replace(/\r\n/g, '\n');
 
-    text = text.replace(/^---\n[\s\S]*?\n---\n/, '');                       // yaml frontmatter
+    // ManuscriptService already hands out the body only. This is the second
+    // guard, so a chapter's settings are never read aloud whatever the caller.
+    // The same strict rule as the service: an opening scene break is kept.
+    text = ChapterHeader.split(text).body;
     text = text.replace(/```[\s\S]*?```/g, '');                             // fenced code
 
     // Before emphasis: *** on its own line is a scene break, not empty italics.

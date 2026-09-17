@@ -182,6 +182,16 @@ body {
    In the column the bar is a fixed row, .editor__body takes the rest with
    min-height: 0, and nothing above .cm-scroller has anything to overflow.
 */
+/*
+   THE WORD CLOUD MUST BE IN THIS LIST TOO, for exactly the reason above.
+
+   Left out, it took display: block from the generic rule, which beats the flex
+   column WordCloud.css asks for. The canvas is then sized by its content
+   instead of by what is left under the bar, the column comes out taller than
+   the card, and .glass (overflow: hidden) quietly clips the bottom off - which
+   is where the detail line and the list of hidden words live. A writer could
+   hide a word and never find the control to put it back.
+*/
 .editor.dashboard-section.is-active,
 .studio.dashboard-section.is-active,
 .scene-editor.dashboard-section.is-active,
@@ -191,6 +201,7 @@ body {
 .story-critic.dashboard-section.is-active,
 .export-tool.dashboard-section.is-active,
 .characters.dashboard-section.is-active,
+.word-cloud.dashboard-section.is-active,
 .library-settings.dashboard-section.is-active {
     display: flex !important;
     flex-direction: column;

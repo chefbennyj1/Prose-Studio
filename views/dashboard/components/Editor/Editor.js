@@ -208,6 +208,14 @@ export async function initEditor(container) {
         openLastPlace();
     });
 
+    // A chapter setting was written into this file's header (Narrator menu).
+    // The prose is untouched, but the mtime moved: adopt it, or the next save
+    // is refused as stale over a change the writer made on purpose.
+    document.addEventListener('chapterMetaSaved', (event) => {
+        const { story, chapter, modified } = event.detail || {};
+        if (story === doc.story && chapter === doc.chapter && modified) doc.modified = modified;
+    });
+
     // A story or chapter made in the rail should appear here without a reload.
     document.addEventListener('storyTreeChanged', (e) => {
         openLastPlace({ story: e.detail?.story, chapter: e.detail?.chapter });

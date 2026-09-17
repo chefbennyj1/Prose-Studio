@@ -282,6 +282,15 @@ export async function start() {
 
     ensureContext();
     if (context.state === 'suspended') await context.resume();
+
+    // The master is only set when the context is made. A level changed while
+    // stopped, or a pause's fade to silence followed by a stop, would
+    // otherwise carry into this start. The layer fades in on its own gain, so
+    // setting the master outright is not heard as a jump.
+    const now = context.currentTime;
+    clearSchedule(master.gain, now);
+    master.gain.setValueAtTime(volume, now);
+
     await swapTo(track);
 }
 
@@ -327,10 +336,14 @@ export function stop() {
 
 export function setVolume(next) {
     volume = Math.min(1, Math.max(0, Number(next) || 0));
-    if (!context || !master) return;
+    // Paused or stopped: resume() and start() rise to the new level on their
+    // own. Ramping here would undo the fade-out a pause just scheduled.
+    if (!context || !master || !running) return;
 
     const now = context.currentTime;
-    master.gain.cancelScheduledValues(now);
+    // Not cancelScheduledValues - a resume curve may still be running, and
+    // setValueAtTime inside its window throws. See clearSchedule.
+    clearSchedule(master.gain, now);
     master.gain.setValueAtTime(master.gain.value, now);
     master.gain.linearRampToValueAtTime(volume, now + 0.25);
 }

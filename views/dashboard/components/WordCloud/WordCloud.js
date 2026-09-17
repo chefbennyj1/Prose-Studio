@@ -47,6 +47,27 @@ let doc = { story: null, chapter: null };
 let data = null;
 let mode = 'story';
 
+/*
+ * THE PINNED WORD, and why hover alone could not work.
+ *
+ * The detail line used to follow the pointer, and the "hide this word" button
+ * lives in that line. So the journey from the word to its own button crossed
+ * other words, each of which rewrote the line underneath the pointer - by the
+ * time the writer arrived, the button belonged to whatever they had brushed
+ * past last. The word they wanted was unhideable, and the one they got was
+ * whichever happened to lie on the path.
+ *
+ * A click now pins a word. While something is pinned, hover no longer writes
+ * to the line, so it holds still long enough to walk to the button. Clicking
+ * the pinned word again, or any empty space in the cloud, lets go.
+ *
+ * `shown` is whatever the line is currently describing, pinned or merely
+ * hovered, so that letting go can restate it without the button rather than
+ * leaving a stale one pointing at nothing.
+ */
+let pinned = null;
+let shown = null;
+
 export function initWordCloud(container) {
     els = {
         root: container.querySelector('.word-cloud'),
@@ -58,6 +79,14 @@ export function initWordCloud(container) {
         ignored: container.querySelector('#wordCloudIgnored')
     };
     if (!els.canvas) return;
+
+    /*
+     * Clicking the gaps between words lets go of the pinned one. Registered
+     * here rather than in draw(): the canvas outlives every redraw, and binding
+     * it per draw would stack a listener per resize. Word clicks stop
+     * propagating, so anything arriving here came from empty space.
+     */
+    els.canvas.addEventListener('click', release);
 
     els.scope?.addEventListener('change', () => {
         mode = els.scope.value;
@@ -118,6 +147,17 @@ async function load() {
         say('Open a story to see what it is made of.');
         return;
     }
+
+    /*
+     * A reload restates the whole cloud, so any pin belongs to the old one.
+     * After hiding a word the pinned word is not even in the new data - keeping
+     * the selection would leave a hide button offering to hide it twice. Reset
+     * directly rather than through release(), which exists to preserve the line
+     * and here there is nothing left worth preserving.
+     */
+    pinned = null;
+    shown = null;
+    if (els.detail) els.detail.innerHTML = '';
 
     say('Reading the whole manuscript...');
     try {
@@ -210,9 +250,24 @@ function draw(cloud) {
 
     els.canvas.innerHTML = render(placed, width, height);
     els.canvas.querySelectorAll('[data-word]').forEach((node) => {
-        node.addEventListener('mouseenter', () => describe(cloud.words[Number(node.dataset.word)]));
-        node.addEventListener('click', () => describe(cloud.words[Number(node.dataset.word)]));
+        const entry = cloud.words[Number(node.dataset.word)];
+
+        // Hover is a preview and nothing more. It stands aside the moment a
+        // word is pinned, which is the whole point - see `pinned` above.
+        node.addEventListener('mouseenter', () => { if (!pinned) describe(entry, false); });
+
+        // stopPropagation so this does not also reach the canvas listener that
+        // treats a click on empty space as letting go.
+        node.addEventListener('click', (event) => {
+            event.stopPropagation();
+            select(entry);
+        });
     });
+
+    // A resize redraws the SVG from scratch, so the pin has to be put back on
+    // the new node. The detail line is untouched by a redraw, and would
+    // otherwise describe a word that no longer looks selected.
+    if (pinned) highlight(pinned);
 
     const scope = cloud.mode === 'chapter' ? `“${cloud.chapter}” against the rest of the book` : 'the whole story';
     say(`${placed.length} words from ${cloud.stats.words.toLocaleString()} across `
@@ -265,14 +320,56 @@ function weightFor(entry) {
 }
 
 /**
- * What one word actually costs, on hover.
+ * Pin a word, or let go of it if it was already pinned.
+ *
+ * Clicking a second word moves the pin straight there rather than making the
+ * writer clear the first one - selecting is not a mode to get stuck in.
+ */
+function select(entry) {
+    if (!entry) return;
+
+    if (pinned === entry.word) {
+        release();
+        return;
+    }
+
+    pinned = entry.word;
+    highlight(entry.word);
+    describe(entry, true);
+}
+
+/** Let go of the pinned word, leaving its numbers on screen but not its button. */
+function release() {
+    if (!pinned) return;
+    pinned = null;
+    highlight(null);
+    // Restated without the button: a hide button sitting under an unpinned
+    // word is an offer about a word the writer is no longer pointing at.
+    if (shown) describe(shown, false);
+}
+
+/** Mark the pinned word in the cloud. Pass null to mark nothing. */
+function highlight(word) {
+    els.canvas?.querySelectorAll('[data-word]').forEach((node) => {
+        node.classList.toggle('word-cloud__word--selected', !!word && node.textContent.trim() === word);
+    });
+}
+
+/**
+ * What one word actually costs.
  *
  * The cloud shows proportion; this is where the number lives. Dialogue is
  * called out separately because a word a character says is characterisation
  * and a word the narrator reaches for is habit.
+ *
+ * @param {boolean} isPinned  Pinned lines carry the hide button; hovered ones
+ *   carry the invitation to click, because a button that appears under a moving
+ *   pointer is a button that cannot be reached. See `pinned` at the top.
  */
-function describe(entry) {
+function describe(entry, isPinned = false) {
     if (!els.detail || !entry) return;
+    shown = entry;
+
     const narration = entry.count - entry.dialogue;
     const parts = [`<strong>${escapeHtml(entry.word)}</strong> — ${entry.count} use${entry.count === 1 ? '' : 's'}`];
 
@@ -287,11 +384,16 @@ function describe(entry) {
     /*
      * Hiding is offered here rather than on the word itself. Clicking a word in
      * the cloud to delete it would make every exploratory click destructive,
-     * and the cloud is a thing you poke at.
+     * and the cloud is a thing you poke at. Clicking to SELECT keeps that -
+     * the click costs nothing and is undone by clicking again.
      */
     els.detail.innerHTML = parts.join(' &nbsp;·&nbsp; ')
-        + ` &nbsp;·&nbsp; <button type="button" class="word-cloud__hide"
-            data-hide="${escapeAttr(entry.word)}">hide this word</button>`;
+        + (isPinned
+            ? ` &nbsp;·&nbsp; <button type="button" class="word-cloud__hide"
+                data-hide="${escapeAttr(entry.word)}">hide this word</button>`
+            // "select", not "hide": clicking does not hide anything, and a
+            // hint that says it does would make the first click alarming.
+            : ` &nbsp;·&nbsp; <span class="word-cloud__hint">click the word to select it</span>`);
 
     els.detail.querySelector('[data-hide]')
         ?.addEventListener('click', () => hide(entry.word));

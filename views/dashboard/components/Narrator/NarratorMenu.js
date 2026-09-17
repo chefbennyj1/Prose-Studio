@@ -22,12 +22,13 @@
  */
 
 import { escapeHtml } from '../Editor/EditorRender.js';
-import { setMusic } from './Player.js';
+import { setMusic, setMusicLevel } from './Player.js';
 import {
     getVoice, setVoice, resolveVoice, displayName,
     getRenderOnSave, setRenderOnSave,
     getSpeed, setSpeed,
     getMusicTrack, setMusicTrack,
+    getMusicVolume, setMusicVolume,
     getSpeaker, setSpeaker
 } from './voices.js';
 
@@ -48,7 +49,13 @@ export function initNarratorMenu() {
         speakerValue: document.getElementById('narratorSpeakerValue'),
         speakerFlyout: document.getElementById('narratorSpeakerFlyout'),
         musicValue: document.getElementById('narratorMusicValue'),
-        musicFlyout: document.getElementById('narratorMusicFlyout')
+        musicFlyout: document.getElementById('narratorMusicFlyout'),
+        chapterMusicRow: document.querySelector('[data-narrator="chapter-music"]'),
+        chapterMusicValue: document.getElementById('narratorChapterMusicValue'),
+        chapterMusicFlyout: document.getElementById('narratorChapterMusicFlyout'),
+        musicLevelValue: document.getElementById('narratorMusicLevelValue'),
+        quieter: document.getElementById('narratorMusicQuieterBtn'),
+        louder: document.getElementById('narratorMusicLouderBtn')
     };
     if (!els.voiceFlyout) return;
 
@@ -56,11 +63,28 @@ export function initNarratorMenu() {
     drawOnSave();
     drawPace();
     drawMusicValue();
+    drawMusicLevel();
     loadVoices().then(refreshSpeaker);
 
-    // The chosen track has to reach the player before the first press of
-    // Listen, which can happen before this flyout is ever opened.
-    setMusic(getMusicTrack());
+    // The chosen track and level have to reach the player before the first
+    // press of Listen, which can happen before this flyout is ever opened.
+    setMusic(effectiveTrack(), getMusicVolume());
+
+    // The music follows the chapter that is open, not the one last picked.
+    document.addEventListener('manuscriptOpened', (event) => onChapterOpened(event.detail || {}));
+    els.chapterMusicFlyout?.addEventListener('click', onChapterMusicClick);
+    els.chapterMusicRow?.addEventListener('flyoutOpened', () => drawChapterMusicList());
+
+    // Steps of 5%. The bed ramps to the new level, so it can be set by ear
+    // while a chapter plays.
+    const level = (by) => (event) => {
+        event.stopPropagation();      // a setting, not a command: menu stays open
+        const next = setMusicVolume(Number((getMusicVolume() + by).toFixed(2)));
+        setMusicLevel(next);
+        drawMusicLevel();
+    };
+    els.quieter?.addEventListener('click', level(-0.05));
+    els.louder?.addEventListener('click', level(0.05));
 
     els.speakerFlyout?.addEventListener('click', onSpeakerClick);
     document.querySelector('[data-narrator="speaker"]')
@@ -302,10 +326,124 @@ function openStory() {
 
 let tracks = null;
 
+/**
+ * Two levels. "Music" is the default, kept in this browser. "Chapter music" is
+ * the open chapter's own choice, kept in the header of its .md file so it goes
+ * wherever the chapter goes. A chapter with no header plays the default.
+ *
+ * In the header, `music: none` means this chapter is silent on purpose, which
+ * is different from saying nothing and inheriting the default.
+ */
+const NO_MUSIC = 'none';
+let chapter = { story: null, chapter: null, music: null };   // music: null = use default
+
+function effectiveTrack() {
+    if (!chapter.music) return getMusicTrack();
+    return chapter.music === NO_MUSIC ? null : chapter.music;
+}
+
+function trackLabel(name) {
+    return name ? name.replace(/\.[^.]+$/, '') : 'none';
+}
+
 function drawMusicValue() {
-    if (!els.musicValue) return;
-    const name = getMusicTrack();
-    els.musicValue.textContent = name ? name.replace(/\.[^.]+$/, '') : 'none';
+    if (els.musicValue) els.musicValue.textContent = trackLabel(getMusicTrack());
+    if (els.chapterMusicValue) {
+        els.chapterMusicValue.textContent = chapter.music ? trackLabel(effectiveTrack()) : 'default';
+    }
+}
+
+async function onChapterOpened({ story, chapter: name }) {
+    // Same chapter reported again (showWhere runs on more than an open).
+    if (story === chapter.story && name === chapter.chapter) return;
+
+    chapter = { story: story || null, chapter: name || null, music: null };
+    els.chapterMusicRow?.classList.toggle('hidden', !name);
+
+    if (name) {
+        try {
+            const res = await fetch(`/api/manuscript/meta?story=${encodeURIComponent(story)}` +
+                `&chapter=${encodeURIComponent(name)}`);
+            const data = await res.json();
+            // Another chapter was opened while this one was being asked about.
+            if (chapter.story !== story || chapter.chapter !== name) return;
+            if (data.ok) chapter.music = data.meta?.music || null;
+        } catch { /* no header read: the default plays, which is the safe miss */ }
+    }
+
+    setMusic(effectiveTrack());
+    drawMusicValue();
+}
+
+/** Tracks from the music folder. See drawMusicList on why opening refetches. */
+async function loadTracks(flyout, refetch) {
+    if (refetch || !tracks) {
+        if (!tracks) flyout.innerHTML = note('Looking for tracks...');
+        try {
+            tracks = await (await fetch('/api/narrator/music')).json();
+        } catch {
+            flyout.innerHTML = note('Could not reach the server.');
+            return false;
+        }
+    }
+    return true;
+}
+
+function trackRows(chosen) {
+    const rows = [];
+    for (const name of tracks.tracks || []) {
+        rows.push(option(name, trackLabel(name), '', name === chosen));
+    }
+    // With nothing to choose from, the folder IS the instruction.
+    if (!(tracks.tracks || []).length) {
+        rows.push(note(`Drop audio files into ${tracks.folder} and they will appear here.`));
+    }
+    return rows;
+}
+
+async function drawChapterMusicList(refetch = true) {
+    if (!els.chapterMusicFlyout) return;
+    if (!(await loadTracks(els.chapterMusicFlyout, refetch))) return;
+
+    const def = getMusicTrack();
+    const rows = [
+        option('', 'Default', trackLabel(def), !chapter.music),
+        option(NO_MUSIC, 'None', 'silent', chapter.music === NO_MUSIC),
+        ...trackRows(chapter.music)
+    ];
+    els.chapterMusicFlyout.innerHTML = rows.join('');
+}
+
+async function onChapterMusicClick(event) {
+    const item = event.target.closest('.rail-menu__entry');
+    if (!item || !chapter.chapter) return;
+
+    const target = { ...chapter };
+    const music = item.dataset.id || null;
+
+    try {
+        const res = await fetch('/api/manuscript/meta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ story: target.story, chapter: target.chapter, meta: { music } })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
+
+        // The file's mtime moved. The editor holds the old one and would
+        // refuse its next save as stale without being told.
+        document.dispatchEvent(new CustomEvent('chapterMetaSaved', {
+            detail: { story: target.story, chapter: target.chapter, modified: data.modified }
+        }));
+
+        if (chapter.story !== target.story || chapter.chapter !== target.chapter) return;
+        chapter.music = data.meta?.music || null;
+        setMusic(effectiveTrack());      // takes effect immediately, even mid-sentence
+        drawMusicValue();
+        drawChapterMusicList(false);
+    } catch (err) {
+        els.chapterMusicFlyout.innerHTML = note(`Not saved: ${err.message}`);
+    }
 }
 
 /**
@@ -319,29 +457,21 @@ function drawMusicValue() {
  * nothing on disk changed and a round trip would just make the tick lag.
  */
 async function drawMusicList(refetch = true) {
-    if (refetch || !tracks) {
-        if (!tracks) els.musicFlyout.innerHTML = note('Looking for tracks...');
-        try {
-            tracks = await (await fetch('/api/narrator/music')).json();
-        } catch {
-            els.musicFlyout.innerHTML = note('Could not reach the server.');
-            return;
-        }
-    }
+    if (!(await loadTracks(els.musicFlyout, refetch))) return;
 
     const chosen = getMusicTrack();
-    const rows = [option('', 'None', 'no music', !chosen)];
-
-    for (const name of tracks.tracks || []) {
-        rows.push(option(name, name.replace(/\.[^.]+$/, ''), '', name === chosen));
-    }
-
-    // With nothing to choose from, the folder IS the instruction.
-    if (!(tracks.tracks || []).length) {
-        rows.push(note(`Drop audio files into ${tracks.folder} and they will appear here.`));
-    }
-
+    const rows = [option('', 'None', 'no music', !chosen), ...trackRows(chosen)];
     els.musicFlyout.innerHTML = rows.join('');
+}
+
+function drawMusicLevel() {
+    if (!els.musicLevelValue) return;
+    const level = getMusicVolume();
+    els.musicLevelValue.textContent = `${Math.round(level * 100)}%`;
+
+    // Nothing to press at the ends of the range.
+    if (els.quieter) els.quieter.disabled = level <= 0;
+    if (els.louder) els.louder.disabled = level >= 1;
 }
 
 function onMusicClick(event) {
@@ -350,7 +480,8 @@ function onMusicClick(event) {
 
     const name = item.dataset.id || null;
     setMusicTrack(name);
-    setMusic(name);          // takes effect immediately, even mid-sentence
+    // A chapter with its own track keeps it; the default is for the rest.
+    setMusic(effectiveTrack());      // takes effect immediately, even mid-sentence
     drawMusicValue();
     drawMusicList(false);
 }

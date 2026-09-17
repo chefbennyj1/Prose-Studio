@@ -574,6 +574,30 @@
                         id="narratorMusicFlyout" role="menu"></div>
                 </div>
 
+                <!-- The open chapter's own track, kept in the header of its .md
+                     file (see ChapterHeader.js). Hidden with no chapter open. -->
+                <div class="rail-menu__submenu hidden" data-narrator="chapter-music">
+                    <button type="button" class="rail-menu__item rail-menu__item--parent"
+                        data-action="open" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+                        <span class="rail-menu__label">Chapter music</span>
+                        <span class="rail-menu__value" id="narratorChapterMusicValue"></span>
+                        <span class="rail-menu__chevron" aria-hidden="true">&rsaquo;</span>
+                    </button>
+                    <div class="rail-menu__flyout glass glass--frosted"
+                        id="narratorChapterMusicFlyout" role="menu"></div>
+                </div>
+
+                <!-- Level of the bed under the voice. Heard as it changes when
+                     narration is playing; otherwise used from the next Listen. -->
+                <div class="rail-menu__item rail-menu__stepper">
+                    <span class="rail-menu__label">Music level</span>
+                    <button type="button" id="narratorMusicQuieterBtn" class="rail-menu__step"
+                        aria-label="Music quieter">&minus;</button>
+                    <span class="rail-menu__value" id="narratorMusicLevelValue"></span>
+                    <button type="button" id="narratorMusicLouderBtn" class="rail-menu__step"
+                        aria-label="Music louder">+</button>
+                </div>
+
                 <!--
                     Reading pace. Piper's own trained pace reads a novel at
                     about 220 words a minute, which is well past the 150-160

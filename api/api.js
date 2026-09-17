@@ -196,6 +196,8 @@ router.get('/manuscript/read',      isAuth, ManuscriptController.readChapter);
 // Read only. There is deliberately no replace beside it - see SearchService.
 router.post('/manuscript/search',   isAuth, ManuscriptController.searchStory);
 router.post('/manuscript/save',     isAuth, ManuscriptController.saveChapter);
+router.get('/manuscript/meta',      isAuth, ManuscriptController.readChapterMeta);
+router.post('/manuscript/meta',     isAuth, ManuscriptController.saveChapterMeta);
 
 // --- PROOFING (spelling + local edit suggestions) ---
 const ProofingController = require('../controllers/ProofingController.js');

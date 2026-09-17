@@ -92,6 +92,28 @@ exports.searchStory = async (req, res) => {
     }
 };
 
+/**
+ * A chapter's settings - its header, see ChapterHeader. Separate from read so
+ * the Narrator menu does not pull a whole chapter to learn one filename.
+ */
+exports.readChapterMeta = async (req, res) => {
+    const { story, chapter } = req.query;
+    try {
+        res.json({ ok: true, ...(await ManuscriptService.readMeta(story, chapter)) });
+    } catch (err) {
+        fail(res, err, 'readChapterMeta');
+    }
+};
+
+exports.saveChapterMeta = async (req, res) => {
+    const { story, chapter, meta } = req.body || {};
+    try {
+        res.json({ ok: true, ...(await ManuscriptService.setMeta(story, chapter, meta)) });
+    } catch (err) {
+        fail(res, err, 'saveChapterMeta');
+    }
+};
+
 exports.saveChapter = async (req, res) => {
     const { story, chapter, text, baseModified } = req.body || {};
     try {

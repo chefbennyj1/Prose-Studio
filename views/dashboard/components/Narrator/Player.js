@@ -83,6 +83,11 @@ export function setMusic(track, volume) {
     bed.setTrack(track || null);
 }
 
+/** Level only. setMusic would hand the bed its track again. */
+export function setMusicLevel(volume) {
+    bed.setVolume(volume);
+}
+
 export function getMusic() {
     return bed.getState();
 }

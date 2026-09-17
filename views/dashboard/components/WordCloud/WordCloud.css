@@ -7,6 +7,10 @@
     min-height: 0;
 }
 
+/* flex-shrink: 0 here and on the two rows below the cloud. The canvas is the
+   one thing in this column that can afford to give up room; everything else is
+   a control, and a control squeezed to nothing is a control the writer cannot
+   reach. */
 .word-cloud__bar {
     display: flex;
     align-items: center;
@@ -15,6 +19,7 @@
     padding: 15px 20px;
     border-bottom: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .word-cloud__status {
@@ -42,7 +47,9 @@
 .word-cloud__word {
     fill: var(--color-text, #1a1a1a);
     font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
-    cursor: default;
+    /* A word answers a click now, so it should say so rather than making the
+       writer spend a click finding out. */
+    cursor: pointer;
     opacity: 0.82;
     transition: opacity var(--dur-fast, 0.15s), fill var(--dur-fast, 0.15s);
 }
@@ -68,12 +75,35 @@
     opacity: 1;
 }
 
+/*
+   The pinned word.
+
+   Full opacity and an underline rather than another colour: the accent already
+   means "name" here, and a second meaning for the same colour would make a
+   selected name and a selected ordinary word look like different things. The
+   underline is the only mark in the cloud that says "this one is being talked
+   about at the bottom of the panel".
+*/
+.word-cloud__word--selected,
+.word-cloud__word--selected:hover {
+    opacity: 1;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.06em;
+}
+
+.word-cloud__hint {
+    opacity: 0.65;
+    font-style: italic;
+}
+
 .word-cloud__detail {
     min-height: 2.2em;
     padding: 10px 20px 14px;
     border-top: 1px solid var(--glass-border, rgba(0, 0, 0, 0.12));
     font-size: 0.85rem;
     color: var(--text-muted, #777);
+    flex-shrink: 0;
 }
 
 /* Hiding a word: offered in the detail line, never on the word itself. The
@@ -96,6 +126,10 @@
     color: var(--accent, #0891b2);
 }
 
+/* Hidden words wrap onto as many lines as they need, up to about three, and
+   then scroll. A writer who has hidden thirty words should not lose the cloud
+   to the list of what is missing from it - but the list must never be the part
+   that gets cut, or the only way back is gone. */
 .word-cloud__ignored {
     display: flex;
     align-items: center;
@@ -104,6 +138,9 @@
     padding: 0 20px 14px;
     font-size: 0.85rem;
     color: var(--text-muted, #777);
+    flex-shrink: 0;
+    max-height: 6.5em;
+    overflow-y: auto;
 }
 
 .word-cloud__ignored-label {
