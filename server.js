@@ -1,11 +1,16 @@
 // Server Entry Point
-require('dotenv').config();
+//
+// There is no dotenv and no .env. Settings are config.json (services/config/
+// Config.js) and the one secret is a key file in the user's profile
+// (services/config/Secrets.js), both of which create themselves on first run —
+// so a fresh clone starts with no setup file to copy and nothing to export.
 const express = require('express'); //server
 const bcrypt = require('bcryptjs'); //password encryption
 const path = require('path'); //files paths
 const session = require('express-session'); //current session data
-const { MongoStore } = require('connect-mongo'); // New robust DB session store (v6 named export)
-const mongoose = require('mongoose'); //DB interface
+const SessionStore = require('./services/db/SessionStore.js'); //sessions, stored as a local file
+const Config = require('./services/config/Config.js'); //config.json, replaces .env
+const Vault = require('./services/config/Vault.js'); //the password-unlocked data key
 const fs = require('fs'); //file system
 const mime = require('mime-types'); //ensure proper mime types
 const sharp = require('sharp'); //image editing
@@ -39,8 +44,9 @@ io.on('connection', (socket) => {
   });
 });
 
-// The connection itself lives in DatabaseService, because the engine now has to
-// boot without one: a fresh install has no database until /setup makes it.
+// The data store lives in DatabaseService. There is no database server any
+// more: documents are JSON files in the user's app-data folder, so a fresh
+// install has somewhere to write the moment the folder can be created.
 const Database = require('./services/DatabaseService.js');
 
 const siteRoutes = require("./routes/routes.js");
@@ -54,25 +60,17 @@ const User = require("./models/User.js");
 const { isAuth } = require('./middleware/auth.js');
 const SetupController = require('./controllers/SetupController.js');
 
-// --- CONNECTION EVENT LISTENERS ---
-mongoose.connection.on('error', err => {
-  console.error('[MongoDB] connection error:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.warn('[MongoDB] disconnected. Attempting to reconnect...');
-});
-
-mongoose.connection.on('reconnected', () => {
-  console.log('[MongoDB] reconnected');
-});
-
-// Handle graceful shutdown
+// Handle graceful shutdown.
+//
+// There is no connection to close, but there may be a write in flight: saves
+// are atomic (temp file, then rename) and awaited, so what this waits for is
+// the rename landing. Exiting without it is how the last thing a writer changed
+// before quitting gets lost.
 const gracefulShutdown = async (signal) => {
   console.log(`[${signal}] Shutting down gracefully...`);
   try {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed.');
+    await Database.close();
+    console.log('Data store flushed.');
     process.exit(0);
   } catch (err) {
     console.error('Error during shutdown:', err);
@@ -83,27 +81,25 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Sessions are stored in Mongo, so the middleware can only be built once there
-// is a Mongo to store them in. It is created on the first request that gets
-// past the setup gate — by which point the connection is known good.
+// The cookie signing secret is random per process, and that is not a shortcut.
+//
+// It cannot come from the vault, because the session middleware runs on the
+// request that is trying to UNLOCK the vault — there is no key yet. And it does
+// not need to survive a restart, because sessions do not either: the store is
+// in memory now (see services/db/SessionStore.js), for the same reason. A
+// restart means signing in again, which is the same act as unlocking.
+const SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+
 let sessionMiddleware = null;
 
 function getSessionMiddleware() {
   if (sessionMiddleware) return sessionMiddleware;
 
   sessionMiddleware = session({
-    secret: process.env.SESSION_SECRET,
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-      client: mongoose.connection.getClient(),
-      collectionName: 'ProseSessions',
-      ttl: 24 * 60 * 60, // 24 hours
-      autoRemove: 'native',
-      crypto: {
-        secret: process.env.SESSION_SECRET
-      }
-    }),
+    store: new SessionStore({ ttl: 24 * 60 * 60 }), // 24 hours
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 // 24 hours
     }
@@ -151,11 +147,7 @@ app.use((req, res, next) => getSessionMiddleware()(req, res, next));
 
 // 7. Global Locals (Config & User) - MUST BE BEFORE ROUTES
 app.use(async (req, res, next) => {
-  res.locals.config = {
-    useCloudStorage: process.env.USE_CLOUD_STORAGE === 'true',
-    gcsBucketName: process.env.GCS_BUCKET_NAME,
-    gcsBaseUrl: process.env.GCS_BASE_URL
-  };
+  res.locals.config = Config.cloudStorage();
 
   res.locals.user = null;
 
@@ -182,8 +174,8 @@ app.use("/api", apiRoutes);
 app.use("/authentication", authRoutes);
 app.use("/accounts", accountRoutes);
 
-// 3000 belongs to the comic server; the two are routinely run side by side.
-const PORT = process.env.PORT || 3100;
+// From config.json, which the writer can edit; PORT still wins for a one-off run.
+const PORT = Config.port();
 
 // Publish the resolved port back into the environment.
 //
@@ -208,30 +200,39 @@ console.log('[System] Generated runtime API secret.');
 app.use("/", siteRoutes);
 
 
-// Connect if we can, then listen either way. A failed connection is not fatal
-// any more — it is the state /setup exists to fix.
+// Open the data store, then listen either way. A store that cannot be opened is
+// a permissions or disk problem, not a missing server, so there is no wizard
+// step that can fix it — the message has to name the folder and the reason.
 (async () => {
   const hostname = getLocalIPv4();
-  const uri = Database.configuredUri();
 
-  const result = await Database.connect(uri);
+  const result = await Database.connect();
 
   if (result.ok) {
-    console.log(`mongoDb Connected (${result.database})`);
     await Database.initialise();
-    await Database.runLegacyRoleMigration();
-    await Database.runLegacyCriticMigration();
-    Database.ensureSecrets();
 
-    // Live updates when a chapter changes on disk. Follows the story root if
+    // Live updates when a chapter changes on disk, following the story root if
     // it is repointed in Settings.
-    const ManuscriptWatcher = require('./services/manuscript/ManuscriptWatcher.js');
-    const Storage = require('./services/StorageService.js');
-    await ManuscriptWatcher.start(io);
-    Storage.onRootChange(() => ManuscriptWatcher.start(io));
+    //
+    // This waits for a sign-in, where it used to start at boot. It has to: the
+    // story root is in the settings document, the settings document is
+    // encrypted, and nothing can be decrypted until a password unlocks the
+    // store. So the watcher starts on the first unlock instead — which is the
+    // first moment there is anything for it to watch on behalf of.
+    Vault.onUnlock(async () => {
+      const ManuscriptWatcher = require('./services/manuscript/ManuscriptWatcher.js');
+      const Storage = require('./services/StorageService.js');
+      await ManuscriptWatcher.start(io);
+      Storage.onRootChange(() => ManuscriptWatcher.start(io));
+    });
+
+    console.log(Vault.exists()
+      ? '[Vault] Locked. Sign in to open the data store.'
+      : '[Vault] No account yet — the first one created will lock this data folder.');
   } else {
-    console.warn(`[Database] Could not reach ${uri}: ${result.message}`);
-    console.warn(`[Setup] Open http://${hostname}:${PORT}/setup to point the engine at a database.`);
+    console.error(`[Store] ${result.message}`);
+    console.error('[Store] Nothing can be saved until that folder is writable. ' +
+                  'Set PROSE_DATA_DIR to somewhere this user can write, or fix the permissions on it.');
   }
 
   server.listen(PORT, () => {

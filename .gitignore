@@ -1,5 +1,18 @@
 .env
 node_modules/
+
+# The local data store: accounts, settings, characters, notifications.
+# It lives beside the app so the whole installation is one portable folder —
+# which also puts it one `git add .` away from being published. The files are
+# encrypted, but an encrypted password hash is still a password hash, and the
+# key is in .env directly above this line.
+data/
+
+# Written on first run by services/config/Config.js, and edited per machine —
+# the port and the cloud-storage settings for THIS installation. The defaults
+# are in the module, so a fresh clone makes its own.
+config.json
+
 .DS_Store
 Thumbs.db
 cache/

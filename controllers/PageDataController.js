@@ -1,6 +1,6 @@
 const path = require("path");
 const fs = require("fs");
-const mongoose = require("mongoose");
+const mongoose = require("../services/db");
 const { resolveSeriesPath } = require("../services/HierarchyLookupService");
 const { getSeriesFolderName, findVolumeId } = require('../services/HierarchyLookupService');
 const Volume = require("../models/Volume");

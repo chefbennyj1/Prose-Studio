@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
+const db = require('../services/db');
 
-const characterSchema = new mongoose.Schema({
+const characterSchema = new db.Schema({
   /*
    * THE STORY FOLDER'S NAME, not a Series id.
    *
@@ -57,4 +57,4 @@ const characterSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Character', characterSchema);
+module.exports = db.model('Character', characterSchema);

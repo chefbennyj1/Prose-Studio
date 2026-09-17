@@ -1,7 +1,66 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — Weak-adverb scan built and wired (see below). Server-side
+**CLAUDE:** idle — 2026-09-17. **MongoDB is gone.** The engine stores its records
+as encrypted files in `data/` beside the app, unlocked at sign-in by the writer's
+own password. Also gone: .env, dotenv, connect-mongo, mongoose. Verified with four
+drivers, 143 checks, including a real browser run of the first-run wizard.
+
+- **services/db/** is a drop-in for the slice of mongoose this app used, so the
+  models and every controller read as they always did — only the `require` line
+  in each model changed. Unsupported query/update operators THROW rather than
+  silently matching nothing: add them in `query.js` rather than working around
+  one. Files carry no extension and are AES-256-GCM; `keywrap.json` is the only
+  readable file in the folder and must stay that way.
+- **services/config/Vault.js** — the password derives (scrypt) a wrapping key,
+  which unwraps a random DATA key, which encrypts the files. The indirection is
+  the design: a password change rewraps one small key instead of re-encrypting
+  the folder, several accounts can each hold their own wrap of the same key, and
+  a RECOVERY CODE is just another wrap. Unwrapping is also authentication —
+  GCM fails on the wrong key — which is what resolves the chicken-and-egg of
+  user records living inside the thing you need a password to open.
+- **The app boots LOCKED.** Nothing is readable before a sign-in, so the
+  manuscript watcher starts on first unlock (`Vault.onUnlock`) rather than at
+  boot. The setup gate now has three states: no account -> /setup, locked ->
+  /login, unlocked -> through. Sessions are in memory, because a session that
+  outlived the process would be a key to a door that is already bolted.
+- **Reading while locked MUST throw, and that is a data-loss guard, not tidiness.**
+  An earlier version asked for the key, got "locked", took it for "this file will
+  not decrypt", moved the writer's data file aside and carried on empty — on a
+  plain read. `assertUnlocked()` in Store.js runs before any file work, and Vault
+  errors carry `code: 'LOCKED'` so the two cases can never be confused again.
+- **`secret: true` in a schema is ENFORCED**, not a comment: the store refuses to
+  write the Gemini key or the GitHub token unless the value is already
+  ciphertext. Forgetting to encrypt is now a loud error at the write.
+- **Found en route, pre-existing:** StorageService caches the story root and only
+  `setStoryRoot()` busted that cache, so setting the folder from the Settings
+  screen left the engine on the OLD root until a restart. Fixed in
+  SystemSettingsController.
+- **Ben must re-enter his Gemini key and story root** — the old Mongo data is not
+  migrated. His .env still exists on disk and is no longer read by anything.
+- **Deliberately not done:** per-user data isolation. Every account unwraps the
+  same data key, which matches what the app already was (roles guarded the
+  routes; Mongo had no per-user boundary either). Storage is the wrong layer for
+  that boundary — it belongs in route-level ownership checks. Also not done: the
+  Electron packaging this was groundwork for. A writer-facing README now exists.
+
+**CLAUDE (previous):** idle — 2026-09-16. Ben confirmed per-chapter music plays correctly
+in the app; the Music level stepper has not been separately confirmed:
+- **Chapter settings live in a header at the top of the chapter's .md**
+  (`services/manuscript/ChapterHeader.js`). Only keys in `KEYS` count (just
+  `music` today), so a scene break or `Tuesday: morning` is never taken for
+  one. `ManuscriptService.read` returns the body only (plus `meta`); `write`
+  puts the disk header back on top; `setMeta` edits it (GET/POST
+  `/api/manuscript/meta`). TextPlan strips it again as a second guard. **Any
+  new code that reads a chapter must go through ManuscriptService** or it
+  will see the header. Sidecar .json was rejected: renames would orphan it.
+- Narrator menu: "Chapter music" row (Default / None / track; `music: none` =
+  silent on purpose) follows `manuscriptOpened`; saving fires
+  `chapterMetaSaved` so the Editor adopts the new mtime.
+- "Music level" stepper (5% steps, localStorage `narrator_music_volume`,
+  default 12%). MusicBed.setVolume uses clearSchedule; start() resets master gain.
+Service round-trip tested in node against a temp folder. Before that: Weak-adverb scan built and
+wired (see below). Server-side
 driven and verified; the PANEL IS UNVERIFIED IN A BROWSER, because the dev
 server on 3100 was running stale code and I did not restart Ben's instance.
 Previously: Review menu toggles now actually draw (they never did, see

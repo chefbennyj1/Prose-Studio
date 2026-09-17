@@ -1,15 +1,25 @@
 // Middleware to handle authentication checks for web and API routes
 
-// Secret for internal tools (e.g., headless PNG Exporter). Set via INTERNAL_EXPORT_SECRET in .env.
+// Secret for internal tools (e.g., headless PNG Exporter). Derived from the
+// master key in the user's profile — it used to be INTERNAL_EXPORT_SECRET in
+// .env, which no longer exists.
 //
-// Read per call, not captured at require time: setup generates the secret into
-// process.env on a fresh install, after this module has already loaded.
+// Read per call, not captured at require time: the key file creates itself on
+// first use, which may be after this module has loaded.
 //
-// The `!secret` guard is load-bearing. Without it, an install missing the env
-// var compared `undefined === undefined` for a request that sent no header at
-// all, and every protected route in the app opened.
+// The `!secret` guard is load-bearing. Without it, an install where the secret
+// was missing compared `undefined === undefined` for a request that sent no
+// header at all, and every protected route in the app opened. Deriving the
+// value means it can no longer be missing, and the guard stays anyway: it costs
+// nothing and it is the check that failed open last time.
 function isInternalExport(req) {
-  const secret = process.env.INTERNAL_EXPORT_SECRET;
+  let secret;
+  try {
+    secret = require('../services/config/Vault').exportSecret();
+  } catch {
+    return false;
+  }
+
   if (!secret) return false;
   return req.headers['x-export-secret'] === secret || req.query.exportSecret === secret;
 }

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const db = require('../services/db');
+const Schema = db.Schema;
 
 const globalSettingsSchema = new Schema({
     key: {
@@ -22,7 +22,9 @@ const globalSettingsSchema = new Schema({
     // gone; nothing read them. Migrated from `vision` on boot.
     critic: {
         enabled: { type: Boolean, default: false },
-        apiKey: { type: String, default: "" }, // Encrypted
+        // `secret` is enforced, not documentation: the store refuses to write
+        // this field unless the value is already ciphertext. See services/db/Schema.js.
+        apiKey: { type: String, default: "", secret: true },
         modelName: { type: String, default: "gemini-flash-latest" }
     },
     // Manuscript backup to GitHub.
@@ -37,7 +39,7 @@ const globalSettingsSchema = new Schema({
     // always private, and the field exists so the dashboard can show the
     // visibility of one the writer connected themselves.
     github: {
-        token: { type: String, default: "" },   // Encrypted classic PAT, `repo` scope
+        token: { type: String, default: "", secret: true },   // Encrypted classic PAT, `repo` scope
         repos: [{
             _id: false,
             story: { type: String, required: true },   // folder name under the story root
@@ -48,4 +50,4 @@ const globalSettingsSchema = new Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('GlobalSettings', globalSettingsSchema);
+module.exports = db.model('GlobalSettings', globalSettingsSchema);

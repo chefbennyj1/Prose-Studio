@@ -1,10 +1,13 @@
-// First-run wizard: point the engine at a database, then create the admin.
+// First-run wizard: create the writer's account, then make them keep the
+// recovery code.
 //
-// Both steps are re-entrant. /setup/status says which one you're on, so a
-// refresh (or a browser closed halfway) resumes rather than starting over.
+// It used to open on "paste a MongoDB connection string", which is a question
+// about somebody else's job, and it is gone along with the database server. The
+// second step is new and is the more important one: the account's password
+// encrypts the data folder, so the recovery code is the only way back in if it
+// is forgotten. That is worth an extra screen, a download and a checkbox.
 
 const FIELD_ERRORS = [
-  'setup__uri__err',
   'setup__username__err',
   'setup__email__err',
   'setup__password__err',
@@ -13,8 +16,8 @@ const FIELD_ERRORS = [
 
 export function init() {
   const steps = {
-    database: document.querySelector('[data-step="database"]'),
-    admin: document.querySelector('[data-step="admin"]')
+    admin: document.querySelector('[data-step="admin"]'),
+    recovery: document.querySelector('[data-step="recovery"]')
   };
 
   const backdrop = document.getElementById('setupModalBackdrop');
@@ -47,66 +50,21 @@ export function init() {
   };
 
   const showStep = (name) => {
-    for (const [key, form] of Object.entries(steps)) {
-      form.classList.toggle('is-active', key === name);
+    for (const [key, node] of Object.entries(steps)) {
+      node.classList.toggle('is-active', key === name);
     }
 
     document.querySelectorAll('[data-step-indicator]').forEach(node => {
       const step = node.dataset.stepIndicator;
       node.classList.toggle('is-active', step === name);
-      node.classList.toggle('is-complete', step === 'database' && name === 'admin');
+      node.classList.toggle('is-complete', step === 'admin' && name === 'recovery');
     });
 
     const firstInput = steps[name].querySelector('input');
     if (firstInput) firstInput.focus();
   };
 
-  // --- Step 1: database ---
-  const databaseForm = document.getElementById('databaseForm');
-  const databaseSubmit = document.getElementById('databaseSubmit');
-  const uriInput = document.getElementById('setup__uri');
-
-  databaseForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearErrors();
-    setNote('databaseNote', 'Testing the connection…');
-    databaseSubmit.disabled = true;
-
-    try {
-      const res = await fetch('/setup/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: uriInput.value.trim() })
-      });
-      const data = await res.json();
-
-      if (!data.ok) {
-        const err = document.getElementById('setup__uri__err');
-        err.textContent = data.message;
-        err.hidden = false;
-        uriInput.setAttribute('aria-invalid', 'true');
-        setNote('databaseNote', '');
-        return;
-      }
-
-      uriInput.removeAttribute('aria-invalid');
-      setNote('databaseNote', data.message);
-
-      // An existing database may already have accounts, which ends the wizard.
-      if (data.hasUsers) {
-        window.location.href = '/login';
-        return;
-      }
-      showStep('admin');
-    } catch (err) {
-      showModal('Could not reach the server. Is it still running?');
-      setNote('databaseNote', '');
-    } finally {
-      databaseSubmit.disabled = false;
-    }
-  });
-
-  // --- Step 2: admin account ---
+  // --- Step 1: the account ---
   const adminForm = document.getElementById('adminForm');
   const adminSubmit = document.getElementById('adminSubmit');
 
@@ -128,7 +86,7 @@ export function init() {
       return;
     }
 
-    setNote('adminNote', 'Creating the account…');
+    setNote('adminNote', 'Creating your account…');
     adminSubmit.disabled = true;
 
     try {
@@ -145,8 +103,8 @@ export function init() {
         return;
       }
 
-      setNote('adminNote', `${data.message} Taking you to the login…`);
-      window.location.href = data.redirect || '/login';
+      setNote('adminNote', '');
+      showRecoveryCode(data.recoveryCode);
     } catch (err) {
       showModal('Could not reach the server. Is it still running?');
       setNote('adminNote', '');
@@ -154,7 +112,98 @@ export function init() {
     }
   });
 
+  // --- Step 2: the recovery code ---
+  const codeNode = document.getElementById('recoveryCode');
+  const downloadButton = document.getElementById('recoveryDownload');
+  const copyButton = document.getElementById('recoveryCopy');
+  const confirmBox = document.getElementById('recoveryConfirm');
+  const continueButton = document.getElementById('recoveryContinue');
+
+  let recoveryCode = '';
+
+  function showRecoveryCode(code) {
+    // A missing code would mean the account was made but the wizard cannot show
+    // the one thing this step exists for. Say so rather than showing a blank
+    // box the writer would tick past.
+    if (!code) {
+      showModal('Your account was created, but the recovery code could not be displayed. ' +
+                'Sign in and generate a new one from Settings before you rely on it.');
+      window.location.href = '/login';
+      return;
+    }
+
+    recoveryCode = code;
+    codeNode.textContent = code;
+    showStep('recovery');
+    codeNode.focus();
+  }
+
+  /**
+   * Written client-side rather than served, so the code never travels back over
+   * the wire to be downloaded — it is already on this page and nowhere else.
+   */
+  downloadButton.addEventListener('click', () => {
+    const when = new Date().toISOString().slice(0, 10);
+    const contents = [
+      'PROSE ENGINE — RECOVERY CODE',
+      '',
+      recoveryCode,
+      '',
+      `Created ${when}`,
+      '',
+      'What this is:',
+      '  The only way back into your Prose Engine settings if you forget your',
+      '  password. Keep it somewhere that is not this computer — a password',
+      '  manager, a printout, a note in a drawer.',
+      '',
+      'What it is NOT:',
+      '  It is not needed to open your writing. Your chapters are ordinary',
+      '  files in the story folder you chose, and nothing locks them.',
+      '',
+      'To use it: open Prose Engine, and on the sign-in page choose to reset',
+      'your password with this code.',
+      ''
+    ].join('\r\n'); // CRLF so it opens tidily in Notepad
+
+    const blob = new Blob([contents], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `prose-engine-recovery-code-${when}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    setNote('recoveryNote', 'Saved to your downloads folder.');
+    confirmBox.checked = true;
+    continueButton.disabled = false;
+  });
+
+  copyButton.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(recoveryCode);
+      setNote('recoveryNote', 'Copied. Paste it somewhere safe before you continue.');
+    } catch {
+      // Clipboard access can be refused; the code is on screen either way.
+      setNote('recoveryNote', 'Could not copy automatically — select the code above and copy it.', true);
+    }
+  });
+
+  confirmBox.addEventListener('change', () => {
+    continueButton.disabled = !confirmBox.checked;
+  });
+
+  continueButton.addEventListener('click', () => {
+    window.location.href = '/login';
+  });
+
   // --- Resume wherever setup got to ---
+  //
+  // Only the account step is resumable. Once it succeeds the recovery code
+  // exists and has been shown; a refresh at that point cannot bring it back,
+  // which is why the wizard never reloads its way into step 2.
   (async () => {
     try {
       const res = await fetch('/setup/status');
@@ -165,16 +214,14 @@ export function init() {
         return;
       }
 
-      uriInput.value = status.suggestedUri || '';
-
-      if (status.dbConnected) {
-        setNote('databaseNote', `Already connected to '${status.dbName}'.`);
-        showStep('admin');
-      } else {
-        showStep('database');
+      if (!status.storeReady) {
+        showModal(`Prose Engine cannot write to its data folder (${status.storeDirectory}). ` +
+                  'Setup will not be able to save your account until that folder is writable.');
       }
+
+      showStep('admin');
     } catch (err) {
-      showStep('database');
+      showStep('admin');
     }
   })();
 }

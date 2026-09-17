@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const fs = require('fs').promises;
 const path = require('path');
 

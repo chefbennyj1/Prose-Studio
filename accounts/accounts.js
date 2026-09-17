@@ -28,4 +28,9 @@ router.post('/approve/:requestId', isAdmin, AccountsController.approveRequest);
 router.post('/deny/:requestId',    isAdmin, AccountsController.denyRequest);
 router.delete('/delete/:userId',   isAdmin, AccountsController.deleteAccount);
 
+// Password resets are an admin job now, and they have to be: the data folder is
+// encrypted with the writer's password, so a reset is only possible for someone
+// who already holds the key — which means someone who is already signed in.
+router.post('/password/:userId',   isAdmin, AccountsController.resetPassword);
+
 module.exports = router;

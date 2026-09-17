@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const Series = require('../models/Series');
 const Volume = require('../models/Volume');
 const path = require('path');

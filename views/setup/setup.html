@@ -13,48 +13,22 @@
     </header>
 
     <nav class="glass-stepper setup-stepper" aria-label="Setup progress">
-      <div class="glass-step is-active" data-step-indicator="database">
+      <div class="glass-step is-active" data-step-indicator="admin">
         <span class="glass-step__node">1</span>
-        <span class="glass-step__label">Database</span>
+        <span class="glass-step__label">Your account</span>
         <span class="glass-step__connector"></span>
       </div>
-      <div class="glass-step" data-step-indicator="admin">
+      <div class="glass-step" data-step-indicator="recovery">
         <span class="glass-step__node">2</span>
-        <span class="glass-step__label">Admin account</span>
+        <span class="glass-step__label">Recovery code</span>
       </div>
     </nav>
 
-    <!-- Step 1: database -->
-    <form id="databaseForm" class="auth-form setup-step is-active" data-step="database" novalidate>
+    <!-- Step 1: the writer's account, which also locks the data folder -->
+    <form id="adminForm" class="auth-form setup-step is-active" data-step="admin" novalidate>
       <p class="auth-form__lede">
-        The engine needs its own MongoDB database. Give it a connection string —
-        the database will be created if it doesn't exist yet.
-      </p>
-
-      <div class="auth-field">
-        <label class="auth-field__label" for="setup__uri">Connection string</label>
-        <div class="glass-input-wrap">
-          <input type="text" id="setup__uri" name="uri" class="glass-input"
-                 placeholder="mongodb://localhost:27017/ProseEngine"
-                 autocomplete="off" spellcheck="false" required>
-        </div>
-        <p class="glass-field-error setup-error" id="setup__uri__err" hidden></p>
-      </div>
-
-      <div class="auth-form__actions">
-        <button type="submit" id="databaseSubmit" class="glass-btn glass-btn--primary glass-btn--lg">
-          Test &amp; create database
-        </button>
-      </div>
-
-      <p class="auth-form__note setup-note" id="databaseNote" hidden></p>
-    </form>
-
-    <!-- Step 2: first admin -->
-    <form id="adminForm" class="auth-form setup-step" data-step="admin" novalidate>
-      <p class="auth-form__lede">
-        This account is the administrator. Everyone else is created from the
-        dashboard once you're in.
+        This is your account, and your password also locks your work on this
+        computer. Nothing else to install and nothing to configure.
       </p>
 
       <div class="auth-field">
@@ -81,6 +55,11 @@
           <input type="password" id="setup__password" name="password" class="glass-input"
                  autocomplete="new-password" required minlength="8" maxlength="128">
         </div>
+        <p class="auth-field__hint">
+          At least 8 characters. Your settings are encrypted with it, so pick
+          something you will remember — your chapters are ordinary files and are
+          never locked.
+        </p>
         <p class="glass-field-error setup-error" id="setup__password__err" hidden></p>
       </div>
 
@@ -95,12 +74,53 @@
 
       <div class="auth-form__actions">
         <button type="submit" id="adminSubmit" class="glass-btn glass-btn--primary glass-btn--lg">
-          Create admin &amp; finish
+          Create my account
         </button>
       </div>
 
       <p class="auth-form__note setup-note" id="adminNote" hidden></p>
     </form>
+
+    <!-- Step 2: the recovery code. Shown once, and only once. -->
+    <section class="auth-form setup-step" data-step="recovery" aria-labelledby="recoveryHeading">
+      <h2 id="recoveryHeading" class="glass-card__title recovery__heading">Save your recovery code</h2>
+
+      <p class="auth-form__lede">
+        This is the only way back into your settings if you forget your password.
+        It is shown now and never again.
+      </p>
+
+      <p class="recovery__code" id="recoveryCode" tabindex="0" aria-label="Your recovery code"></p>
+
+      <div class="auth-form__actions recovery__actions">
+        <button type="button" id="recoveryDownload" class="glass-btn glass-btn--primary">
+          Save to a file
+        </button>
+        <button type="button" id="recoveryCopy" class="glass-btn glass-btn--ghost">
+          Copy
+        </button>
+      </div>
+
+      <p class="auth-form__note setup-note" id="recoveryNote" hidden></p>
+
+      <label class="recovery__confirm">
+        <input type="checkbox" id="recoveryConfirm">
+        <span>I have saved my recovery code somewhere safe.</span>
+      </label>
+
+      <div class="auth-form__actions">
+        <button type="button" id="recoveryContinue" class="glass-btn glass-btn--primary glass-btn--lg" disabled>
+          Start writing
+        </button>
+      </div>
+
+      <p class="auth-form__lede recovery__reassure">
+        Losing both your password and this code would mean setting the app up
+        again from scratch. It would <strong>not</strong> touch your writing —
+        chapters are plain files in the folder you choose, and nothing here ever
+        locks them.
+      </p>
+    </section>
 
   </div>
 </div>

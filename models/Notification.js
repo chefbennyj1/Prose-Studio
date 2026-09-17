@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
+const db = require('../services/db');
 
-const notificationSchema = new mongoose.Schema({
+const notificationSchema = new db.Schema({
   user: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: db.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
     index: true
@@ -31,4 +31,4 @@ const notificationSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Notification', notificationSchema);
+module.exports = db.model('Notification', notificationSchema);

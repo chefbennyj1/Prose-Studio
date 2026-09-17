@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const path = require('path');
 const LibraryRoot = require('../models/LibraryRoot');
 

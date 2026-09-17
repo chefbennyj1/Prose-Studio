@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const Volume = require('../models/Volume');
 
 async function inspectRedux() {

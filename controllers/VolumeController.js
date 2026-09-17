@@ -1,6 +1,6 @@
 const VolumeManager = require("../services/VolumeService.js");
 const VolumeModel = require('../models/Volume.js');
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const path = require('path');
 const fs = require('fs');
 const { resolveSeriesPath } = require('../services/HierarchyLookupService');

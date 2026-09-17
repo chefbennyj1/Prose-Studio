@@ -32,6 +32,18 @@ async function updateUser(userId, email, currentPassword, newPassword) {
 
         if (newPassword && newPassword.length) {
             user.password = await bcrypt.hash(newPassword, 12);
+
+            // The data folder is locked with this password too, so changing it
+            // in one place and not the other would leave the writer with an
+            // account they can sign into and a folder it no longer opens.
+            // Rewraps one small key; the encrypted files are not touched.
+            const Vault = require('./config/Vault.js');
+            const rewrapped = await Vault.changePassword(currentPassword, newPassword);
+            if (!rewrapped) {
+                // The account record was already saved above in the normal path,
+                // so enrol the new password rather than leaving it half-changed.
+                await Vault.addPassword(newPassword);
+            }
         }
 
         await user.save();

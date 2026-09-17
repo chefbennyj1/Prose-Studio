@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const db = require('../services/db');
+const Schema = db.Schema;
 
 const seriesSchema = new Schema({
     title: {
@@ -51,4 +51,4 @@ const seriesSchema = new Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Series', seriesSchema);
+module.exports = db.model('Series', seriesSchema);

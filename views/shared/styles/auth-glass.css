@@ -215,3 +215,63 @@ body.setup-page-shell {
     justify-content: center;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Recovery code — the one screen in setup that has to be read, not skimmed
+
+   The code is set in a monospace face at a size you can read off a screen
+   while typing it into a phone, and spaced out so the groups are obvious. The
+   reassurance below it is deliberately not styled as small print: "your
+   chapters are safe" is the sentence that stops a writer panicking, and small
+   print is what people skip.
+   -------------------------------------------------------------------------- */
+.recovery__heading {
+  margin-bottom: var(--space-2, 0.5rem);
+}
+
+.recovery__code {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: clamp(1.05rem, 1rem + 0.6vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  word-break: break-all;
+  padding: var(--space-4, 1rem);
+  margin: var(--space-3, 0.75rem) 0;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.25));
+  background: var(--glass-surface-strong, rgba(255, 255, 255, 0.12));
+  user-select: all;
+}
+
+.recovery__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 0.5rem);
+}
+
+.recovery__confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2, 0.5rem);
+  margin: var(--space-3, 0.75rem) 0;
+  cursor: pointer;
+}
+
+.recovery__confirm input {
+  margin-top: 0.2em;
+  flex: none;
+}
+
+.recovery__reassure {
+  margin-top: var(--space-3, 0.75rem);
+  opacity: 0.85;
+}
+
+/* Hints under a field: quieter than a label, louder than nothing. */
+.auth-field__hint {
+  margin: var(--space-1, 0.25rem) 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+  line-height: 1.45;
+}

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const db = require('../services/db');
+const Schema = db.Schema;
 
 const libraryRootSchema = new Schema({
     name: {
@@ -19,4 +19,4 @@ const libraryRootSchema = new Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('LibraryRoot', libraryRootSchema);
+module.exports = db.model('LibraryRoot', libraryRootSchema);

@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const mongoose = require('mongoose');
+const mongoose = require('../services/db');
 const AccountRequest = require('../models/AccountRequest.js');
 const UserModel = require('../models/User.js');
 
@@ -89,6 +89,13 @@ exports.createAccount = async (req, res) => {
             role: assignedRole
         });
 
+        // The plaintext is in hand here, so this account can open the data
+        // folder from its very first sign-in. (An account approved from a
+        // sign-up REQUEST cannot be enrolled this way — only the hash was ever
+        // stored — so that one is enrolled at first sign-in instead. See
+        // authentication/authentication.js.)
+        await require('../services/config/Vault.js').addPassword(password);
+
         return res.json({ ok: true, message: `Account created for ${clean.username}.`, userId: user._id });
     } catch (err) {
         console.error('[AccountsController] createAccount error:', err);
@@ -128,6 +135,48 @@ exports.approveRequest = async (req, res) => {
         return res.json({ ok: true, message: `Account approved for ${request.username}.` });
     } catch (err) {
         console.error('[AccountsController] approveRequest error:', err);
+        return res.status(500).json({ ok: false, message: 'Server error.' });
+    }
+};
+
+// --- POST /accounts/password/:userId (admin only) ---
+//
+// Resetting someone's password now does two things that used to be one: it
+// changes the account record, and it enrols the new password on the data
+// folder's lock. The second is only possible because the admin doing it is
+// SIGNED IN — they hold the unwrapped data key, so a new wrap can be made
+// without anyone knowing the old password.
+//
+// This is why an admin has to exist for a forgotten password, and why the
+// recovery code from setup is the admin's own backstop: nobody can do this for
+// the last account without one of the two.
+exports.resetPassword = async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!mongoose.isValidObjectId(userId)) {
+        return res.status(400).json({ ok: false, message: 'Invalid user ID.' });
+    }
+    if (!newPassword || String(newPassword).length < 8) {
+        return res.status(400).json({ ok: false, message: 'The new password must be at least 8 characters.' });
+    }
+
+    try {
+        const user = await UserModel.findById(userId);
+        if (!user) return res.status(404).json({ ok: false, message: 'No such account.' });
+
+        user.password = await bcrypt.hash(newPassword, 12);
+        await user.save();
+
+        await require('../services/config/Vault.js').addPassword(newPassword);
+
+        console.log(`[Accounts] Password reset for ${user.email} by an admin.`);
+        return res.json({
+            ok: true,
+            message: `Password reset for ${user.username}. Tell them to sign in with it and change it.`
+        });
+    } catch (err) {
+        console.error('[AccountsController] resetPassword error:', err);
         return res.status(500).json({ ok: false, message: 'Server error.' });
     }
 };

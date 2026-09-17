@@ -17,7 +17,7 @@
  */
 
 const path = require('path');
-const mongoose = require('mongoose');
+const mongoose = require('./db');
 const Series = require('../models/Series');
 const Volume = require('../models/Volume');
 const LibraryRoot = require('../models/LibraryRoot');

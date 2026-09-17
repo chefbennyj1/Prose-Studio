@@ -31,7 +31,17 @@ exports.updateGlobalSettings = async (req, res) => {
         if (!doc) doc = new GlobalSettings({ key: "main" });
 
         if (settings.storage) {
-            if (settings.storage.storyRoot !== undefined) doc.storage.storyRoot = settings.storage.storyRoot;
+            if (settings.storage.storyRoot !== undefined && settings.storage.storyRoot !== doc.storage.storyRoot) {
+                doc.storage.storyRoot = settings.storage.storyRoot;
+
+                // StorageService caches the root — it is read on nearly every
+                // manuscript call — and only setStoryRoot() busted that cache.
+                // This route writes the same field by another door, so without
+                // this the engine kept using the OLD root until a restart:
+                // chapters listed from the previous folder, and saves refused
+                // with "no story folder is set" while Settings showed one.
+                require('../services/StorageService.js').clearCache();
+            }
         }
 
         if (settings.critic) {

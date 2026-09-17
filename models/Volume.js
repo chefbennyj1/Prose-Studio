@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const db = require('../services/db');
+const Schema = db.Schema;
 
 
 const pageSchema = new Schema({
@@ -36,4 +36,4 @@ const volumeSchema = new Schema({
     chapters: [chapterSchema]
 });
 
-module.exports = mongoose.model('Volume', volumeSchema, 'Volumes');
+module.exports = db.model('Volume', volumeSchema, 'Volumes');

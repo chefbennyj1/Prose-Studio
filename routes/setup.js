@@ -5,7 +5,7 @@ const router = express.Router();
 const SetupController = require('../controllers/SetupController.js');
 
 // The wizard is unauthenticated by necessity — there is nobody to authenticate
-// as yet. Both write steps refuse once setup is complete, so the exposure is a
+// as yet. The write step refuses once setup is complete, so the exposure is a
 // fresh install on the local network; the limiter caps what that's worth.
 const setupLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -21,7 +21,8 @@ const setupLimiter = rateLimit({
 router.get('/',        SetupController.getSetup);
 router.get('/status',  SetupController.getStatus);
 
-router.post('/database', setupLimiter, SetupController.configureDatabase);
+// The database step is gone with the database server. Creating the first
+// account is now the whole wizard, and it is also what locks the data folder.
 router.post('/admin',    setupLimiter, SetupController.createFirstAdmin);
 
 module.exports = router;
