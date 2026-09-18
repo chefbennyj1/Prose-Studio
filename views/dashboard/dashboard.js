@@ -121,7 +121,21 @@ export async function init(container) {
             try { initCreateChapter(); } catch (err) { console.error("Create Chapter init failed", err); }
         }
         if (section === 'editor') {
-             try { initEditor(container); } catch (err) { console.error("Editor init failed", err); }
+             try {
+                 initEditor(container);
+                 /*
+                  * Say so, because the rail menus need to know.
+                  *
+                  * The editor is what listens for `openManuscript` and what
+                  * answers with `manuscriptOpened`, and it does not exist until
+                  * this line has run. Choosing a story from another section
+                  * therefore dispatched into nothing: the rail never learned
+                  * which story was open, so the chapter list stayed empty and
+                  * said "Open a story first" — while the writer looked at the
+                  * story they had just picked.
+                  */
+                 document.dispatchEvent(new CustomEvent('editorReady'));
+             } catch (err) { console.error("Editor init failed", err); }
         }
         if (section === 'characters') {
              try { new CharacterEditor(container); } catch (err) { console.error("CharacterEditor init failed", err); }

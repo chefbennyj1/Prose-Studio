@@ -36,6 +36,19 @@ import { escapeHtml } from '../Editor/EditorRender.js';
 
 let current = { story: null, chapter: null };
 
+/**
+ * Whether the editor exists yet.
+ *
+ * Sections are initialised lazily, when their fragment loads, and the editor is
+ * the only thing that listens for `openManuscript`. Until it has been opened
+ * once, choosing a story from these menus dispatched an event with no listener:
+ * nothing opened, `current.story` was never set by the echo, and the chapter
+ * list stayed on "Open a story first" while the writer stared at the story they
+ * had just chosen. It worked as soon as they visited the Editor, which is the
+ * kind of bug people learn to walk around instead of reporting.
+ */
+let editorReady = false;
+
 export function initRailMenus() {
     const menus = [...document.querySelectorAll('.rail-menu')];
     menus.forEach(wire);
@@ -70,6 +83,43 @@ export function initRailMenus() {
             chapter: event.detail?.chapter || null
         };
     });
+
+    document.addEventListener('editorReady', () => { editorReady = true; });
+
+    // It may already have loaded before these menus were wired, in which case
+    // the event above has been and gone. #editorSurface is where the writing
+    // surface mounts (see Editor.js), so a CodeMirror inside it means the
+    // editor is up.
+    if (document.querySelector('#editorSurface .cm-editor')) editorReady = true;
+}
+
+/**
+ * Runs `andThen` once the editor is there to hear it, opening the Editor
+ * section first if it has not been opened yet.
+ *
+ * Choosing a story or a chapter MEANS "open this", and the place it opens is
+ * the editor — so going there is the honest response to the click, not a
+ * workaround. The wait matters: the fragment loads asynchronously and
+ * dispatching into the gap would be the same silence this fixes.
+ */
+function withEditor(andThen) {
+    if (editorReady) return andThen();
+
+    const go = document.querySelector('.studio-rail__btn[data-target="editor"]');
+    if (!go) return andThen();   // no way to get there; better to try than to do nothing
+
+    const once = () => {
+        document.removeEventListener('editorReady', once);
+        clearTimeout(timer);
+        andThen();
+    };
+    document.addEventListener('editorReady', once);
+
+    // If it never announces itself, go ahead anyway rather than swallowing the
+    // click. A late listener is still better than no attempt.
+    const timer = setTimeout(once, 4000);
+
+    go.click();
 }
 
 function closeMenu(root) {
@@ -264,5 +314,15 @@ function choose(kind, name) {
         ? { story: name, chapter: null }
         : { story: current.story, chapter: name };
 
-    document.dispatchEvent(new CustomEvent('openManuscript', { detail }));
+    /*
+     * Remember the story straight away rather than waiting for the editor's
+     * echo. The echo still arrives and still corrects this, but the chapter
+     * list is usually opened within a second of choosing the story, and
+     * `manuscriptOpened` does not come back until a chapter has been read off
+     * disk. Without this, the flyout had nothing to fetch with and said "Open a
+     * story first" about the story that was already opening.
+     */
+    if (kind === 'story') current = { story: name, chapter: null };
+
+    withEditor(() => document.dispatchEvent(new CustomEvent('openManuscript', { detail })));
 }
