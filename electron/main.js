@@ -11,7 +11,7 @@
 // not a fork, and anything that behaves differently here would be a second
 // implementation to keep honest.
 
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, MenuItem, shell, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -123,6 +123,116 @@ function waitForServer(port, timeoutMs = 30000) {
     });
 }
 
+/**
+ * Chromium's spellchecker, which a desktop build does not get for free.
+ *
+ * In a browser the red underlines are simply there. In Electron the session's
+ * spellchecker is off until it is switched on and given a language, so the
+ * writing surface had `spellcheck: true` on it and nothing to check with — the
+ * one thing a writer notices the absence of immediately.
+ *
+ * The languages come from the operating system, not a hardcoded en-US: someone
+ * writing in Canadian or Australian English should be spellchecked in it, and
+ * the OS already knows which they use. Falls back to en-US only if the system
+ * offers nothing this build can support.
+ */
+function enableSpellchecker() {
+    const ses = session.defaultSession;
+
+    try {
+        ses.setSpellCheckerEnabled(true);
+
+        const available = ses.availableSpellCheckerLanguages || [];
+        const wanted = [app.getLocale(), 'en-US'].filter(Boolean);
+        const chosen = wanted.find(code => available.includes(code))
+            || wanted.find(code => available.includes(code.split('-')[0]))
+            || 'en-US';
+
+        ses.setSpellCheckerLanguages([chosen]);
+        console.log(`[Spellcheck] on, using ${chosen}`);
+
+        /*
+         * Chromium fetches its dictionary the first time it needs one, and
+         * until that lands NOTHING is underlined — the checker is "on" and
+         * silent, which looks exactly like the checker being off.
+         *
+         * A failure is reported rather than swallowed because it is the only
+         * explanation a writer could act on: no dictionary means no red lines,
+         * and the cause is almost always a network that blocked the download.
+         * Prose Engine's own spell scan is unaffected either way; that one
+         * ships its dictionary and runs on the server.
+         */
+        ses.on('spellcheck-dictionary-download-success', () => {
+            console.log('[Spellcheck] dictionary downloaded.');
+        });
+        ses.on('spellcheck-dictionary-initialized', () => {
+            console.log('[Spellcheck] dictionary ready.');
+        });
+        ses.on('spellcheck-dictionary-download-failure', () => {
+            console.warn(`[Spellcheck] the ${chosen} dictionary could not be downloaded, so words will not be underlined as you type.`);
+            console.warn('[Spellcheck] The Spelling check in the Review menu still works — it runs on this machine.');
+        });
+    } catch (err) {
+        // macOS uses the system spellchecker and refuses to be told the
+        // language; that is not a failure, it is already working.
+        console.log(`[Spellcheck] using the system spellchecker (${err.message})`);
+    }
+}
+
+/**
+ * The right-click menu.
+ *
+ * Electron windows have NO context menu unless one is built, which is why
+ * right-clicking a misspelling did nothing: Chromium had the suggestions and
+ * there was nowhere for them to appear. It also means no cut, copy or paste by
+ * mouse, which in a writing app is its own small outrage.
+ *
+ * "Add to dictionary" teaches the browser's checker only. Prose Engine's own
+ * dictionary is a separate thing with its own screen — a writer adding a
+ * character's name here stops seeing the red line, which is what they asked
+ * for, and the server-side spell scan still reports it until they add it there
+ * too. Saying so in the label would be noise; the two are described in the
+ * Dictionary section.
+ */
+function wireContextMenu(contents) {
+    contents.on('context-menu', (event, params) => {
+        const menu = new Menu();
+        const word = params.misspelledWord;
+
+        if (process.env.PROSE_SPELL_DEBUG) {
+            console.log(`[Spellcheck] context menu: word=${word ? `"${word}"` : '(none flagged)'} -> ${params.dictionarySuggestions.join(', ') || '(no suggestions)'}`);
+        }
+
+        if (word) {
+            for (const suggestion of params.dictionarySuggestions) {
+                menu.append(new MenuItem({
+                    label: suggestion,
+                    click: () => contents.replaceMisspelling(suggestion)
+                }));
+            }
+
+            if (!params.dictionarySuggestions.length) {
+                menu.append(new MenuItem({ label: 'No suggestions', enabled: false }));
+            }
+
+            menu.append(new MenuItem({ type: 'separator' }));
+            menu.append(new MenuItem({
+                label: 'Add to Dictionary',
+                click: () => session.defaultSession.addWordToSpellCheckerDictionary(word)
+            }));
+            menu.append(new MenuItem({ type: 'separator' }));
+        }
+
+        menu.append(new MenuItem({ role: 'cut', enabled: params.editFlags.canCut }));
+        menu.append(new MenuItem({ role: 'copy', enabled: params.editFlags.canCopy }));
+        menu.append(new MenuItem({ role: 'paste', enabled: params.editFlags.canPaste }));
+        menu.append(new MenuItem({ type: 'separator' }));
+        menu.append(new MenuItem({ role: 'selectAll' }));
+
+        menu.popup();
+    });
+}
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1360,
@@ -145,6 +255,8 @@ function createWindow() {
             spellcheck: true
         }
     });
+
+    wireContextMenu(mainWindow.webContents);
 
     mainWindow.once('ready-to-show', () => mainWindow.show());
     mainWindow.on('closed', () => { mainWindow = null; });
@@ -294,6 +406,8 @@ app.whenReady().then(async () => {
 
         require(path.join(APP_DIR, 'server.js'));
         await waitForServer(serverPort);
+
+        enableSpellchecker();
 
         buildMenu();
         createWindow();
