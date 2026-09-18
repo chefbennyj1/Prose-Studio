@@ -43,19 +43,42 @@ function resolveDataLocations() {
         };
     }
 
-    const beside = app.isPackaged ? path.dirname(app.getPath('exe')) : APP_DIR;
-
-    try {
-        fs.mkdirSync(path.join(beside, 'data'), { recursive: true });
-        const probe = path.join(beside, 'data', '.write-test');
-        fs.writeFileSync(probe, '1');
-        fs.unlinkSync(probe);
-
-        return { dataDir: path.join(beside, 'data'), configFile: path.join(beside, 'config.json'), portable: true };
-    } catch {
-        const userData = app.getPath('userData');
-        return { dataDir: path.join(userData, 'data'), configFile: path.join(userData, 'config.json'), portable: false };
+    /*
+     * Beside the executable ONLY for the portable build.
+     *
+     * This used to be "beside the exe whenever that folder is writable", which
+     * was wrong in a way that would have cost somebody their settings. The
+     * installer is per-user, so it installs into %LOCALAPPDATA%\Programs — a
+     * folder this app CAN write to. Data would have gone in there, inside the
+     * installation, where an uninstall or an upgrade is entitled to delete it.
+     * The writer would have reinstalled to get the new version and found their
+     * account and API key gone.
+     *
+     * PORTABLE_EXECUTABLE_DIR is set by electron-builder's portable target and
+     * by nothing else, so it is the honest way to tell "I am a single file the
+     * writer carries" from "I am installed". Installed builds keep their data
+     * in the user's own folder, which no installer touches.
+     */
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+        const beside = process.env.PORTABLE_EXECUTABLE_DIR;
+        try {
+            fs.mkdirSync(path.join(beside, 'data'), { recursive: true });
+            const probe = path.join(beside, 'data', '.write-test');
+            fs.writeFileSync(probe, '1');
+            fs.unlinkSync(probe);
+            return { dataDir: path.join(beside, 'data'), configFile: path.join(beside, 'config.json'), portable: true };
+        } catch {
+            // A stick that is full or read-only: fall through to the user folder
+            // rather than refusing to start.
+        }
     }
+
+    if (!app.isPackaged) {
+        return { dataDir: path.join(APP_DIR, 'data'), configFile: path.join(APP_DIR, 'config.json'), portable: true };
+    }
+
+    const userData = app.getPath('userData');
+    return { dataDir: path.join(userData, 'data'), configFile: path.join(userData, 'config.json'), portable: false };
 }
 
 const locations = resolveDataLocations();
@@ -110,6 +133,9 @@ function createWindow() {
                                       // first frame is not a white flash
         show: false,
         title: 'Prose Engine',
+        // Only needed when running from source: a packaged build takes its icon
+        // from the executable, which electron-builder stamps from the same file.
+        icon: path.join(APP_DIR, 'build', 'icon.png'),
         webPreferences: {
             // The page is our own server, but there is no reason for it to have
             // Node in reach: everything it needs comes over HTTP, exactly as it

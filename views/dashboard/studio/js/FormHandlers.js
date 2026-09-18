@@ -401,6 +401,21 @@ async function initGlobalSettings() {
         const btn = document.getElementById('saveGlobalSettingsBtn');
         if (!btn) return;
         await saveSettings('/api/settings/global', settings, btn, 'Gemini critic settings updated.');
+
+        /*
+         * Tell the Review menu to ask the server again.
+         *
+         * It has always listened for this event and nothing had ever fired it,
+         * so switching the AI on in Settings changed nothing visible: the menu
+         * had decided at page load that the AI was off and had no reason to
+         * reconsider. The writer pasted a key, saved, saw "Settings Saved", and
+         * found the Critique and Line-edit rows still missing — with no way to
+         * know that reloading the page was the missing step.
+         *
+         * Fired after the save resolves, so the menu re-reads a server that has
+         * already written the change rather than racing it.
+         */
+        document.dispatchEvent(new CustomEvent('aiSettingsChanged'));
     };
 }
 

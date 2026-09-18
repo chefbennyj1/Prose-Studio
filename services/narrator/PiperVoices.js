@@ -25,9 +25,26 @@ const { Readable } = require('stream');
 const INDEX_URL = 'https://huggingface.co/rhasspy/piper-voices/resolve/main/voices.json';
 const FILE_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
 
-// Beside the other downloaded models, and already in .gitignore. Voices run
-// 20-120MB each and must never reach the repository.
-const INSTALL_DIR = path.join(__dirname, '..', '..', 'ai_models', 'piper');
+/**
+ * Where downloaded voices live: beside the data store, in the writer's own
+ * folder.
+ *
+ * This was `__dirname/../../ai_models/piper`, which worked from a source
+ * checkout and could not work once the app was packaged. In a packaged build
+ * __dirname is inside app.asar — a read-only archive — so every download failed
+ * on a path that cannot exist, and `ai_models/` is excluded from the package
+ * besides. That is exactly what "the voice download fails in the Electron app"
+ * was.
+ *
+ * Voices are 20-120MB each of downloaded data belonging to this installation,
+ * which is the same thing the data folder is for, so they go next to it rather
+ * than inside it — they are not documents and nothing should try to decrypt
+ * them. PROSE_DATA_DIR moves both together.
+ */
+// Read on use, not at import: the store's folder is settled during boot, and a
+// constant captured when this module happened to load could be the default
+// rather than the one the app is actually using.
+const installDir = () => path.join(path.dirname(require('../db/Store').dir), 'voices');
 
 // The catalogue changes when someone contributes a voice, which is to say
 // almost never. A day is generous and still costs one request.
@@ -52,12 +69,12 @@ function assertSafeId(id) {
 class PiperVoices {
 
     get directory() {
-        return INSTALL_DIR;
+        return installDir();
     }
 
     /** Absolute path of the model file for a voice, installed or not. */
     pathFor(id) {
-        return path.join(INSTALL_DIR, `${assertSafeId(id)}.onnx`);
+        return path.join(installDir(), `${assertSafeId(id)}.onnx`);
     }
 
     async isInstalled(id) {
@@ -98,7 +115,7 @@ class PiperVoices {
     async installed() {
         let names;
         try {
-            names = await fsp.readdir(INSTALL_DIR);
+            names = await fsp.readdir(installDir());
         } catch (err) {
             if (err.code === 'ENOENT') return [];
             throw err;
@@ -157,7 +174,7 @@ class PiperVoices {
         const entry = (await this.catalogue()).find(v => v.id === id);
         if (!entry) throw new Error(`There is no voice called "${id}".`);
 
-        await fsp.mkdir(INSTALL_DIR, { recursive: true });
+        await fsp.mkdir(installDir(), { recursive: true });
         const model = this.pathFor(id);
 
         try {
