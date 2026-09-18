@@ -65,12 +65,95 @@ function buildMarks(view, found) {
     return builder.finish();
 }
 
+/**
+ * The right-click menu for a misspelling.
+ *
+ * Built in the page rather than handed to Electron, because the suggestions
+ * come from OUR checker: Chromium has no idea these words are wrong, so its
+ * own menu has nothing to put in. Doing it here also means the browser gets
+ * the same menu as the desktop app, which is the whole reason the underlines
+ * were moved to our dictionary in the first place.
+ */
+function showSuggestions(view, mark, at) {
+    document.querySelector('.cm-spellMenu')?.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'cm-spellMenu';
+    menu.setAttribute('role', 'menu');
+
+    const replaceWith = (word) => {
+        view.dispatch({ changes: { from: mark.from, to: mark.to, insert: word } });
+        menu.remove();
+        view.focus();
+    };
+
+    if (mark.suggestions.length) {
+        for (const suggestion of mark.suggestions) {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'cm-spellMenu__item';
+            item.setAttribute('role', 'menuitem');
+            item.textContent = suggestion;
+            item.addEventListener('click', () => replaceWith(suggestion));
+            menu.appendChild(item);
+        }
+    } else {
+        const none = document.createElement('p');
+        none.className = 'cm-spellMenu__note';
+        none.textContent = 'No suggestions';
+        menu.appendChild(none);
+    }
+
+    document.body.appendChild(menu);
+
+    // Keep it on screen: a misspelling near the right edge or the bottom would
+    // otherwise open a menu half of which cannot be reached.
+    const box = menu.getBoundingClientRect();
+    const x = Math.min(at.x, window.innerWidth - box.width - 8);
+    const y = Math.min(at.y, window.innerHeight - box.height - 8);
+    menu.style.left = `${Math.max(8, x)}px`;
+    menu.style.top = `${Math.max(8, y)}px`;
+
+    const dismiss = (event) => {
+        if (menu.contains(event.target)) return;
+        menu.remove();
+        document.removeEventListener('mousedown', dismiss);
+        document.removeEventListener('keydown', onKey);
+    };
+    const onKey = (event) => { if (event.key === 'Escape') dismiss(event); };
+
+    // Deferred, or the click that opened the menu closes it again.
+    setTimeout(() => {
+        document.addEventListener('mousedown', dismiss);
+        document.addEventListener('keydown', onKey);
+    }, 0);
+}
+
 export const liveSpelling = ViewPlugin.fromClass(class {
     constructor(view) {
         this.found = new Set();
         this.decorations = Decoration.none;
         this.timer = null;
         this.controller = null;
+
+        /*
+         * Right-click handling lives on the surface rather than on each mark:
+         * the marks are re-made on every check, and listeners attached to them
+         * would have to be re-attached with them.
+         */
+        this.onContextMenu = (event) => {
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos === null) return;
+
+            const mark = [...this.found].find(m => pos >= m.from && pos <= m.to);
+            if (!mark) return;   // not on a misspelling: leave the normal menu alone
+
+            event.preventDefault();
+            showSuggestions(view, mark, { x: event.clientX, y: event.clientY });
+        };
+        this.view = view;
+        view.dom.addEventListener('contextmenu', this.onContextMenu);
+
         this.schedule(view);
     }
 
@@ -87,10 +170,14 @@ export const liveSpelling = ViewPlugin.fromClass(class {
             if (update.docChanged) {
                 this.decorations = this.decorations.map(update.changes);
                 const moved = new Set();
-                for (const { from, to } of this.found) {
+                for (const mark of this.found) {
+                    // Spread, so the word and its suggestions travel with the
+                    // range. Mapping only from/to left the right-click menu
+                    // with nothing to offer after the first keystroke.
                     moved.add({
-                        from: update.changes.mapPos(from),
-                        to: update.changes.mapPos(to)
+                        ...mark,
+                        from: update.changes.mapPos(mark.from),
+                        to: update.changes.mapPos(mark.to)
                     });
                 }
                 this.found = moved;
@@ -140,7 +227,14 @@ export const liveSpelling = ViewPlugin.fromClass(class {
         for (const finding of data.findings || []) {
             for (const occurrence of finding.occurrences || []) {
                 const start = from + occurrence.offset;
-                found.add({ from: start, to: start + finding.word.length });
+                found.add({
+                    from: start,
+                    to: start + finding.word.length,
+                    word: finding.word,
+                    // Kept so the right-click menu has something to offer. The
+                    // server already worked these out for the Spelling scan.
+                    suggestions: finding.suggestions || []
+                });
             }
         }
 
@@ -155,6 +249,8 @@ export const liveSpelling = ViewPlugin.fromClass(class {
 
     destroy() {
         clearTimeout(this.timer);
+        this.view?.dom.removeEventListener('contextmenu', this.onContextMenu);
+        document.querySelector('.cm-spellMenu')?.remove();
         if (this.controller) this.controller.abort();
     }
 }, {
