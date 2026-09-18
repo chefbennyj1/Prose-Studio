@@ -1139,3 +1139,21 @@
     opacity: 0.5;
     font-size: 0.9em;
 }
+
+/*
+   Misspellings, underlined live.
+
+   A wavy red underline because that is what every writer already reads as "this
+   word is wrong" — the one piece of editor vocabulary that needs no learning.
+   It is drawn by us rather than by the browser: the desktop build's
+   spellchecker flags nothing, so these come from the app's own dictionary
+   through SpellService. See LiveSpelling.js.
+
+   skip-ink off, or descenders punch holes in the line and a misspelling with a
+   'g' in it looks like two shorter mistakes.
+*/
+.editor__page .cm-spellError {
+    text-decoration: underline wavy var(--danger, #dc2626);
+    text-decoration-skip-ink: none;
+    text-underline-offset: 0.18em;
+}

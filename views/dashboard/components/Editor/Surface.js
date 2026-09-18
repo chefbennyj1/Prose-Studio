@@ -46,6 +46,10 @@ import { scan as scanFlags } from './WritingFlags.js';
 // they survive a resize without being recomputed — see PageBreaks.js.
 import { pageBreakField, setPageWords as setPageWordsEffect } from './PageBreaks.js';
 
+// Red underlines as you type, from this app's dictionary rather than the
+// browser's — the desktop build does not get the browser's. See LiveSpelling.js.
+import { liveSpelling } from './LiveSpelling.js';
+
 /**
  * Tags map to class names rather than inline styles, so the appearance lives
  * in Editor.css with the rest of the editor's look instead of in here.
@@ -473,6 +477,7 @@ export function createSurface(host, options = {}) {
         // and a view plugin only sees the viewport, so every height above it
         // would be wrong.
         pageBreakField,
+        liveSpelling,
 
         placeholderExt(placeholder),
 

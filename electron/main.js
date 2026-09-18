@@ -151,6 +151,12 @@ function enableSpellchecker() {
         ses.setSpellCheckerLanguages([chosen]);
         console.log(`[Spellcheck] on, using ${chosen}`);
 
+        if (process.env.PROSE_SPELL_DEBUG) {
+            console.log(`[Spellcheck] available: ${available.length} languages`);
+            console.log(`[Spellcheck] active: ${JSON.stringify(ses.getSpellCheckerLanguages())}`);
+            console.log(`[Spellcheck] enabled: ${ses.isSpellCheckerEnabled()}`);
+        }
+
         /*
          * Chromium fetches its dictionary the first time it needs one, and
          * until that lands NOTHING is underlined — the checker is "on" and
