@@ -11,6 +11,8 @@ Your chapters are plain Markdown files in a folder you choose. Not a database,
 not a cloud account, not a proprietary format. If Prose Engine disappeared
 tomorrow, every word you wrote would still open in Notepad.
 
+![The Prose Engine editor](docs/screenshots/editor.png)
+
 ---
 
 ## What it does
@@ -31,6 +33,8 @@ It reads your whole story to do it, because that's the only way to tell "Emily"
 from an adverb, and it shows you the words it decided were character names so
 you can check its work.
 
+![The weak adverb report](docs/screenshots/weak-adverbs.png)
+
 **Overused words.** Your crutch words, with the paragraph each one is in.
 
 **The sensory scan.** Which senses a scene actually uses. Most drafts are all
@@ -39,8 +43,23 @@ sight and dialogue; this shows you where.
 **The word cloud.** What your story is about, by weight — and you can hide words
 that aren't interesting.
 
+![The word cloud](docs/screenshots/word-cloud.png)
+
 **Spelling and mechanics**, with a dictionary that learns your character names
 instead of underlining them forever.
+
+Every scan lives in one menu, and every one of these runs on your machine:
+
+![The review menu](docs/screenshots/review-menu.png)
+
+### It knows where the pages fall
+
+A hairline across the page every 250 words — standard manuscript format — with
+the page number on it, so you always know where you are. The breaks are
+attached to the words, not to the window, so they stay put when you resize.
+Nothing about them is written into your file.
+
+![Page rules in the editor](docs/screenshots/page-rules.png)
 
 ### It reads your book out loud
 
@@ -129,6 +148,8 @@ install, no configuration file to edit, and no terminal.
 
 That's it.
 
+![The first-run setup screen](docs/screenshots/setup.png)
+
 > **Where this is today:** the desktop app builds and runs, but there is no
 > published installer to download yet — you build it yourself with the command
 > below. If that sentence lost you, this isn't ready for you *quite* yet, and
@@ -178,7 +199,13 @@ npm run dev            # nodemon, port 3100
 npm run app            # the Electron app against the source tree
 npm run dist           # package installers into dist/
 npm run build:editor   # rebuild the CodeMirror bundle
+npm run screenshots    # retake the images in this README
 ```
+
+`npm run screenshots` boots a throwaway instance with its own data folder and
+its own demo story, so it cannot touch a real installation. Run it after
+changing anything the README shows — a screenshot pasted in by hand goes stale
+the moment the interface moves, and nobody ever notices.
 
 Settings live in `config.json` beside the app. `PROSE_DATA_DIR` moves the data
 folder; `PROSE_KEY_FILE` is for a portable build that keeps its key with it.
