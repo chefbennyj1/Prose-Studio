@@ -1,55 +1,54 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — 2026-09-18. **Page rules are word-anchored block widgets now**
-(`PageBreaks.js`), and each one carries the number of the page it ends.
-Verified 26 checks standalone and 14 in a real browser.
+**CLAUDE:** idle — 2026-09-18, v0.2.0. Desktop app, page rules, live spelling.
 
-- **Nothing about a page is written to the .md, and that is not negotiable.**
-  Ben asked the question directly; the answer was already in ManuscriptService,
-  which explains that a chapter is one file and pages are computed because
-  prose reflows as it is edited. A marker in the text would also have to be
-  stripped by the adverb scan, the word cloud, the spellchecker and the
-  narrator — the same in-band trap as the chapter header, and the one that
-  forgot would read "page seven" out loud.
-- **The gradient is gone.** It was painted every `--page-height` pixels, where
-  that height came from an estimate (usable width / an assumed 0.5em glyph /
-  an assumed 5.7 chars per word). Paint knows nothing about text, so a rule
-  landed wherever its pixel fell and prose sat straight across it — and there
-  was no element at the break, so nowhere to put padding OR a number.
-- **Resize needs no handling at all, which was the point.** A break belongs to
-  a document position, so rewrapping moves the words and the break travels
-  with them. The old pixel height depended on the window, so resizing moved
-  every rule while the word-based page count in the bar stayed put — the two
-  could disagree and nothing said so. Driven both ways in the browser: same
-  rules, same words, at 1400px and at 900px.
-- **The count cannot drift from the bar.** Pages are decided FIRST, from
-  ceil(words / pageWords) — the server's own arithmetic — and breaks are then
-  placed to match. The rules are a consequence of the count, not a second
-  opinion about it.
-- **`PAGE_WORDS = 250` in Editor.js is deleted.** It was a second copy held in
-  step with ManuscriptService by a comment asking people to remember. The
-  server already sends `pageWords` on /api/manuscript/read, so there is one
-  definition of a page; Editor.js keeps a fallback only for before the first
-  chapter arrives.
-- **Breaks land at paragraph boundaries**, because a block widget goes between
-  lines and a Markdown paragraph is one line. Nearest boundary to the target
-  word. A paragraph longer than a page therefore gets its rule at the end,
-  accepted deliberately: a line drawn through the middle of a sentence is a
-  worse lie than a rule a paragraph late.
-- **Small edits deliberately do NOT move the rules.** Paragraphs run ~60 words,
-  so a handful of new words leaves the same boundary nearest. Rules that
-  twitched on every keystroke would be unusable to write beside. A paragraph's
-  worth of words does move them; both are asserted.
-- **Two traps for whoever works here next.** Block widgets must come from a
-  StateField, never a ViewPlugin — a view plugin only sees the viewport, so
-  every height above it would be wrong. And `Surface.setValue` rebuilds the
-  state, which resets every StateField: the writing flags were already being
-  carried across by hand and `pageWords` now is too. Anything else configured
-  from outside has to be added there or it works until a chapter is opened.
-- **Counting rules in the DOM counts only the ones on screen.** CodeMirror
-  renders the viewport, so the browser check scrolls the chapter to collect
-  them. Two of that test's first four failures were this, not the editor.
+- **Electron's spellchecker does not work on this machine and cannot be made
+  to.** Switched on, en-US active, 57 languages available, "dictionary ready"
+  — and it flags nothing. Proved it is NOT CodeMirror by injecting a plain
+  `<textarea spellcheck="true">` containing only "recieve" and right-clicking
+  three times across the word: no misspelled word reported there either. No
+  .bdic was ever written to disk and no download-failure event fired, so it
+  never attempted a download, with or without `disable-features=
+  UseBrowserSpellChecker`. Do not spend another evening on it.
+  - Bundling a .bdic would not have helped: the checker is not missing a
+    dictionary, it is not consulting one.
+  - Underlines now come from SpellService via `LiveSpelling.js` — visible
+    lines only, debounced 600ms, marks mapped through doc changes so they do
+    not drift while a request is in flight.
+  - An Electron window has NO context menu unless one is built. Without it
+    there is no cut, copy or paste by mouse at all.
+- **Data location, and why it is not beside the .exe.** The NSIS installer is
+  per-user, so it installs into %LOCALAPPDATA%\Programs — which is writable —
+  and the old "beside the executable if writable" rule put accounts, settings
+  and the API key INSIDE the installation, where an upgrade deletes them. Only
+  the portable build keeps data beside itself, detected by
+  PORTABLE_EXECUTABLE_DIR. Verified by installing, making an account, running
+  the installer again over the top and signing back in.
+- **Voices were downloading into app.asar.** `__dirname/../../ai_models/piper`
+  cannot exist in a packaged build, and ai_models is excluded from the package
+  anyway. They go beside the data folder now, read on use rather than captured
+  at import.
+- **`aiSettingsChanged` had no dispatcher.** ReviewMenu had always listened for
+  it; nothing ever fired it. Saving a Gemini key therefore changed nothing
+  until the page was reloaded.
+- **Packaging traps:** a platform-specific `win.files` list REPLACES the common
+  `files` list rather than merging, silently dropping every exclusion. And to
+  see what is really in a package, read the asar header with @electron/asar and
+  sum the sizes — `asar list | grep` told me ai_models was excluded while it
+  was still 1.1GB of the build. 2.3GB -> 269MB once ai_models, .git and the
+  other platforms' onnxruntime binaries were dropped.
+- **EPERM renaming dist\win-unpacked** comes from deleting dist right before
+  building: Windows holds the directory pending-delete. Move it aside instead,
+  and out of the repo, or the next build packages the previous one.
+- `npm run icon` rebuilds build/icon.ico from the splash logo. The wordmark is
+  dropped deliberately — the full mark is an illegible smear at 16px.
+- `npm run screenshots` retakes every image in the README against a throwaway
+  instance with its own demo story.
+- **Unreproduced:** the reported bug where the chapter list stays empty while
+  Settings is active. Two attempts, both behaved identically with and without
+  the change made for it. Choosing a story now opens the Editor first, which
+  is the behaviour Ben asked for regardless.
 
 **CLAUDE (previous):** MongoDB is gone; the desktop app ships.
 
