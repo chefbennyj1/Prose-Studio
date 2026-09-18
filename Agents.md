@@ -1,10 +1,57 @@
 ## Agent Status
 <!-- Update your line before starting work. Clear it when done. -->
 **GEMINI:** idle
-**CLAUDE:** idle — 2026-09-17. **MongoDB is gone.** The engine stores its records
-as encrypted files in `data/` beside the app, unlocked at sign-in by the writer's
-own password. Also gone: .env, dotenv, connect-mongo, mongoose. Verified with four
-drivers, 143 checks, including a real browser run of the first-run wizard.
+**CLAUDE:** idle — 2026-09-18. **Page rules are word-anchored block widgets now**
+(`PageBreaks.js`), and each one carries the number of the page it ends.
+Verified 26 checks standalone and 14 in a real browser.
+
+- **Nothing about a page is written to the .md, and that is not negotiable.**
+  Ben asked the question directly; the answer was already in ManuscriptService,
+  which explains that a chapter is one file and pages are computed because
+  prose reflows as it is edited. A marker in the text would also have to be
+  stripped by the adverb scan, the word cloud, the spellchecker and the
+  narrator — the same in-band trap as the chapter header, and the one that
+  forgot would read "page seven" out loud.
+- **The gradient is gone.** It was painted every `--page-height` pixels, where
+  that height came from an estimate (usable width / an assumed 0.5em glyph /
+  an assumed 5.7 chars per word). Paint knows nothing about text, so a rule
+  landed wherever its pixel fell and prose sat straight across it — and there
+  was no element at the break, so nowhere to put padding OR a number.
+- **Resize needs no handling at all, which was the point.** A break belongs to
+  a document position, so rewrapping moves the words and the break travels
+  with them. The old pixel height depended on the window, so resizing moved
+  every rule while the word-based page count in the bar stayed put — the two
+  could disagree and nothing said so. Driven both ways in the browser: same
+  rules, same words, at 1400px and at 900px.
+- **The count cannot drift from the bar.** Pages are decided FIRST, from
+  ceil(words / pageWords) — the server's own arithmetic — and breaks are then
+  placed to match. The rules are a consequence of the count, not a second
+  opinion about it.
+- **`PAGE_WORDS = 250` in Editor.js is deleted.** It was a second copy held in
+  step with ManuscriptService by a comment asking people to remember. The
+  server already sends `pageWords` on /api/manuscript/read, so there is one
+  definition of a page; Editor.js keeps a fallback only for before the first
+  chapter arrives.
+- **Breaks land at paragraph boundaries**, because a block widget goes between
+  lines and a Markdown paragraph is one line. Nearest boundary to the target
+  word. A paragraph longer than a page therefore gets its rule at the end,
+  accepted deliberately: a line drawn through the middle of a sentence is a
+  worse lie than a rule a paragraph late.
+- **Small edits deliberately do NOT move the rules.** Paragraphs run ~60 words,
+  so a handful of new words leaves the same boundary nearest. Rules that
+  twitched on every keystroke would be unusable to write beside. A paragraph's
+  worth of words does move them; both are asserted.
+- **Two traps for whoever works here next.** Block widgets must come from a
+  StateField, never a ViewPlugin — a view plugin only sees the viewport, so
+  every height above it would be wrong. And `Surface.setValue` rebuilds the
+  state, which resets every StateField: the writing flags were already being
+  carried across by hand and `pageWords` now is too. Anything else configured
+  from outside has to be added there or it works until a chapter is opened.
+- **Counting rules in the DOM counts only the ones on screen.** CodeMirror
+  renders the viewport, so the browser check scrolls the chapter to collect
+  them. Two of that test's first four failures were this, not the editor.
+
+**CLAUDE (previous):** MongoDB is gone; the desktop app ships.
 
 - **services/db/** is a drop-in for the slice of mongoose this app used, so the
   models and every controller read as they always did — only the `require` line

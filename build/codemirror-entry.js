@@ -20,7 +20,7 @@
 // would style prose the way it styles code - a solid block per hit - and a
 // manuscript page wearing forty of those is measurably harder to READ, which is
 // what that surface is for. Owning the decoration is what buys the softer mark.
-export { EditorView, keymap, lineNumbers, placeholder, drawSelection, highlightActiveLine, Decoration, ViewPlugin } from '@codemirror/view';
+export { EditorView, keymap, lineNumbers, placeholder, drawSelection, highlightActiveLine, Decoration, ViewPlugin, WidgetType } from '@codemirror/view';
 export { EditorState, Compartment, StateField, StateEffect, RangeSetBuilder } from '@codemirror/state';
 export { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 // No @codemirror/language-data. It exists to syntax-highlight fenced code

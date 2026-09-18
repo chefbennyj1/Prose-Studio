@@ -42,6 +42,10 @@ import {
 // CodeMirror's, and a bare `scan` here would read as if it were CodeMirror's too.
 import { scan as scanFlags } from './WritingFlags.js';
 
+// The page rules and their numbers. Anchored to words rather than pixels, so
+// they survive a resize without being recomputed — see PageBreaks.js.
+import { pageBreakField, setPageWords as setPageWordsEffect } from './PageBreaks.js';
+
 /**
  * Tags map to class names rather than inline styles, so the appearance lives
  * in Editor.css with the rest of the editor's look instead of in here.
@@ -463,6 +467,13 @@ export function createSurface(host, options = {}) {
         // the writer types. Local regex only - see WritingFlags.js.
         flagsState,
         flagsPlugin,
+
+        // Page rules, with the page number on each. A state field rather than a
+        // view plugin because these are BLOCK widgets: they take vertical space,
+        // and a view plugin only sees the viewport, so every height above it
+        // would be wrong.
+        pageBreakField,
+
         placeholderExt(placeholder),
 
         // Ctrl/Cmd+S is muscle memory for anyone who writes, and the browser's
@@ -529,6 +540,20 @@ export function createSurface(host, options = {}) {
         toggleWrap(marker) {
             toggleWrap(view, marker);
             keepingOuterScroll(view, () => view.focus());
+        },
+
+        /**
+         * How many words the server says are on a page.
+         *
+         * Comes down with every chapter read, from ManuscriptService, so the
+         * rules drawn here and the page count in the header are the same
+         * number from the same place rather than two copies of 250 that have
+         * to be kept in step by hand.
+         */
+        setPageWords(words) {
+            const value = Number(words);
+            if (!value || value <= 0) return;
+            view.dispatch({ effects: setPageWordsEffect.of(value) });
         },
 
         /** Turn the current line into a block, or back to plain. See toggleLinePrefix. */
@@ -646,10 +671,21 @@ export function createSurface(host, options = {}) {
                  * caller of setValue to remember to re-arm the flags, which is
                  * the kind of thing that works until someone adds a second
                  * caller.
+                 *
+                 * There are TWO of these now — the flags and the words-per-page
+                 * behind the page rules — so anything else that lives in a
+                 * StateField and is configured from outside has to be added
+                 * here too, or it will work until the first chapter is opened.
                  */
                 const flags = view.state.field(flagsState, false);
+                const pageState = view.state.field(pageBreakField, false);
+
                 view.setState(EditorState.create({ doc: next, extensions }));
-                if (flags) view.dispatch({ effects: setFlagsEffect.of(flags) });
+
+                const carried = [];
+                if (flags) carried.push(setFlagsEffect.of(flags));
+                if (pageState) carried.push(setPageWordsEffect.of(pageState.pageWords));
+                if (carried.length) view.dispatch({ effects: carried });
             } finally {
                 applying = false;
             }

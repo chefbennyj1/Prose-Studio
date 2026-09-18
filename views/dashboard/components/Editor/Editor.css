@@ -370,31 +370,57 @@
 }
 
 /*
-   Page rules. A hairline every --page-height, set by the editor from the
-   250-word standard and the surface's own line-height. A repeating gradient
-   rather than measured elements: the background belongs to .cm-content, which
-   is as tall as the document, so it scrolls with the text for free.
+   Page rules.
 
-   --page-top offsets the first rule past the top padding, so rule 1 falls at
-   the end of page 1 rather than partway down it.
+   These were a repeating background gradient every --page-height pixels, where
+   that height came from an estimate of how many words fit on a line. Two things
+   were wrong with it. Paint knows nothing about text, so a rule landed wherever
+   its pixel fell and the line of prose there sat straight across it — with no
+   element at the break, there was nowhere to put breathing room and nowhere to
+   put a number. And the height depended on the WINDOW, so resizing moved every
+   rule in the chapter while the page count in the bar, being word-based, stayed
+   where it was.
+
+   They are block widgets now, placed after the word that ends each page (see
+   PageBreaks.js). Real elements between lines, which is what buys the margins
+   below and the page number — and text can no longer straddle one, because
+   there is nothing for it to straddle.
+
+   The margins are the padding asked for: a page's last line and its rule do not
+   touch, and neither do the rule and the first line of the page after it.
 */
-.editor__page .cm-content {
-    --page-height: 0px;
-    --page-top: 40px;
-    background-image: repeating-linear-gradient(to bottom,
-            transparent 0,
-            transparent calc(var(--page-height) - 1px),
-            var(--glass-border, rgba(15, 23, 42, 0.14)) calc(var(--page-height) - 1px),
-            var(--glass-border, rgba(15, 23, 42, 0.14)) var(--page-height));
-    background-position: 0 var(--page-top);
-    background-repeat: repeat-y;
+.cm-pageBreak {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 1.9em 0;
+    /* The prose is serif; this is furniture, not writing. */
+    font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", sans-serif);
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-muted, #94a3b8);
+    /* Quiet enough to ignore while writing, there when looked for. */
+    opacity: 0.75;
+    user-select: none;
 }
 
-/* Until the editor has measured, --page-height is 0 and the gradient would be
-   a solid block. Nothing to draw yet, so draw nothing. */
-.editor__page .cm-content:not([style*="--page-height"]),
-.editor__page .cm-content[style*="--page-height: 0px"] {
-    background-image: none;
+/*
+   The rule is drawn on the wrapper rather than as a border, so the label can
+   sit at the END of the line — the last thing on the page, where a footer
+   belongs — with the hairline running up to it.
+*/
+.cm-pageBreak::before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--glass-border, rgba(15, 23, 42, 0.14));
+}
+
+.cm-pageBreak__label {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .editor__page .cm-placeholder {

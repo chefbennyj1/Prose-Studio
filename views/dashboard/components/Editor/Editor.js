@@ -10,7 +10,7 @@
  *
  * A chapter is one file. Pages are NOT stored — they are worked out from the
  * word count and drawn as rules across the page, because a writer cannot know
- * where page 4 ends and should not have to. See PAGE_WORDS.
+ * where page 4 ends and should not have to. See PageBreaks.js.
  *
  * Checking runs in four tiers, in order of what each one costs:
  *   - the browser spellchecks live, for free, as you type
@@ -46,11 +46,16 @@ import { compile as compileFlags } from './WritingFlags.js';
 const AUTOSAVE_MS = 4000;
 
 /**
- * Standard manuscript format: 250 words to the page — 12pt Courier,
- * double-spaced, one-inch margins. The number publishers estimate length with.
- * Must stay in step with PAGE_WORDS in ManuscriptService.
+ * Words to the page, as reported by the server with each chapter read.
+ *
+ * This was a second copy of `250` with a comment asking whoever changed it to
+ * remember ManuscriptService as well — a constant kept in step by hand, which
+ * is a thing that works right up until it doesn't. The server already sends
+ * `pageWords` on /api/manuscript/read, so the definition of a page now lives in
+ * exactly one place and this is only what to use before the first chapter has
+ * arrived.
  */
-const PAGE_WORDS = 250;
+let pageWords = 250;
 
 // Where the writer was last time. Reopening on the blank first story every
 // session is the kind of small friction that stops people writing.
@@ -549,6 +554,15 @@ async function openChapter(chapter, fromStory) {
         );
 
         doc = { story: data.story, chapter: data.name, modified: data.modified };
+
+        // The server's definition of a page, from ManuscriptService. Set BEFORE
+        // the text, so the rules are drawn once with the right spacing rather
+        // than drawn at the fallback and then moved.
+        if (data.pageWords > 0) {
+            pageWords = data.pageWords;
+            surface.setPageWords(data.pageWords);
+        }
+
         // A different file: the undo history goes with the old one.
         surface.setValue(data.text);
         showWhere();
@@ -726,57 +740,24 @@ function drawSaveButton() {
 }
 
 /**
- * Word count, page count, and the page rules behind the text.
+ * Word count and page count for the bar.
  *
- * The rules are a repeating gradient rather than measured elements: the
- * surface has a fixed line-height, so a page is exactly linesPerPage lines
- * tall and the browser can repeat that for free. It scrolls with the text
- * because it is the textarea's own background.
+ * The rules themselves are no longer drawn from here. They are decorations
+ * inside the surface now, anchored to the words they follow — see PageBreaks.js
+ * — so they redraw when the document changes and need nothing at all when the
+ * window is resized.
  *
- * Honest about what it is: this counts EDITOR lines at this measure, which is
- * a working estimate of a 250-word manuscript page, not a typesetting proof.
+ * This count and those rules are the same arithmetic on the same number, which
+ * is the point: a rule labelled "Page 7" and a bar reading "8 pages" cannot
+ * disagree, because one is derived from the other's total.
  */
 function updateCounts() {
     const trimmed = surface.getValue().trim();
     const words = trimmed ? trimmed.split(/\s+/).length : 0;
-    const pages = Math.max(1, Math.ceil(words / PAGE_WORDS));
+    const pages = Math.max(1, Math.ceil(words / pageWords));
 
     els.words.textContent = `${words.toLocaleString()} word${words === 1 ? '' : 's'}`;
     if (els.pages) els.pages.textContent = `${pages.toLocaleString()} page${pages === 1 ? '' : 's'}`;
-
-    drawPageRules();
-}
-
-let pageRuleHeight = 0;
-
-function drawPageRules() {
-    if (!surface) return;
-
-    // .cm-content is the element that holds the text and is as tall as the
-    // document, which is what the repeating gradient needs to sit on. The old
-    // surface was the textarea itself; this is its counterpart.
-    const content = surface.view.contentDOM;
-    const style = getComputedStyle(content);
-    const lineHeight = parseFloat(style.lineHeight);
-    if (!lineHeight || Number.isNaN(lineHeight)) return;
-
-    // How many words fit on a rendered line here, from the actual measure:
-    // usable width / average glyph width, divided by average word length.
-    const usable = content.clientWidth
-        - parseFloat(style.paddingLeft || 0)
-        - parseFloat(style.paddingRight || 0);
-    if (usable <= 0) return;
-
-    const avgCharPx = parseFloat(style.fontSize) * 0.5;   // ~0.5em for a serif
-    const charsPerLine = Math.max(20, Math.floor(usable / avgCharPx));
-    const wordsPerLine = Math.max(1, charsPerLine / 5.7); // 5.7 chars incl. space
-
-    const height = Math.round((PAGE_WORDS / wordsPerLine) * lineHeight);
-    if (height === pageRuleHeight) return;
-    pageRuleHeight = height;
-
-    content.style.setProperty('--page-height', `${height}px`);
-    content.style.setProperty('--page-top', style.paddingTop);
 }
 
 /* ---------- narrator ---------- */
