@@ -339,7 +339,31 @@
     caret-color: currentColor;
 }
 
+/*
+   Paragraph spacing, and WHOSE box it is.
+
+   A Markdown paragraph break is an empty line, and that empty line is a real
+   one: full line-height, clickable, sitting exactly where the writer reads
+   "the space under the paragraph". Clicking there put the caret on the blank
+   line — correct, and baffling, because typing then began a new paragraph
+   rather than continuing the one that had just been clicked.
+
+   So the space is given to the paragraph instead. The text line carries it as
+   padding, which makes it part of the paragraph's own box, so a click just
+   under the last row of prose lands in the prose. The blank line keeps only
+   what is left. The distance between paragraphs is unchanged; what changed is
+   which line owns it.
+*/
+/* 1.25em + the blank line's 0.5em is the 29px gap paragraphs had before any of
+   this, so the page looks identical and only the clickable area moved. */
 .editor__page .cm-line {
+    padding: 0 0 1.25em;
+}
+
+.editor__page .cm-blankLine {
+    /* Small, but not zero: the caret still has to be able to sit here, and a
+       zero-height line is one a writer cannot click into at all. */
+    height: 0.5em;
     padding: 0;
 }
 

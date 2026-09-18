@@ -72,6 +72,43 @@ const proseHighlight = HighlightStyle.define([
     { tag: tags.processingInstruction, class: 'md-mark' }
 ]);
 
+/* ------------------------------------------------------------------ *
+   BLANK LINES
+
+   In Markdown a paragraph break is an empty line, and that empty line is a
+   real line: 29px tall, clickable, and sitting in the gap the writer reads as
+   "the space under the paragraph". Clicking there puts the caret on the blank
+   line — correctly, and confusingly. Typing then starts a NEW paragraph
+   instead of continuing the one that was clicked.
+
+   So the gap is moved onto the paragraph. Text lines carry the spacing as
+   their own padding, the blank line is made thin, and the total distance
+   between paragraphs is unchanged — but most of that distance now belongs to
+   the paragraph above, which is what the writer thought they were clicking.
+
+   A StateField rather than a view plugin: these change line HEIGHTS, and a
+   view plugin only sees the viewport, so every height above it would be wrong.
+ * ------------------------------------------------------------------ */
+
+const blankLine = Decoration.line({ class: 'cm-blankLine' });
+
+function markBlankLines(state) {
+    const builder = new RangeSetBuilder();
+
+    for (let n = 1; n <= state.doc.lines; n++) {
+        const line = state.doc.line(n);
+        if (!line.text.trim()) builder.add(line.from, line.from, blankLine);
+    }
+
+    return builder.finish();
+}
+
+const blankLines = StateField.define({
+    create: markBlankLines,
+    update: (value, tr) => (tr.docChanged ? markBlankLines(tr.state) : value),
+    provide: field => EditorView.decorations.from(field)
+});
+
 /** A line with nothing but whitespace on it gets no number. */
 function formatNumber(lineNo, state) {
     if (lineNo > state.doc.lines) return '';
@@ -478,6 +515,9 @@ export function createSurface(host, options = {}) {
         // would be wrong.
         pageBreakField,
         liveSpelling,
+
+        // Paragraph spacing that belongs to the paragraph. See above.
+        blankLines,
 
         placeholderExt(placeholder),
 
