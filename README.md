@@ -140,7 +140,9 @@ Your story folder is yours and is never touched by any of this.
 Prose Engine is a desktop app. You open it and write — there is no database to
 install, no configuration file to edit, and no terminal.
 
-1. Start Prose Engine.
+1. Download the installer from the
+   [Releases page](https://github.com/chefbennyj1/Prose-Studio/releases) and
+   run it.
 2. Create your account. **Save your recovery code** — the button on that screen
    writes it to a file, and it is the only way back in if you forget your
    password.
@@ -150,12 +152,28 @@ That's it.
 
 ![The first-run setup screen](docs/screenshots/setup.png)
 
-> **Where this is today:** the desktop app builds and runs, but there is no
-> published installer to download yet — you build it yourself with the command
-> below. If that sentence lost you, this isn't ready for you *quite* yet, and
-> I'd rather say so than waste your evening.
+> **Where this is today: beta.** There is an installer to download, and it
+> works — it is what I write with. But it is early, the releases are marked as
+> pre-releases for a reason, and things will still move. If you would rather
+> wait for something that has been through more hands than mine, wait.
 
-### Building the app
+### Windows will warn you
+
+The installer is not code-signed, so Windows shows **"Windows protected your
+PC"**. Choose **More info**, then **Run anyway**.
+
+That warning does not mean anything is wrong with the file — it means nobody
+has paid for a signing certificate, which costs a few hundred pounds a year.
+It is the same warning almost every small independent app produces.
+
+### Updating
+
+Download the newer installer and run it over the top. Your account, settings
+and API key are kept — they live in your user folder, not inside the app, so
+an update cannot touch them. Your manuscripts are not involved at all: they are
+files in the folder you chose.
+
+### Building it yourself instead
 
 You need [Node.js](https://nodejs.org) (the "LTS" button), then:
 
@@ -214,6 +232,8 @@ folder; `PROSE_KEY_FILE` is for a portable build that keeps its key with it.
 
 ## Status
 
-In active development, written in the evenings, and used daily on a real
+Beta, and published as pre-releases on the
+[Releases page](https://github.com/chefbennyj1/Prose-Studio/releases). In
+active development, written in the evenings, and used daily on a real
 manuscript. Things move. If something here reads like a finished product
 promise, treat it as an intention.
