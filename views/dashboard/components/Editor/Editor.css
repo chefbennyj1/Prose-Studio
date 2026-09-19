@@ -354,16 +354,30 @@
    what is left. The distance between paragraphs is unchanged; what changed is
    which line owns it.
 */
-/* 1.25em + the blank line's 0.5em is the 29px gap paragraphs had before any of
-   this, so the page looks identical and only the clickable area moved. */
+/* 0.8em + the blank line's 0.9em is the 29px gap paragraphs had before any of
+   this, so the page looks identical and only the clickable area moved.
+
+   The split was 1.25em/0.5em first, which shrank the blank line to 8px — and an
+   8px line is one nobody can reliably click into. Two of them in a row, which
+   is what pressing Enter for a new paragraph leaves behind, and a click meant
+   for either landed on the paragraph below. Trading a little of the paragraph's
+   share back buys a blank line that can still be aimed at. */
 .editor__page .cm-line {
-    padding: 0 0 1.25em;
+    padding: 0 0 0.8em;
 }
 
 .editor__page .cm-blankLine {
-    /* Small, but not zero: the caret still has to be able to sit here, and a
-       zero-height line is one a writer cannot click into at all. */
-    height: 0.5em;
+    /* line-height, NOT height.
+     *
+     * Setting `height` made the box shorter than the text row inside it, so the
+     * row overflowed and CodeMirror's coordinate maths — which follows the text,
+     * not the box — disagreed with what was on screen. Clicks near a blank line
+     * resolved to the paragraph below it, and making the box taller did not
+     * help because the box was never the thing being measured.
+     *
+     * Shrinking the line-height shrinks the row itself, so the geometry the
+     * browser paints and the geometry CodeMirror measures are the same again. */
+    line-height: 0.9em;
     padding: 0;
 }
 
