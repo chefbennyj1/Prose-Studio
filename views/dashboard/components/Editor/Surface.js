@@ -48,7 +48,7 @@ import { pageBreakField, setPageWords as setPageWordsEffect } from './PageBreaks
 
 // Red underlines as you type, from this app's dictionary rather than the
 // browser's — the desktop build does not get the browser's. See LiveSpelling.js.
-import { liveSpelling } from './LiveSpelling.js';
+import { liveSpelling, spellStory, setSpellStory } from './LiveSpelling.js';
 
 /**
  * Tags map to class names rather than inline styles, so the appearance lives
@@ -515,6 +515,7 @@ export function createSurface(host, options = {}) {
         // would be wrong.
         pageBreakField,
         liveSpelling,
+        spellStory,
 
         // Paragraph spacing that belongs to the paragraph. See above.
         blankLines,
@@ -599,6 +600,11 @@ export function createSurface(host, options = {}) {
             const value = Number(words);
             if (!value || value <= 0) return;
             view.dispatch({ effects: setPageWordsEffect.of(value) });
+        },
+
+        /** Which story the spellchecker should load custom words for. */
+        setSpellStory(story) {
+            view.dispatch({ effects: setSpellStory.of(story || '') });
         },
 
         /** Turn the current line into a block, or back to plain. See toggleLinePrefix. */
@@ -724,12 +730,14 @@ export function createSurface(host, options = {}) {
                  */
                 const flags = view.state.field(flagsState, false);
                 const pageState = view.state.field(pageBreakField, false);
+                const story = view.state.field(spellStory, false);
 
                 view.setState(EditorState.create({ doc: next, extensions }));
 
                 const carried = [];
                 if (flags) carried.push(setFlagsEffect.of(flags));
                 if (pageState) carried.push(setPageWordsEffect.of(pageState.pageWords));
+                if (story) carried.push(setSpellStory.of(story));
                 if (carried.length) view.dispatch({ effects: carried });
             } finally {
                 applying = false;

@@ -431,7 +431,20 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 1.9em 0;
+    /*
+       PADDING, NEVER MARGIN.
+
+       CodeMirror measures a block widget with getBoundingClientRect, which does
+       not include margins. With `margin: 1.9em 0` the rule occupied about 75px
+       on screen and was recorded as about 15px, so the editor's idea of where
+       every line below it sat was 60px short — and the error compounded with
+       each page. Clicking a line put the caret on the line beneath it, worse
+       the further down the chapter you were, which is exactly what it looked
+       like: a cursor that would not go where it was pointed.
+
+       Padding is inside the border box, so what is measured is what is drawn.
+    */
+    padding: 1.9em 0;
     /* The prose is serif; this is furniture, not writing. */
     font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", sans-serif);
     font-size: 0.68rem;

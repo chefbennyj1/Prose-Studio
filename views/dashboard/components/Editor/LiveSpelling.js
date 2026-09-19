@@ -38,10 +38,32 @@
  * view, exactly as the flags do.
  */
 
-import { Decoration, ViewPlugin, RangeSetBuilder } from '/libs/codemirror/codemirror.js';
+import { Decoration, ViewPlugin, RangeSetBuilder, StateField, StateEffect } from '/libs/codemirror/codemirror.js';
 
 /** Long enough that a fast typist is not checked mid-word. */
 const QUIET_MS = 600;
+
+/**
+ * Which story's dictionary to check against.
+ *
+ * SpellService keys its custom word list by story folder, so a check sent
+ * without one is checked against a dictionary that has never heard of the
+ * writer's characters — and every name they added comes back underlined. That
+ * exact bug was found and fixed once before for the Spelling scan, and the
+ * comment left on it in Editor.js is what identified it here: this file was
+ * written sending only the text.
+ */
+export const setSpellStory = StateEffect.define();
+
+export const spellStory = StateField.define({
+    create: () => '',
+    update(value, tr) {
+        for (const effect of tr.effects) {
+            if (effect.is(setSpellStory)) return effect.value || '';
+        }
+        return value;
+    }
+});
 
 const misspelled = Decoration.mark({ class: 'cm-spellError' });
 
@@ -154,6 +176,18 @@ export const liveSpelling = ViewPlugin.fromClass(class {
         this.view = view;
         view.dom.addEventListener('contextmenu', this.onContextMenu);
 
+        /*
+         * Adding a word to the dictionary should take its underline off now,
+         * not at the next keystroke. The word was added precisely because the
+         * red line was wrong, and leaving it there while the writer stares at
+         * it is the app disagreeing with itself.
+         *
+         * The server drops its cached checker when a word is added, so this
+         * re-check reads the new list.
+         */
+        this.onDictionaryChanged = () => this.check(view);
+        document.addEventListener('dictionaryChanged', this.onDictionaryChanged);
+
         this.schedule(view);
     }
 
@@ -210,7 +244,9 @@ export const liveSpelling = ViewPlugin.fromClass(class {
             const res = await fetch('/api/proofing/spell', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text }),
+                // seriesFolder is what loads the writer's own words. Without
+                // it every character name comes back as a misspelling.
+                body: JSON.stringify({ text, seriesFolder: view.state.field(spellStory, false) || '' }),
                 signal: this.controller.signal
             });
             data = await res.json();
@@ -250,6 +286,7 @@ export const liveSpelling = ViewPlugin.fromClass(class {
     destroy() {
         clearTimeout(this.timer);
         this.view?.dom.removeEventListener('contextmenu', this.onContextMenu);
+        document.removeEventListener('dictionaryChanged', this.onDictionaryChanged);
         document.querySelector('.cm-spellMenu')?.remove();
         if (this.controller) this.controller.abort();
     }

@@ -563,6 +563,11 @@ async function openChapter(chapter, fromStory) {
             surface.setPageWords(data.pageWords);
         }
 
+        // The story keys the custom dictionary, so the live underlining checks
+        // against the writer's own words rather than reporting every character
+        // name as a misspelling. Same key the Spelling scan sends.
+        surface.setSpellStory(data.story);
+
         // A different file: the undo history goes with the old one.
         surface.setValue(data.text);
         showWhere();
