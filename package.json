@@ -69,6 +69,7 @@
       "!prose.key",
       "!.git/**",
       "!ai_models/**",
+      "!voices/**",
       "!unit_tests/**",
       "!build/**",
       "!.vscode/**",
