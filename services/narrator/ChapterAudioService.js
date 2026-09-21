@@ -7,6 +7,7 @@ const Storage = require('../StorageService');
 const ManuscriptService = require('../manuscript/ManuscriptService');
 const DictionaryService = require('../proofing/DictionaryService');
 const PiperService = require('./PiperService');
+const Voices = require('./Voices');
 const { planChapter } = require('./TextPlan');
 
 /**
@@ -269,7 +270,7 @@ class ChapterAudioService {
                 segment.cached = false;
             }
 
-            const audio = await PiperService.speak(voice, segment.text, { lengthScale, speaker });
+            const audio = await Voices.speak(voice, segment.text, { lengthScale, speaker });
             sampleRate = audio.sampleRate;
 
             // Written to a temporary name first: a half-written wav that

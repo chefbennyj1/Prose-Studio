@@ -6,6 +6,10 @@ const ChapterAudioService = require('../services/narrator/ChapterAudioService');
 const ExportService = require('../services/narrator/ExportService');
 const GeminiVoice = require('../services/narrator/GeminiVoiceService');
 
+// Which engine speaks which voice. Piper is fast and flat, Kokoro is slow and
+// good; the voice id decides. See Voices.js.
+const Voices = require('../services/narrator/Voices');
+
 /**
  * NarratorController
  *
@@ -37,21 +41,16 @@ function fail(res, err, where, status = 400) {
  */
 exports.getVoices = async (req, res) => {
     try {
-        const installed = await PiperVoices.installed();
-
-        let catalogue = [];
-        let catalogueError = null;
-        try {
-            catalogue = await PiperVoices.catalogue();
-        } catch (err) {
-            catalogueError = err.message;
-        }
+        // Both engines. Voices.catalogue keeps them independent, so an
+        // unreachable Piper index does not hide the Kokoro voices with it.
+        const installed = await Voices.installed();
+        const { voices, error } = await Voices.catalogue();
 
         res.json({
             ok: true,
             installed,
-            voices: catalogue.map(v => ({ ...v, installed: installed.includes(v.id) })),
-            catalogueError
+            voices: voices.map(v => ({ ...v, installed: installed.includes(v.id) })),
+            catalogueError: error
         });
     } catch (err) {
         fail(res, err, 'getVoices', 500);
@@ -67,7 +66,7 @@ exports.installVoice = async (req, res) => {
     const io = req.app.locals.io;
 
     try {
-        const result = await PiperVoices.install(id, (percent) => {
+        const result = await Voices.install(id, (percent) => {
             io?.emit('narrator:voice-progress', { id, percent });
         });
         io?.emit('narrator:voice-installed', { id });
@@ -80,8 +79,8 @@ exports.installVoice = async (req, res) => {
 
 exports.removeVoice = async (req, res) => {
     try {
-        await PiperService.unload(req.params.id);
-        res.json({ ok: true, ...(await PiperVoices.remove(req.params.id)) });
+        await Voices.unload(req.params.id);
+        res.json({ ok: true, ...(await Voices.remove(req.params.id)) });
     } catch (err) {
         fail(res, err, 'removeVoice');
     }
@@ -93,7 +92,7 @@ exports.removeVoice = async (req, res) => {
  */
 exports.getSpeakers = async (req, res) => {
     try {
-        res.json({ ok: true, speakers: await PiperVoices.speakers(req.params.id) });
+        res.json({ ok: true, speakers: await Voices.speakers(req.params.id) });
     } catch (err) {
         fail(res, err, 'getSpeakers');
     }
@@ -103,6 +102,21 @@ exports.getSpeakers = async (req, res) => {
 exports.getPhonemes = async (req, res) => {
     const { voice, text } = req.query;
     try {
+        /*
+         * Piper only, deliberately. Phonemes are how a Piper voice is taught to
+         * say a name, and Kokoro has no equivalent knob — it takes text and
+         * decides for itself. Saying so plainly beats an error from inside the
+         * engine that reads like a fault.
+         */
+        if (Voices.isKokoro(voice)) {
+            return res.json({
+                ok: true,
+                phonemes: [],
+                unsupported: true,
+                message: 'Kokoro voices work from the words themselves, so there are no phonemes to adjust. Pick a Piper voice to tune a pronunciation.'
+            });
+        }
+
         res.json({ ok: true, phonemes: await PiperService.phonemesFor(voice, text || '') });
     } catch (err) {
         fail(res, err, 'getPhonemes');
@@ -142,7 +156,7 @@ exports.say = async (req, res) => {
         }
 
         const scale = Number(lengthScale);
-        const audio = await PiperService.speak(voice, words2, {
+        const audio = await Voices.speak(voice, words2, {
             lengthScale: Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : undefined,
             speaker: Number(speaker) || 0
         });
